@@ -82,29 +82,6 @@ npm start            # 默认 http://127.0.0.1:8080/admin
 > `corepack enable`（Node 自带）或 `npm i -g pnpm`。装不上时最典型的报错是
 > `pnpm: command not found`。
 
-### 更新已有工作区：`git pull` 之后必须重装 + 重建
-
-`node_modules/` 与 `public/*.js` 都是**产物**、不入库（见 `.gitignore`）。
-所以拉新代码后**光 `git pull` 不够** —— 那两个产物仍是旧的，会与代码不一致。
-
-```bash
-git pull
-npm install       # 让 node_modules 跟上 lockfile（上游可能换了 commit）
-npm run build     # 让 public/*.js 跟上上游客户端产物
-```
-
-> ⚠️ **漏掉这两步的症状很隐蔽**：管理界面能打开、但**渠道列表缺项**
-> （例如新版上游加了「聚合 (跨渠道)」，界面却不显示），或者测试报
-> `provider 列表与期望不一致`。实测踩过一次：`git pull` 后直接跑测试，
-> 3 条失败，根因就是 `node_modules` 停在旧版上游、`public/` 停在旧产物。
->
-> 判断产物是否过期：
->
-> - `node_modules/dsh-codearts-auth/lib/` 里应有该版本新增的文件
->   （例：`aggregate-adapter.js`）
-> - `public/upstream-jet-hub.js` 的**改动时间**应晚于 `node_modules` 里
->   `lib/client/jet-hub.js`；否则说明 `npm run build` 没跑过
-
 ## 配置
 
 ### 环境变量
@@ -219,32 +196,6 @@ docker run -d --name codearts2api \
 ```
 
 `CODEARTS2API_HOME=/data` 已由镜像设好并声明为 `VOLUME`；**不挂卷则容器重建后账号会丢**。
-
-#### 构建耗时与验证（实测）
-
-镜像约 **242MB**，各步骤耗时（arm64 macOS + Docker Desktop）：
-
-| 步骤                                  | 耗时  | 说明                                             |
-| ------------------------------------- | ----- | ------------------------------------------------ |
-| `apt-get install git ca-certificates` | ~140s | 视网络而定                                       |
-| `corepack prepare pnpm@11.25.0`       | ~1s   |                                                  |
-| `npm install --include=dev`           | ~45s  | 含从 gitee 克隆上游 + 跑其 `prepare` 编译 `lib/` |
-| `npm run build`                       | ~0.2s | 前端产物                                         |
-
-容器**实测跑通**：契约核对通过、`/admin` 200、`/v1/models` 8 个模型、
-无 Key 401、真实推理有正常回复、数据落 `/data`、SIGTERM 优雅退出。
-
-> 💡 **两个构建环境坑**（与 Dockerfile 无关，但很常见）：
->
-> 1. **别用 `docker build ... | tail -N`** —— 管道缓冲会让你长时间看不到任何输出，
->    容易误判成卡死。用 `docker build --progress=plain ... > build.log 2>&1 &` 再看日志。
-> 2. **`docker.io` 可能被限速**（实测约 1MB/分钟，拉 28MB 基础镜像要半小时）。
->    可先从国内镜像源拉取再打标签，让 `FROM` 命中本地缓存：
->    ```bash
->    docker pull docker.m.daocloud.io/library/node:22-slim
->    docker tag  docker.m.daocloud.io/library/node:22-slim node:22-slim
->    ```
->    确认 digest 一致后再构建（镜像源给的是同一镜像，`docker tag` 不会换掉内容）。
 
 > ⚠️ `-p 8080:8080` 会把**无鉴权的管理接口**一起暴露。公网部署务必在反代上加访问控制，
 > 或改为只监听回环再由反代转发。
