@@ -2,7 +2,7 @@
 node_modules
 
 # ── 上游代码的产物：**必须忽略** ──
-# 这两个文件是上游（gitee.com/iJetLi/deepseek-harness-codearts）代码的拷贝或
+# 这两个文件是上游（github.com/iJetLi/dsh-providers-hub）代码的拷贝或
 # 打包结果，不是本仓库的代码。上游 README 明确要求「不要转发到 GitHub」，
 # 因此绝不能提交它们 —— 本仓库只通过 package.json 的 git 依赖引用上游。
 #   · upstream-jet-hub.js = 上游 lib/client/jet-hub.js 的原样拷贝

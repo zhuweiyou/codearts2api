@@ -3,7 +3,7 @@
  *
  * ## 它做什么
  *
- * 1. 查上游 `deepseek-harness-codearts` 的 `master` 最新 commit；
+ * 1. 查上游 `dsh-providers-hub` 的 `master` 最新 commit；
  * 2. **hash 没变就直接跳过**（不装、不构建、不改文件、不提交）—— 这是最重要的一条，
  *    每天定时任务绝大多数时候都会走到这里；
  * 3. 有更新则：改 `package.json` → `npm install` → `npm run build` → 跑测试 →
@@ -31,9 +31,9 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..")
-const UPSTREAM_URL = "https://gitee.com/iJetLi/deepseek-harness-codearts.git"
+const UPSTREAM_URL = "https://github.com/iJetLi/dsh-providers-hub.git"
 const UPSTREAM_BRANCH = "master"
-const DEP_NAME = "dsh-codearts-auth"
+const DEP_NAME = "dsh-providers-hub"
 
 /**
  * 自动升级 commit 的署名。
@@ -321,7 +321,7 @@ if (!lockedResolved.endsWith(latestHash)) {
   restoreManifests()
   fail(
     `package-lock.json 里记的还是旧 commit：\n  期望结尾：${latestHash}\n  实际是：${lockedResolved}\n` +
-      "（lock 静默沿用了旧版本。手工修：把两个文件的 hash 都改成新的，然后 rm -rf node_modules/dsh-codearts-auth && npm install）",
+      "（lock 静默沿用了旧版本。手工修：把两个文件的 hash 都改成新的，然后 rm -rf node_modules/dsh-providers-hub && npm install）",
   )
   process.exit(1)
 }

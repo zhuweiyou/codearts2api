@@ -1,6 +1,6 @@
 # codearts2api
 
-把 [`deepseek-harness-codearts`](https://gitee.com/iJetLi/deepseek-harness-codearts) 的
+把 [`dsh-providers-hub`](https://github.com/iJetLi/dsh-providers-hub) 的
 **Jet Hub 多渠道账号管理**与**本机 OpenAI 网关**搬到独立后端运行，**不依赖 DSH 宿主**，
 面向自建服务与容器部署。
 
@@ -83,10 +83,11 @@ npm start            # 默认 http://127.0.0.1:8080/admin
 
 打开 <http://127.0.0.1:8080/admin> 即可看到与 DSH 里一致的 Jet Hub 界面。
 
-> ⚠️ `npm install` 会从 gitee 拉取上游并执行它的 `prepare`（`pnpm build:all`），
-> 因为上游的 `lib/` **不入库**、必须现场编译。所以**先确保 pnpm 可用**：
-> `corepack enable`（Node 自带）或 `npm i -g pnpm`。装不上时最典型的报错是
-> `pnpm: command not found`。
+> ⚠️ `npm install` 会从 GitHub 拉取上游并执行它的 `prepare`（`tsc` + 两个 node 脚本，
+> 现场编译 `lib/`），因为上游的 `lib/` **不入库**、必须现场编译。
+> 早先的版本 `prepare` 是 `pnpm build:all`、需要本机有 pnpm；上游已改为不依赖任何
+> 包管理器，所以**现在不再需要预装 pnpm**。若在旧 commit 上安装，仍需
+> `corepack enable` 或 `npm i -g pnpm`。
 
 > ⚠️ **pnpm 11 的「新包冷却期」会让上游发布后 24 小时内的安装失败。**
 > pnpm 11 默认拒绝装上「发布不足 24 小时」的包，而上游会把它刚发布的 DSH 基础包
@@ -387,8 +388,8 @@ server {
 `...:19283/...`）；② **在本机**建隧道
 `ssh -L 19283:127.0.0.1:19283 user@your-server`；③ 打开那个 `loginUrl` 完成授权。
 
-**无需隧道**的渠道：`qoder` / `qodercn` / `cline`（设备码轮询）、`buddy` / `workbuddy`
-（轮询）、`opencode`（可直接粘贴 `sk-` key）、`astudio`（导入本机桌面端会话，见下）。
+**无需隧道**的渠道：`qoder` / `qodercn` / `cline`（设备码轮询）、`opencode`
+（可直接粘贴 `sk-` key）、`astudio`（导入本机桌面端会话，见下）。
 
 #### AStudio 的特殊之处：登录靠**导入本机会话**，不是 OAuth
 
@@ -503,7 +504,7 @@ curl -H "Authorization: Bearer $KEY" -H 'content-type: application/json' \
 #### 为什么不支持外部 `image_url`（设计说明）
 
 **现状：拒绝**（`unsupported_content`）。这是**上游硬编码**的行为，本项目无法通过配置
-打开 —— 见 `deepseek-harness-codearts/src/openai-gateway/images.ts`：
+打开 —— 见 `dsh-providers-hub/src/openai-gateway/images.ts`：
 
 ```ts
 if (typeof url === "string" && !url.trim().startsWith("data:")) {
@@ -580,7 +581,7 @@ git 依赖引入。
 
 | 包                                                                                                | 分类              | 谁在用                               |
 | ------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------ |
-| `@deepseek-ai/cordis`、`dsh-llm`、`dsh-credentials`、`dsh-credentials-local`、`dsh-codearts-auth` | `dependencies`    | **服务器进程运行期**真正 `import`    |
+| `@deepseek-ai/cordis`、`dsh-llm`、`dsh-credentials`、`dsh-credentials-local`、`dsh-providers-hub` | `dependencies`    | **服务器进程运行期**真正 `import`    |
 | `esbuild`                                                                                         | `devDependencies` | 只在 `npm run build` 时运行          |
 | `react`、`react-dom`                                                                              | `devDependencies` | 只在构建期作为输入被读取；产物已内联 |
 | `jsdom`                                                                                           | `devDependencies` | 只在 `npm test` 里模拟浏览器 DOM     |
@@ -674,7 +675,7 @@ CHANGELOG.md       变更记录（新的在最前面）
 
 历次变更记在 [`CHANGELOG.md`](CHANGELOG.md)（**新的在最前面**）—— 上游每个版本改了什么、本仓库验证结果。本节说明它的组织方式、与上游的耦合面，以及升级流程。
 
-「上游升级」条目记录的是 [`deepseek-harness-codearts`](https://gitee.com/iJetLi/deepseek-harness-codearts)
+「上游升级」条目记录的是 [`dsh-providers-hub`](https://github.com/iJetLi/dsh-providers-hub)
 依赖的更新。本项目的核心特色是**薄胶水** —— 上游改业务逻辑时我们通常 **0 行代码改动**，
 这些条目就是历次验证。
 
@@ -694,7 +695,7 @@ CHANGELOG.md       变更记录（新的在最前面）
 我们与上游的**代码**耦合只有一处：
 
 ```js
-import * as plugin from "dsh-codearts-auth" // src/host.js 唯一的一行
+import * as plugin from "dsh-providers-hub" // src/host.js 唯一的一行
 ```
 
 其余全靠 cordis 的注入机制与 HTTP 转发。因此上游常见的改动类型（新增渠道、修协议、
@@ -751,8 +752,8 @@ GitHub Actions 因此会发失败通知邮件。
 **1. 查上游最新 commit**
 
 ```bash
-git ls-remote https://gitee.com/iJetLi/deepseek-harness-codearts.git refs/heads/master
-# 输出形如：6fc1f61523df915166dae20922d05689ae7eccba  refs/heads/master
+git ls-remote https://github.com/iJetLi/dsh-providers-hub.git refs/heads/master
+# 输出形如：<40 位 commit hash>  refs/heads/master
 ```
 
 本地有 clone 的话，也可以 `git fetch origin` 后
@@ -762,7 +763,7 @@ git ls-remote https://gitee.com/iJetLi/deepseek-harness-codearts.git refs/heads/
 
 ```bash
 NEW=<第 1 步拿到的 commit>
-npm install "dsh-codearts-auth@git+https://gitee.com/iJetLi/deepseek-harness-codearts.git#$NEW" \
+npm install "dsh-providers-hub@git+https://github.com/iJetLi/dsh-providers-hub.git#$NEW" \
   --include=dev --no-audit --no-fund
 ```
 
@@ -770,8 +771,8 @@ npm install "dsh-codearts-auth@git+https://gitee.com/iJetLi/deepseek-harness-cod
 > `resolved`，只改 `package.json` 再 `npm install` 会**静默沿用 lock 里的旧 commit**
 > （只输出 `added 1 package`、不报错），看起来升级了、实际没有。
 >
-> 若已发生这种情况，两个文件都改成新 commit 后 `rm -rf node_modules/dsh-codearts-auth && npm install`。
-> 升级后务必核对：`node -e "console.log(require('./package-lock.json').packages['node_modules/dsh-codearts-auth'].resolved)"`
+> 若已发生这种情况，两个文件都改成新 commit 后 `rm -rf node_modules/dsh-providers-hub && npm install`。
+> 升级后务必核对：`node -e "console.log(require('./package-lock.json').packages['node_modules/dsh-providers-hub'].resolved)"`
 
 `npm install` 会重新 clone 上游并跑它的 `prepare`（`pnpm build:all`）现场编译 `lib/` ——
 所以要**确保 pnpm 可用**（`corepack enable`）。
@@ -788,7 +789,7 @@ npm install "dsh-codearts-auth@git+https://gitee.com/iJetLi/deepseek-harness-cod
 > 不含该键的 userconfig：
 >
 > ```bash
-> npm install "dsh-codearts-auth@git+…#$NEW" --include=dev --no-audit --no-fund \
+> npm install "dsh-providers-hub@git+…#$NEW" --include=dev --no-audit --no-fund \
 >   --userconfig /tmp/clean-npmrc      # 内容只需一行 registry=…
 > ```
 >
@@ -849,7 +850,7 @@ source、页头「网关」开关能开关。
 **回滚**
 
 ```bash
-npm install "dsh-codearts-auth@git+https://gitee.com/iJetLi/deepseek-harness-codearts.git#<旧commit>" --include=dev
+npm install "dsh-providers-hub@git+https://github.com/iJetLi/dsh-providers-hub.git#<旧commit>" --include=dev
 npm run build && npm test
 ```
 
@@ -859,5 +860,5 @@ npm run build && npm test
 查当前锁定版本：
 
 ```bash
-node -e "console.log(require('./package.json').dependencies['dsh-codearts-auth'])"
+node -e "console.log(require('./package.json').dependencies['dsh-providers-hub'])"
 ```

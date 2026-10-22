@@ -2,7 +2,7 @@
   "name": "codearts2api",
   "version": "0.1.0",
   "private": true,
-  "description": "把 deepseek-harness-codearts 的 Jet Hub 多渠道管理 + OpenAI 网关搬到独立后端（不依赖 DSH 宿主）",
+  "description": "把 dsh-providers-hub 的 Jet Hub 多渠道管理 + OpenAI 网关搬到独立后端（不依赖 DSH 宿主）",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -25,7 +25,7 @@
     "@deepseek-ai/dsh-credentials": "0.2.1-rc.2",
     "@deepseek-ai/dsh-credentials-local": "0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
-    "dsh-codearts-auth": "git+https://gitee.com/iJetLi/deepseek-harness-codearts.git#b0940cace56c9da9e0467a96c60b5fa4a358a20a"
+    "dsh-providers-hub": "git+https://github.com/iJetLi/dsh-providers-hub.git#70d1d64760565098cd6ab2e6c595d46f08e42c64"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

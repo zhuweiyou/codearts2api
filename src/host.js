@@ -60,7 +60,7 @@ import LocalCredentialProvider from "@deepseek-ai/dsh-credentials-local"
 import LlmRuntime from "@deepseek-ai/dsh-llm"
 import { connect } from "node:net"
 import { join } from "node:path"
-import * as plugin from "dsh-codearts-auth"
+import * as plugin from "dsh-providers-hub"
 
 import { createConnection } from "./connection.js"
 import { pinHome } from "./home.js"

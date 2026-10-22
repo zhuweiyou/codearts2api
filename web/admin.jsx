@@ -3,7 +3,7 @@
  *
  * ## 核心思路：直接复用上游打包好的 `JetHubPage`
  *
- * 上游插件的浏览器端产物（`dsh-codearts-auth/client` → `lib/client/jet-hub.js`）
+ * 上游插件的浏览器端产物（`dsh-providers-hub/client` → `lib/client/jet-hub.js`）
  * 是 esbuild 全量打包的 CJS，**只 external 了 `react` 与 `react-dom`**，并且
  * 以 DSH 的 `window.__ModuleLoader__.load({ id, factory })` 形态发布：
  *
@@ -19,8 +19,16 @@
  * 3. 用一个**桩 ctx** 调它的 `apply()`，从 `slots.register` 里把
  *    `settings.section` 的组件捞出来，再用真实的 `rpcCall` 渲染。
  *
- * 第 3 步的桩 ctx 只需三个成员（`effect` / `slots` / `connection`）—— 这正是
- * 上游客户端的全部宿主依赖面。
+ * 第 3 步的桩 ctx 提供 `effect` / `slots` / `connection` / `inject` /
+ * `modelDirectories` —— 这是上游客户端的全部宿主依赖面（`modelDirectories`
+ * 只被 `conversation.input.right` 的用量徽标用到，本页不渲染那个槽，故给个
+ * 调用即抛的替身即可，避免将来上游改用它时静默拿到 undefined）。
+ *
+ * ⚠️ `ctx.inject` 是**必填**：上游 `registerJetHubSidebarEntry` 里会调
+ * `ctx.inject(["layout"], …)` 挂侧栏入口。缺了它，`apply` 直接抛
+ * `ctx.inject is not a function`，整页白屏（2026-10-22 升级到 dsh-providers-hub
+ * 时踩过）。本页只渲染 `settings.section`，侧栏那套与本页无关，故实现为
+ * 「立即用空 services 回调一次」，让上游那段代码正常走完即可。
  *
  * ## 为什么 UI 更新不需要改这里的代码
  *
@@ -87,11 +95,28 @@ function loadUpstreamPage() {
   })
 
   let page = null
-  // 桩 ctx：上游客户端的宿主依赖面只有这三个。
+  // 桩 ctx：上游客户端的宿主依赖面（effect / slots / connection / inject /
+  // modelDirectories）。缺任何一个，上游 `apply` 都可能直接抛。
   upstream.apply({
     // `apply` 里用 effect 装了全局样式。真 DSH 会传入 disposer 语义的清理器，
     // 这里直接执行：本页面只加载一次，不需要撤销。
     effect: (body) => body(),
+    // ⚠️ **必填**：上游 `registerJetHubSidebarEntry` 会调
+    //    `ctx.inject(["layout"], (scoped) => …)` 挂侧栏入口。
+    //    本页只渲染 `settings.section`，侧栏与本页无关 —— 直接以空 services
+    //    回调一次，让上游那段代码走完、不抛即可（它只读 `scoped.layout`，
+    //    拿到 undefined 后所有逻辑都被 `?.` 短路掉）。
+    inject: (_deps, callback) => {
+      callback({})
+      return () => {}
+    },
+    // 同上：`conversation.input.right` 的用量徽标会读它。本页不渲染那个槽，
+    // 但上游 `apply` 期可能触碰，故给显式失败的替身而非 undefined。
+    modelDirectories: {
+      directoryFor() {
+        throw new Error("本宿主不提供 ctx.modelDirectories（/admin 不渲染会话槽位）")
+      },
+    },
     slots: {
       inject: (_name, callback) => callback(),
       register: (options, component) => {

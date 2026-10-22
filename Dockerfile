@@ -10,7 +10,7 @@
 #    26 要到 2026-10-28 才转 Active LTS（EOL 2029-04-30），届时可再升。
 FROM node:24-slim
 
-# git：npm 要从 gitee 克隆依赖；ca-certificates：TLS 根证书。
+# git：npm 要从 GitHub 克隆依赖；ca-certificates：TLS 根证书。
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/*

@@ -4,7 +4,7 @@
  * 产出两个文件到 `public/`：
  *
  * 1. `upstream-jet-hub.js` —— **直接拷贝**上游已打包好的浏览器产物
- *    （`dsh-codearts-auth/client`）。它只 external 了 react/react-dom，
+ *    （`dsh-providers-hub/client`）。它只 external 了 react/react-dom，
  *    由页面用 script 标签先加载、把 `{id, factory}` 截留下来。
  *    这里刻意不重新打包它：上游 bundle 内部有大量自包含逻辑（图标、
  *    样式、表单），重打包只会引入漂移。
@@ -31,7 +31,7 @@ mkdirSync(publicDirectory, { recursive: true })
 // 声明的实际路径（`./lib/client/jet-hub.js`），不硬编码内部布局。
 const { createRequire } = await import("node:module")
 const require = createRequire(import.meta.url)
-const upstreamBundle = require.resolve("dsh-codearts-auth/client")
+const upstreamBundle = require.resolve("dsh-providers-hub/client")
 copyFileSync(upstreamBundle, join(publicDirectory, "upstream-jet-hub.js"))
 console.log(`[build] 已拷贝上游客户端产物 → public/upstream-jet-hub.js`)
 
