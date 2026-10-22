@@ -3,7 +3,7 @@
  *
  * ## 它做什么
  *
- * 1. 查上游 `dsh-providers-hub` 的 `master` 最新 commit；
+ * 1. 查上游 `dsh-providers-hub` 的 `main` 最新 commit；
  * 2. **hash 没变就直接跳过**（不装、不构建、不改文件、不提交）—— 这是最重要的一条，
  *    每天定时任务绝大多数时候都会走到这里；
  * 3. 有更新则：改 `package.json` → `npm install` → `npm run build` → 跑测试 →
@@ -31,8 +31,8 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..")
-const UPSTREAM_URL = "https://github.com/iJetLi/dsh-providers-hub.git"
-const UPSTREAM_BRANCH = "master"
+const UPSTREAM_URL = "https://github.com/zhuweiyou/dsh-providers-hub.git"
+const UPSTREAM_BRANCH = "main"
 const DEP_NAME = "dsh-providers-hub"
 
 /**
@@ -327,6 +327,17 @@ if (!lockedResolved.endsWith(latestHash)) {
 }
 log("package-lock.json 的 resolved 已核对一致 ✓")
 
+// ⚠️ npm 11 会把 GitHub 的 git 依赖在 lock 里**规范化成 `git+ssh://git@github.com/…`**，
+//    而手工装的时候用的其实还是原来的 https —— 也就是说这个 ssh 写法纯属「写回去的
+//    格式」，但**下一次干净安装会照着它走 ssh**：CI / Docker 里没有 SSH 私钥，直接
+//    clone 失败。所以每次升级后都把 lock 里的写法改回 https 再提交。
+const lockText = readFileSync(lockPath, "utf8")
+const lockAsHttps = lockText.replaceAll("git+ssh://git@github.com/", "git+https://github.com/")
+if (lockAsHttps !== lockText) {
+  writeFileSync(lockPath, lockAsHttps, "utf8")
+  log("已把 package-lock.json 里的 git+ssh 写法改回 git+https（npm 11 的规范化，CI 无密钥会失败）")
+}
+
 // ── ⑤ 重建前端产物 ──
 
 try {
@@ -370,7 +381,15 @@ function upstreamCommitTitles(from, to) {
     run("git", ["clone", "--quiet", "--filter=blob:none", "--no-checkout", UPSTREAM_URL, cloneDir], {
       stdio: ["ignore", "pipe", "inherit"],
     })
-    const output = run("git", ["log", "--format=%s", "--no-merges", `${from}..${to}`], { cwd: cloneDir })
+    // ⚠️ 上游若**重写历史**（force-push / 重新打一次 release commit），我们锁的旧 hash
+    //    就不在分支上了，`from..to` 这段区间无从比较（git 报 unknown revision）。
+    //    此时退回「只取最新那一个 commit 的标题」，别让整个升级因此失败。
+    let output
+    try {
+      output = run("git", ["log", "--format=%s", "--no-merges", `${from}..${to}`], { cwd: cloneDir })
+    } catch {
+      output = run("git", ["log", "--format=%s", "--no-merges", "-1", to], { cwd: cloneDir })
+    }
     return (
       output
         .split("\n")

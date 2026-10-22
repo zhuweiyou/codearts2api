@@ -7,6 +7,37 @@
 ---
 
 <details open>
+<summary><b>2026-10-22 · 上游换源到 <code>zhuweiyou/dsh-providers-hub</code>（<code>main</code> / 2.0.261022）</b></summary>
+
+## 上游换源
+
+依赖从 `github.com/iJetLi/dsh-providers-hub`（`master`，`70d1d64`，版本 `0.2.1-rc.2`）换成
+`github.com/zhuweiyou/dsh-providers-hub`（`main`，`19c1ccf`，版本 `2.0.261022`）。
+
+### 改了什么
+
+- `package.json` / `package-lock.json`：依赖指向新仓库与新 commit。**包名与导出契约没变**
+  （仍叫 `dsh-providers-hub`，`./client` → `lib/client/jet-hub.js`），所以 `src/host.js` 的
+  `import` 与 `build.mjs` 的 `require.resolve` **0 行改动**。
+- `scripts/upgrade-upstream.mjs`：`UPSTREAM_URL` / `UPSTREAM_BRANCH` 跟着换（`master` → `main`），
+  另加两处稳健性：
+
+  - 升级后把 lock 里被 npm 11 规范化出来的 `git+ssh://git@github.com/…` 写回 `git+https://…`
+    —— ssh 写法在 CI / Docker 里没有私钥，干净安装会直接失败；
+  - 上游若重写历史（force-push），锁的旧 commit 不在分支上、`from..to` 取标题会报
+    unknown revision —— 退回只记最新一个 commit 的标题，不再让升级整体失败。
+
+- `README.md` / `.gitignore`：文档里的仓库链接、`git ls-remote` 示例与分支名（`main`）同步。
+
+### 验证
+
+- `npm install` → `npm run build` → `npm test`（36 条全绿）→ `npm run lint` → `npm run format:check`，全部通过；
+- 启动契约日志照旧：`上游契约核对通过：/api/jet-hub, /api/jet-hub/captcha-carrier`；
+- `node scripts/upgrade-upstream.mjs --dry-run` 能读到 `main` 的 head，并据此判定「没有新 commit」。
+
+</details>
+
+<details>
 <summary><b>2026-10-21 · 上游升级 <code>b0940ca</code>（自动升级）</b></summary>
 
 ## 上游升级
