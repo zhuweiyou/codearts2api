@@ -7,6 +7,20 @@
 ---
 
 <details open>
+<summary><b>2026-10-23 · 上游升级 <code>c80b13c</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `19c1ccff1cd0e1e40b4350b2b27f7c0dcd3af017` 更新到 `c80b13cb51d911a0ec8839fbc59ad277914ea874`。
+
+### 上游改动
+
+- docs: README 渠道逐个列出并加头图
+- feat: 同步上游非 buddy 改动（opencode key 闸 / 积分并发 / 折算预算） (#1)
+
+</details>
+
+<details>
 <summary><b>2026-10-22 · 上游换源到 <code>zhuweiyou/dsh-providers-hub</code>（<code>main</code> / 2.0.261022）</b></summary>
 
 ## 上游换源
