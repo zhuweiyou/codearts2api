@@ -36,6 +36,20 @@ const UPSTREAM_BRANCH = "main"
 const DEP_NAME = "dsh-providers-hub"
 
 /**
+ * DSH 基础包的包名前缀。
+ *
+ * ⚠️ 这些包的版本**必须整族一致**，原因是它们互相之间是**精确** peer
+ *    （`dsh-commands@0.2.1-rc.2` 硬要 `dsh-llm@0.2.1-rc.2`），而上游 hub 对它们的
+ *    peer 范围是**一串旧版本或起来**（`^0.1.2-rc.1 || … || ^0.2.1-rc.2`）。
+ *    npm 装 peer 时取的是「范围内**最新**」那一版 ⇒ 只要 DSH 发了新 rc，
+ *    装进来就是「一半新、一半旧」，直接 ERESOLVE（2026-10-24 那次定时任务就是这么挂的：
+ *    `dsh-commands` 没在根依赖里钉，npm 自己装了 rc.3，而根依赖钉的是 rc.2）。
+ *
+ *    所以**凡是被上游列为必需 peer 的基础包，都必须在 `package.json` 里显式钉住**。
+ */
+const BASE_PACKAGE_PREFIX = "@deepseek-ai/dsh-"
+
+/**
  * 自动升级 commit 的署名。
  *
  * ⚠️ 与 `.github/workflows/upgrade-upstream.yml` 里的 git 配置**必须一致** ——
@@ -263,6 +277,32 @@ if (dryRun) {
   process.exit(0)
 }
 
+/** 根依赖里钉住的 DSH 基础包，返回 `name@version` 列表（用于报错时当场摊开）。 */
+function pinnedBasePackages() {
+  return Object.entries(packageJson.dependencies ?? {})
+    .filter(([name]) => name.startsWith(BASE_PACKAGE_PREFIX))
+    .map(([name, version]) => `${name}@${version}`)
+}
+
+/**
+ * 扫 `package-lock.json`，收集每个 `@deepseek-ai/dsh-*` 的实际安装版本。
+ *
+ * 用来兜住「不报错、但装歪了」的情况：npm 偶尔能把版本不同的基础包**都装下来**
+ * （各自满足各自的 peer），听起来能跑，实际是两套互不相认的实例 ——
+ * 典型症状是「服务明明装了、`ctx.get()` 却拿不到」。
+ */
+function installedBaseVersions() {
+  const lockNow = JSON.parse(readFileSync(lockPath, "utf8"))
+  const versions = new Map()
+  for (const [key, entry] of Object.entries(lockNow.packages ?? {})) {
+    const match = /node_modules\/(@deepseek-ai\/dsh-[^/]+)$/.exec(key)
+    if (!match) continue
+    if (!versions.has(match[1])) versions.set(match[1], new Set())
+    versions.get(match[1]).add(entry.version)
+  }
+  return versions
+}
+
 // ── ④ 改 package.json 并安装 ──
 //
 // ⚠️ **顺序很重要**：先把原文件内容备份起来，失败时**回滚**，别留下半成品状态。
@@ -310,6 +350,17 @@ try {
 } catch (error) {
   restoreManifests()
   fail("npm install 失败（上游仓库拉取或编译出错？）", error)
+  // ⚠️ 把「基础包版本打架」这个最常见的原因**当场摊开**，别让人对着 ERESOLVE 的一坨
+  //    依赖树猜。判定见上面 BASE_PACKAGE_PREFIX 的注释：上游放宽 peer 范围后，npm
+  //    会自动装「范围内最新」的那一版，与本仓库钉住的版本对不上。
+  log("当前根依赖钉住的 DSH 基础包：")
+  for (const spec of pinnedBasePackages()) log(`  · ${spec}`)
+  log(
+    "若报错是 ERESOLVE / peer 冲突：上游把 DSH 基础包的 peer 范围放宽后，npm 会自己装" +
+      "「范围内最新」的那一版（只钉 rc.2、却装进 rc.3 的 dsh-commands 就是这么来的），" +
+      "与本仓库钉的版本打架。修法：把上游列为**必需 peer**、而本仓库没钉的基础包补进" +
+      "package.json，并**钉到与其它基础包同一个版本**，然后重跑本脚本。",
+  )
   process.exit(1)
 }
 
@@ -326,6 +377,29 @@ if (!lockedResolved.endsWith(latestHash)) {
   process.exit(1)
 }
 log("package-lock.json 的 resolved 已核对一致 ✓")
+
+// ⚠️ **基础包整族同版本自检**：装完立刻验，不等到运行时才露馅。
+//
+//    上一步的 ERESOLVE 是「打架到装不上」，这里防的是「没打架、但装了两套」：
+//    不同版本的基础包各自满足各自的精确 peer 时会**共存**，看着装成功了，
+//    实际是两个互不相认的实例（`ctx.get('llm')` 拿到 null 这类怪症状）。
+{
+  const versions = installedBaseVersions()
+  const distinct = [...new Set([...versions.values()].flatMap((set) => [...set]))]
+  if (distinct.length > 1) {
+    const detail = [...versions].map(([name, set]) => `  · ${name}：${[...set].join(" / ")}`).join("\n")
+    fail(
+      `DSH 基础包装成了多个版本（必须整族一致）：\n${detail}\n` +
+        "这通常是「上游把它列为 peer、而本仓库没钉住」的包被 npm 装成了最新版。修法：\n" +
+        "  · 把上面出现两个版本的那个包补进 package.json，钉到与其它基础包同一个版本；\n" +
+        "  · 然后 rm -rf node_modules package-lock.json && npm install（干净重装再验一次）。",
+    )
+    process.exit(1)
+  }
+  if (distinct.length === 1) {
+    log(`DSH 基础包整族同版本 ✓（${distinct[0]}，共 ${versions.size} 个）`)
+  }
+}
 
 // ⚠️ npm 11 会把 GitHub 的 git 依赖在 lock 里**规范化成 `git+ssh://git@github.com/…`**，
 //    而手工装的时候用的其实还是原来的 https —— 也就是说这个 ssh 写法纯属「写回去的

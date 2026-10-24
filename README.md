@@ -579,12 +579,23 @@ git 依赖引入。
 代码一起打进 `public/admin.js`（自带 React 运行时、无外部 `require`）。运行期
 （`node src/index.js`）**不加载 react**，只是把这份静态文件发给浏览器。
 
-| 包                                                                                                | 分类              | 谁在用                               |
-| ------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------ |
-| `@deepseek-ai/cordis`、`dsh-llm`、`dsh-credentials`、`dsh-credentials-local`、`dsh-providers-hub` | `dependencies`    | **服务器进程运行期**真正 `import`    |
-| `esbuild`                                                                                         | `devDependencies` | 只在 `npm run build` 时运行          |
-| `react`、`react-dom`                                                                              | `devDependencies` | 只在构建期作为输入被读取；产物已内联 |
-| `jsdom`                                                                                           | `devDependencies` | 只在 `npm test` 里模拟浏览器 DOM     |
+| 包                                                                                                | 分类              | 谁在用                                |
+| ------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------- |
+| `@deepseek-ai/cordis`、`dsh-llm`、`dsh-credentials`、`dsh-credentials-local`、`dsh-providers-hub` | `dependencies`    | **服务器进程运行期**真正 `import`     |
+| `@deepseek-ai/dsh-attachment`、`dsh-attachment-local`                                             | `dependencies`    | 图片输入的地基（上游 `ctx.get` 取用） |
+| `@deepseek-ai/dsh-commands`                                                                       | `dependencies`    | **没人 `import`**，纯粹为「钉住版本」 |
+| `esbuild`                                                                                         | `devDependencies` | 只在 `npm run build` 时运行           |
+| `react`、`react-dom`                                                                              | `devDependencies` | 只在构建期作为输入被读取；产物已内联  |
+| `jsdom`                                                                                           | `devDependencies` | 只在 `npm test` 里模拟浏览器 DOM      |
+
+> ⚠️ `@deepseek-ai/dsh-commands` 是**故意**列在依赖里的，虽然本项目的 `commands` 服务
+> 只是个空对象（见上表）。它出现在这里只为**挡住 npm 的自动 peer 安装**：
+> 上游把 `dsh-commands` 列为必需 peer，本仓库不钉它，npm 就会自己装「匹配范围内最新」
+> 的那一版；而 DSH 基础包之间是**精确** peer（`dsh-commands@0.2.1-rc.3` 硬要
+> `dsh-llm@0.2.1-rc.3`）⇒ 新旧混装，`npm install` 直接 ERESOLVE。
+>
+> 所以规矩是：**`@deepseek-ai/dsh-*` 必须整族同版本**，凡是上游列为必需 peer 的基础包
+> 都要在 `package.json` 里钉住（升级脚本装完会自检，不一致就红）。
 
 > ⚠️ 注意：`npm run build` **需要** devDependencies。若构建环境设了
 > `NODE_ENV=production`，`npm install` 会默认跳过它们、构建直接失败 —— 故 Dockerfile 里
@@ -735,14 +746,16 @@ GitHub Actions 因此会发失败通知邮件。
 （**只防删、不防增**），渠道总数与渠道文案都**不写死**。上游新增渠道时，
 本仓库的测试与文档**零改动**（这正是当初把它们改成单向断言的原因）。
 
-| 脚本步骤                  | 失败时说明                                       | 怎么办                                                      |
-| ------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
-| `npm install`             | 上游拉取或编译出错                               | 看日志；多半是上游刚发版触发了 pnpm 的「新包冷却期」        |
-| `package-lock.json` 核对  | lock 静默沿用了旧 commit                         | 脚本会自动回滚，照错误信息里的命令手工处理                  |
-| `npm run build`           | 上游产物形态变了（`./client` 导出路径不同）      | 对照 [README 上游契约表](#升级时需要改多少代码)             |
-| `npm test`                | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖） | 按报错改 `src/upstream.js` 的常量或 `web/admin.jsx` 的 shim |
-| `npm run lint` / `format` | 本仓库代码风格问题                               | `npm run format` 修                                         |
-| `git commit`              | 权限或并发冲突                                   | 看 Actions 日志                                             |
+| 脚本步骤                    | 失败时说明                                                                     | 怎么办                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `npm install`               | 上游拉取或编译出错                                                             | 看日志；多半是上游刚发版触发了 pnpm 的「新包冷却期」                                        |
+| `npm install`（ERESOLVE）   | DSH 基础包**新旧混装**：上游放宽了 peer 范围，npm 自动装了「范围内最新」的一版 | 把没钉的基础包补进 `dependencies` 并钉到**与其它基础包同一版本**（见[依赖划分](#依赖划分)） |
+| `DSH 基础包整族同版本` 自检 | 没打架但装了两套（不同版本共存）                                               | 同上；修完 `rm -rf node_modules package-lock.json && npm install`                           |
+| `package-lock.json` 核对    | lock 静默沿用了旧 commit                                                       | 脚本会自动回滚，照错误信息里的命令手工处理                                                  |
+| `npm run build`             | 上游产物形态变了（`./client` 导出路径不同）                                    | 对照 [README 上游契约表](#升级时需要改多少代码)                                             |
+| `npm test`                  | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                               | 按报错改 `src/upstream.js` 的常量或 `web/admin.jsx` 的 shim                                 |
+| `npm run lint` / `format`   | 本仓库代码风格问题                                                             | `npm run format` 修                                                                         |
+| `git commit`                | 权限或并发冲突                                                                 | 看 Actions 日志                                                                             |
 
 **回滚**：自动升级的 commit 是**一个** commit 里包含依赖变更 + CHANGELOG 条目，
 `git revert <那个 commit>` 即可整体回退；也可以照下面的手工流程装回旧 commit。

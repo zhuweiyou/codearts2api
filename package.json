@@ -22,10 +22,11 @@
     "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/dsh-attachment": "0.2.1-rc.2",
     "@deepseek-ai/dsh-attachment-local": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-commands": "0.2.1-rc.2",
     "@deepseek-ai/dsh-credentials": "0.2.1-rc.2",
     "@deepseek-ai/dsh-credentials-local": "0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
-    "dsh-providers-hub": "github:zhuweiyou/dsh-providers-hub#c80b13cb51d911a0ec8839fbc59ad277914ea874"
+    "dsh-providers-hub": "github:zhuweiyou/dsh-providers-hub#4bc539e6d32b40e2741706633acf55bb19881ab3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

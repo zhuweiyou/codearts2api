@@ -7,6 +7,34 @@
 ---
 
 <details open>
+<summary><b>2026-10-24 · 上游升级 <code>4bc539e</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `c80b13cb51d911a0ec8839fbc59ad277914ea874` 更新到 `4bc539e6d32b40e2741706633acf55bb19881ab3`。
+
+### 上游改动
+
+- 同步上游 (#4)
+- 更新上游 (#3)
+- feat: buddy 成长任务全链路补全 + 网关「允许局域网访问」开关（2.2.261023） (#2)
+
+### 本仓库改动（顺带修好当天的定时任务失败）
+
+第一次自动升级挂在 `npm install`（ERESOLVE）：DSH 基础包互相之间是**精确** peer，
+而上游只把它们写成宽松范围的必需 peer，npm 自动装 peer 时取「范围内最新」⇒
+10-23 发布 `0.2.1-rc.3` 之后，唯一没在根依赖里钉住的 `dsh-commands` 被装成 rc.3，
+与钉住的 rc.2 打架。
+
+- `package.json`：补钉 `@deepseek-ai/dsh-commands@0.2.1-rc.2` —— 挡住 npm 的自动 peer 安装。
+  基础包仍**整族停在 rc.2**：上游 `4bc539e` 自己的 `pnpm-lock.yaml` 就是 rc.2，跟上游一致最稳。
+- `scripts/upgrade-upstream.mjs`：装完自检「基础包整族同版本」，不一致直接红；`npm install`
+  失败时把 ERESOLVE 的成因与修法当场打出来。
+- `README.md`：依赖划分补两行，失败处置表补「ERESOLVE」与「整族同版本」两种情形。
+
+</details>
+
+<details>
 <summary><b>2026-10-23 · 上游升级 <code>c80b13c</code>（自动升级）</b></summary>
 
 ## 上游升级
