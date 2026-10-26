@@ -7,6 +7,60 @@
 ---
 
 <details open>
+<summary><b>2026-10-26 · 上游换回 <code>iJetLi/dsh-providers-hub</code>（<code>master</code> / <code>758a20b</code>）</b></summary>
+
+## 上游换源
+
+依赖从 `github.com/zhuweiyou/dsh-providers-hub`（`main`，`4bc539e`，版本 `2.4.261024`）换回
+`github.com/iJetLi/dsh-providers-hub`（`master`，`758a20b`，版本 `0.2.1-rc.2`）。
+
+### 为什么换
+
+`zhuweiyou/dsh-providers-hub` 只是**同步副本**（6 个 commit，最后一笔停在 10-24），
+`iJetLi` 那个才是持续开发的正源（换源时比副本多 970 个 commit）。两个仓库
+**没有共同祖先**（不是 fork），所以换源时 commit 区间无从比较。
+
+### 改了什么
+
+- `package.json` / `package-lock.json`：依赖指向新仓库与新 commit。
+  **包名与导出契约没变**（仍叫 `dsh-providers-hub`，`./client` → `lib/client/jet-hub.js`），
+  所以 `src/host.js` 的 `import` 与 `build.mjs` 的 `require.resolve` **0 行改动**。
+- `scripts/upgrade-upstream.mjs`：`UPSTREAM_URL` 换新仓、`UPSTREAM_BRANCH` 改 `master`
+  —— ⚠️ **这个仓库的默认分支是 `master`，没有 `main`**；分支名写错时 `git ls-remote`
+  会成功但返回空，定时任务会一直报「上游 ls-remote 没有返回 … 分支」。
+- `README.md`：上游链接、`git ls-remote` 示例与手工升级命令里的地址/分支名同步。
+  （`ghcr.io/zhuweiyou/codearts2api` 那些是**本仓库自己**的镜像，与本上游无关，未动。）
+
+### 上游新增的宿主依赖（本次要改代码的地方）
+
+换源后上游 bundle 的宿主依赖面变了，`web/admin.jsx` 跟着做了三处适配：
+
+- **多 `require` 了一个模块**：`@deepseek-ai/dsh-client-ui-primitives`，只用到 `Menu`
+  与 `IconChevronDownOutlineRegular` 两个导出。**没有**把这个包装进来 —— 它的
+  `lib/index.js` 顶层就 `import` 了 shiki / katex / mdast 一整条 markdown + 高亮链路
+  （连带 `.woff` / `.ttf` 字体，esbuild 会直接报「No loader is configured for .woff」），
+  为两个组件不值得；而且它用的是 CSS Module，发布产物里类名对象全是 `{}`，样式本来就
+  由宿主样式表提供，我们独立页面拿到的只会是空类名。故按本文件一贯策略给了**等价的最小替身**。
+- **`connection.rpc.call` 必须真能调通**：上游 `apply` 里会 `loadPanelEntry(rpcCall)`
+  读「面板入口」偏好，读不到就退回默认值；而默认值是「仅侧栏」⇒ `settings.section`
+  **不注册**。原先这里是「调用即抛」的替身，症状是「上游未注册 settings.section」白屏。
+- **整页组件改为 `main` 优先**：新版上游把 `settings.section` 改成**条件注册**
+  （只有偏好为 `settings` 时才注册），`main` 才是无条件注册的。现在两个都收，
+  优先 `main`，`settings.section` 兜底。
+
+> 顺带说明：上游 `apply` 里仍会走它自己的侧栏注册逻辑（`ctx.inject(["layout"])`），
+> 我们给的仍是空 services 回调让它不抛；本页**不注册** `sidebar.panellist` 槽，
+> 所以独立页面里不会出现任何侧栏 UI。
+
+### 验证
+
+- `npm install` → `npm run build` → `npm test`（36 条全绿）→ `npm run lint` → `npm run format:check`，全部通过；
+- 启动契约日志照旧：`上游契约核对通过：/api/jet-hub, /api/jet-hub/captcha-carrier`，24 个渠道齐全；
+- `node scripts/upgrade-upstream.mjs --dry-run` 能读到新上游 `master` 的 head。
+
+</details>
+
+<details>
 <summary><b>2026-10-24 · 上游升级 <code>4bc539e</code>（自动升级）</b></summary>
 
 ## 上游升级

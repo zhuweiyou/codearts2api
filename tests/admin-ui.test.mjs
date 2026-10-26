@@ -251,17 +251,25 @@ test("真实 admin.html 的脚本位置正确（DOM 就绪后才执行）", asyn
 
 test("上游 bundle 只请求我们 shim 能提供的模块", () => {
   // 这条断言守住「复用」的前提：`web/admin.jsx` 里的 `captured.factory(require)`
-  // 只认 react / react-dom。上游若引入**第三个** external（比如某个 UI 库），
-  // factory 会抛「未预期的模块」，界面白屏 —— 那时得同步改 shim。
+  // 只认 react / react-dom / 宿主 UI 原子库（后者是我们自己写的最小替身）。
+  // 上游若引入**新的** external（比如又一个 UI 库），factory 会抛「未预期的模块」，
+  // 界面白屏 —— 那时得同步改 shim。
   //
   // ⚠️ 断言的是**子集**而不是精确集合：上游可以不再需要 react-dom。
   //    实际发生过（2026-10-03 升级）：新版上游把 react-dom 收进内部，
   //    bundle 只剩 `require("react")`，而界面照常渲染 —— 因为**挂载是我们的
   //    入口做的**（`web/admin.jsx` 的 createRoot / createPortal）。
   //    写死 `['react','react-dom']` 会让这种「上游做了减法」的升级误报失败。
+  //
+  // ⚠️ 2026-10-26（换源回 iJetLi）上游新增了
+  //    `@deepseek-ai/dsh-client-ui-primitives`：只用到 `Menu` 与
+  //    `IconChevronDownOutlineRegular` 两个导出。我们**不装那个包**（它会拖进
+  //    shiki / katex / mdast 一整条链，还有字体文件让 esbuild 直接报错），
+  //    而是按本文件一贯策略在 `web/admin.jsx` 里给了等价替身 —— 所以它现在是
+  //    「shim 能提供」的模块之一。
   const bundle = readFileSync(join(root, "public/upstream-jet-hub.js"), "utf8")
   const required = [...new Set([...bundle.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]))]
-  const supported = ["react", "react-dom"]
+  const supported = ["react", "react-dom", "@deepseek-ai/dsh-client-ui-primitives"]
   for (const name of required) {
     assert.ok(
       supported.includes(name),

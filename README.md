@@ -1,6 +1,6 @@
 # codearts2api
 
-把 [`dsh-providers-hub`](https://github.com/zhuweiyou/dsh-providers-hub) 的
+把 [`dsh-providers-hub`](https://github.com/iJetLi/dsh-providers-hub) 的
 **Jet Hub 多渠道账号管理**与**本机 OpenAI 网关**搬到独立后端运行，**不依赖 DSH 宿主**，
 面向自建服务与容器部署。
 
@@ -686,7 +686,7 @@ CHANGELOG.md       变更记录（新的在最前面）
 
 历次变更记在 [`CHANGELOG.md`](CHANGELOG.md)（**新的在最前面**）—— 上游每个版本改了什么、本仓库验证结果。本节说明它的组织方式、与上游的耦合面，以及升级流程。
 
-「上游升级」条目记录的是 [`dsh-providers-hub`](https://github.com/zhuweiyou/dsh-providers-hub)
+「上游升级」条目记录的是 [`dsh-providers-hub`](https://github.com/iJetLi/dsh-providers-hub)
 依赖的更新。本项目的核心特色是**薄胶水** —— 上游改业务逻辑时我们通常 **0 行代码改动**，
 这些条目就是历次验证。
 
@@ -765,18 +765,21 @@ GitHub Actions 因此会发失败通知邮件。
 **1. 查上游最新 commit**
 
 ```bash
-git ls-remote https://github.com/zhuweiyou/dsh-providers-hub.git refs/heads/main
-# 输出形如：<40 位 commit hash>  refs/heads/main
+git ls-remote https://github.com/iJetLi/dsh-providers-hub.git refs/heads/master
+# 输出形如：<40 位 commit hash>  refs/heads/master
 ```
 
+> ⚠️ 上游默认分支叫 **`master`**（这仓库没有 `main`）。写错分支名时 `git ls-remote`
+> 会**成功但输出空**，升级脚本于是报「上游 ls-remote 没有返回 … 分支」。
+
 本地有 clone 的话，也可以 `git fetch origin` 后
-`git log --oneline <当前锁的commit>..origin/main` 看这次改了什么。
+`git log --oneline <当前锁的commit>..origin/master` 看这次改了什么。
 
 **2. 更新依赖（⚠️ 别只改 package.json）**
 
 ```bash
 NEW=<第 1 步拿到的 commit>
-npm install "dsh-providers-hub@git+https://github.com/zhuweiyou/dsh-providers-hub.git#$NEW" \
+npm install "dsh-providers-hub@git+https://github.com/iJetLi/dsh-providers-hub.git#$NEW" \
   --include=dev --no-audit --no-fund
 ```
 
@@ -863,7 +866,7 @@ source、页头「网关」开关能开关。
 **回滚**
 
 ```bash
-npm install "dsh-providers-hub@git+https://github.com/zhuweiyou/dsh-providers-hub.git#<旧commit>" --include=dev
+npm install "dsh-providers-hub@git+https://github.com/iJetLi/dsh-providers-hub.git#<旧commit>" --include=dev
 npm run build && npm test
 ```
 

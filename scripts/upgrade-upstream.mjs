@@ -3,7 +3,7 @@
  *
  * ## 它做什么
  *
- * 1. 查上游 `dsh-providers-hub` 的 `main` 最新 commit；
+ * 1. 查上游 `dsh-providers-hub` 的 `master` 最新 commit；
  * 2. **hash 没变就直接跳过**（不装、不构建、不改文件、不提交）—— 这是最重要的一条，
  *    每天定时任务绝大多数时候都会走到这里；
  * 3. 有更新则：改 `package.json` → `npm install` → `npm run build` → 跑测试 →
@@ -31,8 +31,21 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..")
-const UPSTREAM_URL = "https://github.com/zhuweiyou/dsh-providers-hub.git"
-const UPSTREAM_BRANCH = "main"
+/**
+ * 上游仓库与分支。
+ *
+ * ⚠️ **默认分支是 `master`，不是 `main`** —— 这个仓库没有 `main`。
+ *    写错分支名时 `git ls-remote` 会**成功但返回空**，于是每次定时任务都报
+ *    「上游 ls-remote 没有返回 … 分支」；别照抄 GitHub 网页上的 URL 习惯去猜。
+ *
+ * ⚠️ 换源历史（别再换回去）：
+ *    `iJetLi/dsh-providers-hub`（`master`）是本仓库的**正源**；
+ *    2026-10-22 曾短暂指向 `zhuweiyou/dsh-providers-hub`（`main`，只有 6 个 commit 的
+ *    同步副本），2026-10-26 换回。两个仓库**没有共同祖先**（不是 fork，是各自独立的历史），
+ *    所以换源时 commit 区间无从比较，升级脚本会退化成「只记最新一个 commit 的标题」。
+ */
+const UPSTREAM_URL = "https://github.com/iJetLi/dsh-providers-hub.git"
+const UPSTREAM_BRANCH = "master"
 const DEP_NAME = "dsh-providers-hub"
 
 /**
