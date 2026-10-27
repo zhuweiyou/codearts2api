@@ -7,6 +7,27 @@
 ---
 
 <details open>
+<summary><b>2026-10-27 · 上游升级 <code>239a7ee</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `758a20bc4e711ff4f5e3abf85780c685679c88d8` 更新到 `239a7ee0e55a8d5a8392635bfbae0b939b031307`。
+
+### 上游改动
+
+- fix(autoclaw,client): 修 PR #152/#153 审计打穿的 P0 与守卫缺口
+- fix(gateway): 修对抗审计打穿的 P0/P1/P2（IKQODR 整改）
+- test(autoclaw): mock 里的 token 改成低熵 stub —— 别让构造样例长得像密钥
+- fix(autoclaw): 领积分前先刷新 token —— 服务端把「签发 token」当「登录」，活动奖励只在那之后发
+- fix(gateway): 换绑失败必须重试，不留「网关无监听」状态（IKQODR 自查）
+- fix(gateway): 正常结束不再补发失败帧 + 换绑不砍在途（Gitee IKQODR）
+- fix(gateway): 宽限窗口轮询 closeIdleConnections，不再必然强制断开（Issue #11 收尾）
+- fix(gateway): close() 挂死 121s + 收敛泄漏实例 + 启动失败静默（Issue #11）
+- feat(client): Jet Hub 账号页重排 —— 按钮归位 / 图标体系 / 页头固定
+
+</details>
+
+<details>
 <summary><b>2026-10-26 · 上游换回 <code>iJetLi/dsh-providers-hub</code>（<code>master</code> / <code>758a20b</code>）</b></summary>
 
 ## 上游换源
