@@ -26,7 +26,7 @@
     "@deepseek-ai/dsh-credentials": "0.2.1-rc.2",
     "@deepseek-ai/dsh-credentials-local": "0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
-    "dsh-providers-hub": "github:iJetLi/dsh-providers-hub#239a7ee0e55a8d5a8392635bfbae0b939b031307"
+    "dsh-providers-hub": "github:iJetLi/dsh-providers-hub#4f582d7233636d935b9796322bdcbbf7a746350f"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -7,6 +7,31 @@
 ---
 
 <details open>
+<summary><b>2026-10-28 · 上游升级 <code>4f582d7</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `239a7ee0e55a8d5a8392635bfbae0b939b031307` 更新到 `4f582d7233636d935b9796322bdcbbf7a746350f`。
+
+### 上游改动
+
+- fix(codearts): 「已下架」判据必须确认拿到全量目录（补 PR159 第 5 项缺口）
+- fix(expiry-sync): 终态错误类型改由调用方注入，九家续期落盘失败才真的报终态
+- fix(tencent-fingerprint): 登记 DSH `@` 文件引用说明句，修 buddy 每轮 400/11128
+- fix(codearts): 修 PR156 审计打穿的 3 个 P1 + 版本号不暴露 + 测试污染
+- fix(client): 面板入口偏好首读超时改为有界重试 —— 冷启动不再永久降级「仅侧栏」
+- fix(minimax): 测试环境拒写真实用户目录的 refresh-journal（附实证污染）
+- fix(autoclaw,minimax): 自审补两处 —— refresh() 丢失的副作用、403 口径分叉
+- fix(codearts): 续期静默死号 + 目录三处缺陷（IKQY27 / IKQ2QI 相关）
+- fix(autoclaw,minimax): 第二轮审计打穿的 P0/P1 全修 + 补齐无牙守卫
+- fix(autoclaw,minimax): 修 PR154/PR155 审计打穿的 P0/P1 —— 终态判据结构化、单飞去重、巡检回收、续错号、CAS、抢救链
+- fix(codearts): benefit 头判据只认远端集合，自愈以「本轮真带头」为前提（IKQ2QI）
+- fix(autoclaw): 补 401 按需续期这条缺失的腿（两站各一）—— options.refresh 此前从未注入，401 不续期不重发被归 AUTH，客户端替换成「API 密钥无效」；加 2 条守卫 + 变异验证 M1/M2/M3
+- feat(minimax): 续期机制重构 —— 定时批量轮换改为按需 + 60s 错峰巡检
+
+</details>
+
+<details>
 <summary><b>2026-10-27 · 上游升级 <code>239a7ee</code>（自动升级）</b></summary>
 
 ## 上游升级
