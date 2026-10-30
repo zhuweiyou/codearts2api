@@ -7,6 +7,24 @@
 ---
 
 <details open>
+<summary><b>2026-10-30 · 上游升级 <code>6fa7472</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `4f582d7233636d935b9796322bdcbbf7a746350f` 更新到 `6fa74723d42ff605d1de349589c21a1ac4eb7ba2`。
+
+### 上游改动
+
+- fix(magicrew): account.list 自愈回填昵称（已存在账号不必重新登录）
+- feat(magicrew): 接入超级麦吉（Magicrew）provider
+- test(client): 补 5 条被 PR157/PR158 审计打穿的守卫牙口
+- fix(client): 修 PR158 审计打穿的 lockTitle 语义 + 4 处注释失真
+- fix(client): 修设置页积分行越界重叠，重写锁定积分文案
+- feat(client): 美化聚合页模型列表 —— 候选行拆四格 / 展开态高亮 / svg 箭头
+
+</details>
+
+<details>
 <summary><b>2026-10-28 · 上游升级 <code>4f582d7</code>（自动升级）</b></summary>
 
 ## 上游升级
