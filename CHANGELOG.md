@@ -7,6 +7,48 @@
 ---
 
 <details open>
+<summary><b>2026-10-31 · 上游升级 <code>eb09210</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `6fa74723d42ff605d1de349589c21a1ac4eb7ba2` 更新到 `eb09210423ace12edf4e2793a4c3780386a2f63f`。
+
+### 上游改动
+
+- fix(deploy): 复审修正 —— standalone 产物检测双层失效 + -env 解析期回归
+- fix(deploy): 审计修正 —— P0 symlink 逃逸 + P1×5 部署链 + P2×3 注册/核验（2026-10-31 审计）
+- fix(codearts): 图片能力审计修正 —— AgentCenter 通道灌入 + 空集不清空 + 冲突残留清理
+- fix(codearts): 图片能力改读远端 supports_images；analyzeImage 挂载改判「专用 VL」——cherry-pick 自 PR #27
+- feat(deploy): Windows 服务器部署（引导式/离线式产物 + 本地执行器 + 产物同步）——cherry-pick 自 PR #27
+- fix(buddy): 第五族 11140 的 displayTips.zh 必须到达用户眼前
+- test(zcode,codearts): 对抗审计补牙（P1×2 + P2×4）+ flake 修复 + 注释纠偏
+- test(zcode): M6 补牙 —— picked 出参腿（report→selection.accountId）砍掉时既有用例全绿，补行为级断言
+- feat(zcode): 按 DSH sessionId 做账号负载均衡（会话亲和 + 随机分摊，含面板开关）
+- fix(modelscope): classifyModelscopeError 同批 P1 修复补提交 —— 401/403 先判 auth（上一提交中该文件被 M7b 复验的 checkout 误回滚）
+- fix(qiniu,modelscope): 修对抗审计 P1 —— 401/403 先判 auth（认证故障不得放大成封池）+ 5 处守卫补牙
+- test(audit): 对抗审计收编 —— 20 组变异 19 有牙 + 1 结构性无牙登记，三个动态探针转正式守卫
+- docs(qiniu): 修审计查出的 P2 —— 模块头「兜底表刻意置空」注释与代码（77 条快照）自相矛盾
+- fix(merge): 合并收尾 —— 计数断言对齐 25 家 + opencode Bun 指纹传输加单测闸门（wreq-js 在装得到的机器上绕过网络桩真打上游）
+- feat(codearts): 出站字段按 IDE 抓包对齐 + 修 AgentCenter 两处字段名缺陷
+- fix(workbuddy): 客户端版本 5.5.2 → 5.9.4 + 登记 11140 的「账号被限制」第五族
+- docs(buddy): 补齐「版本取自 genieVersion」的反编译实证 + WorkBuddy 实测值 5.8.4
+- fix(buddy): CodeBuddy IDE 版本 1.106.1 → 4.12.2（X-IDE-Version + UA 同步）
+- fix(buddy): 身份句改漂移容忍匹配 + 登记「逗号」民间修法的实测结论
+- fix(codearts,magicrew): 第二轮审计 —— 修 3 个承重处 + 补 8 处无牙守卫
+- fix(codearts,magicrew): 第二轮自查 —— 修安全集漏字符 + 代码页解错 + 移除死字段
+- fix(codearts,magicrew): 修 PR!161/!162 四路审计查出的 14 个真缺陷 + 补 23 处无牙守卫
+- fix(magicrew): 支持便携版浏览器导入与登录导航
+- docs(qiniu): 补 README 渠道表与能力要点、新增 providers-qiniu.md、登记 AGENTS.md 索引
+- fix(qiniu): 修审计查出的两处静默缺陷（非法 credentialRef / 超限不触发压缩）
+- feat(qiniu): 接入七牛云 provider 及其模型（第 16 家）
+- feat(codearts): 接入 AgentCenter 动态窗口源，静态表降为冷缓存兜底
+- fix(opencode): 内置工具整套发送 + UA 对齐 v2 通道
+- fix(modelscope): 兜底表认日期快照后缀，修 -1017 被误判为纯文本（Issue #12）
+- fix(opencode): 免费通道按传输层指纹被拒 —— 补 Bun TLS 指纹与官方形态提示词
+
+</details>
+
+<details>
 <summary><b>2026-10-30 · 上游升级 <code>6fa7472</code>（自动升级）</b></summary>
 
 ## 上游升级
