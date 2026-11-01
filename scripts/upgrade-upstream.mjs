@@ -65,12 +65,13 @@ const BASE_PACKAGE_PREFIX = "@deepseek-ai/dsh-"
 /**
  * 自动升级 commit 的署名。
  *
- * ⚠️ 与 `.github/workflows/upgrade-upstream.yml` 里的 git 配置**必须一致** ——
- *    否则本机跑出来的 commit 与 CI 跑出来的署名不同，看着像两个人干的。
- *    用「机器人」名而不是个人名，是为了在提交历史里一眼看出是自动升级。
+ * ⚠️ 用**标准 GitHub Actions 机器人**身份（`github-actions[bot]` + 其专用 noreply 邮箱），
+ *    这样 GitHub 会把它当成官方 bot 提交（头像、`bot` 标记、跳过部分通知），
+ *    历史里也一眼能看出是自动升级。
+ *    邮箱里的 `41898282` 是 GitHub Actions bot 的固定 user id，不要改。
  */
-const BOT_NAME = "upgrade-bot"
-const BOT_EMAIL = "upgrade-bot@users.noreply.github.com"
+const BOT_NAME = "github-actions[bot]"
+const BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com"
 
 const args = new Set(process.argv.slice(2))
 const dryRun = args.has("--dry-run")
