@@ -664,13 +664,13 @@ CHANGELOG.md       变更记录（新的在最前面）
 
 工作流：`.github/workflows/upgrade-upstream.yml`。
 
-| 项       | 值                                                                                                 |
-| -------- | -------------------------------------------------------------------------------------------------- |
-| 定时     | 每天 **北京时间 08:08**（cron 写的是 `8 0 * * *` —— GitHub 用 UTC 且按小时错开）                   |
-| 手动触发 | Actions 页 → 该工作流 → **Run workflow**                                                           |
+| 项       | 值                                                                                                              |
+| -------- | --------------------------------------------------------------------------------------------------------------- |
+| 定时     | 每天 **北京时间 08:08**（cron 写的是 `8 0 * * *` —— GitHub 用 UTC 且按小时错开）                                |
+| 手动触发 | Actions 页 → 该工作流 → **Run workflow**                                                                        |
 | 提交身份 | `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>`（标准 GitHub Actions 机器人身份） |
-| 产物     | `package.json` / `package-lock.json` 的上游 hash + `CHANGELOG.md` 的一条新记录                     |
-| 失败     | 步骤非零退出 ⇒ 工作流变红 ⇒ **GitHub 发失败通知邮件**；失败原因还会写进 Actions 的 Summary         |
+| 产物     | `package.json` / `package-lock.json` 的上游 hash + `CHANGELOG.md` 的一条新记录                                  |
+| 失败     | 步骤非零退出 ⇒ 工作流变红 ⇒ **GitHub 发失败通知邮件**；失败原因还会写进 Actions 的 Summary                      |
 
 > ⚠️ **失败通知要自己开**：GitHub 默认只给「订阅了通知」的人发邮件。若没收到，
 > 在仓库的 **Settings → Notifications** 里把 Actions 的邮件打开，或在
