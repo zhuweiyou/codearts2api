@@ -7,6 +7,24 @@
 ---
 
 <details open>
+<summary><b>2026-11-01 · 上游升级 <code>c17a556</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `eb09210423ace12edf4e2793a4c3780386a2f63f` 更新到 `c17a55661bd30aba321b55daf61426df9e319bbc`。
+
+### 上游改动
+
+- fix(zcode): 溢出均衡四处审计打穿——语义订正 + 阈值 300 + 接线补守卫（2026-10-31 双路审计）
+- fix(zcode): 会话亲和加负载溢出 —— 长会话不再独占一个账号
+- fix(client): 手动复制面板审计修正 —— Escape 拦截 + 重复弹守卫 + 深色模式 + 守卫补牙（2026-10-31 审计）
+- fix(client): 剪贴板复制三层降级，修局域网 http 下复制静默失效——cherry-pick 自 PR #27
+- fix(codely): 审计修正 —— 团队级判据归一化 + 三处守卫补牙（2026-10-31 双路审计）
+- fix(codely): 402 区分团队级与账号级，团队预算耗尽不再连坐封号——cherry-pick 自 PR #27
+
+</details>
+
+<details>
 <summary><b>2026-10-31 · 上游升级 <code>eb09210</code>（自动升级）</b></summary>
 
 ## 上游升级
