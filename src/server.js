@@ -90,6 +90,15 @@ import {
   sessionCookie,
 } from "./admin-auth.js"
 import { renderLoginPage, sanitizeNext } from "./admin-login-page.js"
+// >>> caller-admin-import
+import { createCallerAdmin } from "./caller-admin.js"
+import { createDashboardAdmin } from "./dashboard-admin.js"
+import { createModelsAdmin } from "./models-admin.js"
+import { createCallersUiHandler } from "./callers-ui.js"
+// <<< caller-admin-import
+// >>> oauth-relay-import
+import { createOAuthRelay } from "./oauth-relay.js"
+// <<< oauth-relay-import
 
 /** 请求体上限，与插件网关同值（16MB）。 */
 const BODY_LIMIT = 16 * 1024 * 1024
@@ -296,7 +305,20 @@ async function readLoginForm(request) {
  */
 export function createHttpServer(host, options = {}) {
   const proxyGateway = options.proxyGateway === true
+  // >>> caller-gate
+  const callerGate = options.callerGate ?? null
+  // <<< caller-gate
   const logger = options.logger
+  // >>> caller-admin
+  // 管理面（分组 / key / 白名单）。
+  // 只做 CRUD 与页面渲染，不参与 /v1 热路径。鉴权由下面的管理端鉴权门负责。
+  const callerAdmin = createCallerAdmin({ home: host.home, logger })
+  // <<< caller-admin
+  // >>> oauth-relay
+  // OAuth 回调中继：把上游硬绑 127.0.0.1:<端口> 的登录页/回调搬到 /relay/<port>/*。
+  // 只在本机回环上取数，且整段挂在管理端鉴权门之后（未登录一律 401/302）。
+  const oauthRelay = createOAuthRelay({ logger })
+  // <<< oauth-relay
   const adminAuthEnabled = options.adminAuth !== false
 
   /** 管理密钥（读到就不变；`null` 表示鉴权已关闭）。 */
@@ -319,6 +341,59 @@ export function createHttpServer(host, options = {}) {
       "[admin-auth] ⚠️ 管理端鉴权已被 CODEARTS2API_ADMIN_AUTH=0 关闭 —— /admin 与 /api/jet-hub 对任何能访问该端口的人开放。",
     )
   }
+
+  // >>> dashboard-admin
+  // 总览看板：不占独立 URL，只提供 /admin/dashboard/api 与 /admin/dashboard-ui.js。
+  // ⚠️ 必须建在 adminKey 解析之后 —— 看板靠 adminKey 打内部 RPC。
+  // ⚠️ dataDir 就是 host.home，本身已经是 .../data。
+  const dashboardAdmin = createDashboardAdmin({
+    dataDir: host.home,
+    rpc: async (method, payload) => {
+      // 与 readGatewayState 同一条通道：直接打在插件路由上，不走网络。
+      const route = host.routes.get(JET_HUB_PATH)
+      if (route === undefined) throw new Error("jet-hub 路由未注册")
+      const web = await route.fetch(
+        new Request(`http://127.0.0.1${JET_HUB_PATH}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(rpcEnvelope(method, payload ?? {}, "dashboard")),
+        }),
+      )
+      const parsed = await web.json()
+      if (parsed?.result?.error !== undefined) throw new Error(String(parsed.result.error))
+      if (parsed?.result?.value === undefined) throw new Error(parsed?.result?.message ?? "空响应")
+      return parsed.result.value
+    },
+    gateway: async () => {
+      const state = await readGatewayState(host)
+      return { ok: state?.running === true && state?.enabled !== false, gateway: state, providers: providerIds(host) }
+    },
+    logger,
+  })
+  // <<< dashboard-admin
+  // >>> models-admin
+  // 厂商模型清单与逐条开关：只代理上游 RPC，不自己实现开关语义。
+  // ⚠️ 与其他管理模块一样建在 adminKey 解析之后，靠 adminKey 打内部 RPC。
+  const modelsAdmin = createModelsAdmin({
+    rpc: async (method, payload) => {
+      const route = host.routes.get(JET_HUB_PATH)
+      if (route === undefined) throw new Error("jet-hub 路由未注册")
+      const web = await route.fetch(
+        new Request(`http://127.0.0.1${JET_HUB_PATH}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(rpcEnvelope(method, payload ?? {}, "models")),
+        }),
+      )
+      const parsed = await web.json()
+      if (parsed?.result?.error !== undefined) throw new Error(String(parsed.result.error))
+      if (parsed?.result?.value === undefined) throw new Error(parsed?.result?.message ?? "空响应")
+      return parsed.result.value
+    },
+    logger,
+  })
+  // <<< models-admin
+  const callersUiHandler = createCallersUiHandler()
 
   /** 登录失败限速（按来源 IP）。 */
   const throttle = new LoginThrottle()
@@ -365,6 +440,27 @@ export function createHttpServer(host, options = {}) {
     const method = request.method ?? "GET"
     const hasBody = method !== "GET" && method !== "HEAD"
 
+    // >>> caller-gate
+    let gateEntry = null
+    let gateModel
+    let gateBody
+    if (callerGate) {
+      const verdict = await callerGate.inspect(request, url, method)
+      if (!verdict.ok) {
+        callerGate.sendJson(response, verdict.status ?? 403, { error: verdict.error })
+        return
+      }
+      if (!verdict.disabled) {
+        gateEntry = verdict.entry ?? null
+        gateModel = verdict.model
+        gateBody = verdict.body
+        const upstreamKey = callerGate.upstreamKey()
+        if (upstreamKey) headers.set("authorization", `Bearer ${upstreamKey}`)
+        if (gateEntry?.id) headers.set("x-caller-id", String(gateEntry.id))
+      }
+    }
+    // <<< caller-gate
+
     let upstream
     try {
       upstream = await fetch(`http://${target.host}:${target.port}${url.pathname}${url.search}`, {
@@ -372,7 +468,7 @@ export function createHttpServer(host, options = {}) {
         headers,
         // 直接传 req（Readable）：undici 会流式发送，不把 16MB 上限内的请求体
         // 整个读进内存。`duplex: 'half'` 是带流 body 时的必需项。
-        body: hasBody ? request : undefined,
+        body: gateBody ?? (hasBody ? request : undefined),
         ...(hasBody ? { duplex: "half" } : {}),
         signal: AbortSignal.timeout(options.upstreamTimeoutMs ?? 600_000),
       })
@@ -389,6 +485,18 @@ export function createHttpServer(host, options = {}) {
       })
       return
     }
+
+    // >>> caller-gate
+    if (callerGate && gateEntry && url.pathname === "/v1/models" && upstream.ok) {
+      try {
+        const payload = await upstream.json()
+        callerGate.sendJson(response, 200, callerGate.filterModels(payload, gateEntry))
+        return
+      } catch {
+        /* 解析失败就退回原始流 */
+      }
+    }
+    // <<< caller-gate
 
     const outHeaders = {}
     upstream.headers.forEach((value, key) => {
@@ -408,7 +516,20 @@ export function createHttpServer(host, options = {}) {
       if (!response.writableEnded) stream.destroy()
     })
     stream.on("error", () => response.destroy())
-    stream.pipe(response)
+    // >>> caller-gate
+    const outStream = callerGate
+      ? callerGate.tapStream(stream, {
+          status: upstream.status,
+          callerId: gateEntry?.id,
+          callerName: gateEntry?.name,
+          callerGroup: gateEntry?.group,
+          model: gateModel,
+          path: url.pathname,
+          stream: String(upstream.headers.get("content-type") ?? "").includes("event-stream"),
+        })
+      : stream
+    outStream.pipe(response)
+    // <<< caller-gate
   }
 
   /**
@@ -589,6 +710,27 @@ export function createHttpServer(host, options = {}) {
         respondUnauthorized(request, response, url)
         return
       }
+
+      // >>> caller-admin-dispatch
+      // 调用方管理页（/admin/callers）。放在鉴权门之后 = 未登录会被 302 到登录页。
+      if (await callerAdmin.handle(request, response, url)) return
+      // >>> dashboard-admin
+      if (await dashboardAdmin.handle(request, response, url)) return
+      // >>> models-admin
+      if (await modelsAdmin.handle(request, response, url)) return
+      // <<< models-admin
+      // <<< dashboard-admin
+      // >>> callers-ui
+      // 调用方管理的弹窗 UI 脚本（数据仍走 /admin/callers/api，不重复实现后端）。
+      if (callersUiHandler(request, response, url)) return
+      // <<< callers-ui
+      // <<< caller-admin
+
+      // >>> oauth-relay-dispatch
+      // OAuth 回调中继（/relay/<port>/* 与 /admin/oauth-relay/replay）。
+      // 同样在鉴权门之后：/relay/* 必须登录，否则等于把本机 OAuth 监听器暴露到公网。
+      if (await oauthRelay.handle(request, response, url)) return
+      // <<< oauth-relay-dispatch
 
       // ── Jet Hub 管理 RPC（透传给插件）──
       if (path === JET_HUB_PATH) {
