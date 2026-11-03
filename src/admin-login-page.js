@@ -27,7 +27,7 @@ import { escapeHtml } from "./admin-auth.js"
 /**
  * 渲染登录页。
  *
- * @param options - `{ error, next, keyPath, fromEnv, disabled }`。
+ * @param options - `{ error, next, disabled }`。
  *   `error` 非空时显示错误行；`next` 是登录成功后要跳回的站内路径。
  * @returns 完整 HTML 文档。
  */
@@ -35,12 +35,13 @@ export function renderLoginPage(options = {}) {
   const next = sanitizeNext(options.next)
   const error = typeof options.error === "string" && options.error !== "" ? options.error : null
 
+  // ⚠️ 只保留「鉴权被关闭」这一条提示：它是用户必须知道的安全风险，且不含任何内情。
+  //    密钥**位置**与**来源**一律不回显 —— 登录页是未认证页面，把服务器文件系统
+  //    路径与部署形态（环境变量 vs 文件）写给任何访问者，等于替攻击者标好了下一步。
   const hint = options.disabled
     ? `<p class="hint warn">本实例的管理端鉴权已被 <code>CODEARTS2API_ADMIN_AUTH=0</code> 关闭，
         任何人打开此地址都可直接进入后台。仅当你确定只在本机/内网运行时才这样用。</p>`
-    : `<p class="hint">密钥位置：<code>${escapeHtml(options.keyPath ?? "")}</code>${
-        options.fromEnv ? "（当前取自 <code>CODEARTS2API_ADMIN_KEY</code> 环境变量）" : ""
-      }</p>`
+    : ""
 
   return `<!doctype html>
 <html lang="zh-CN">

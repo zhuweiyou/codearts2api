@@ -78,7 +78,6 @@ import { Readable } from "node:stream"
 
 import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./upstream.js"
 import {
-  ADMIN_KEY_FILE,
   LOGIN_PATH,
   LOGOUT_PATH,
   LoginThrottle,
@@ -302,12 +301,9 @@ export function createHttpServer(host, options = {}) {
 
   /** 管理密钥（读到就不变；`null` 表示鉴权已关闭）。 */
   let adminKey = typeof options.adminKey === "string" && options.adminKey !== "" ? options.adminKey : null
-  /** 密钥是否来自环境变量（仅用于登录页的提示文案）。 */
-  let adminKeyFromEnv = false
   if (adminAuthEnabled && adminKey === null) {
     const loaded = loadOrCreateAdminKey(host.home)
     adminKey = loaded.value
-    adminKeyFromEnv = loaded.fromEnv
     if (loaded.generated) {
       // ⚠️ 只在**首次生成**时打印全文：之后每次启动都打一遍，等于把它写进
       //    所有容器的日志历史里（docker logs 是长期可查的）。
@@ -435,9 +431,9 @@ export function createHttpServer(host, options = {}) {
       401,
       {
         error: "unauthorized",
-        message:
-          "管理端需要鉴权：浏览器请打开 /admin 用管理密钥登录；脚本请带 Authorization: Bearer <admin-key>。" +
-          "密钥在 <CODEARTS2API_HOME>/admin-key，或由 CODEARTS2API_ADMIN_KEY 指定。",
+        // 与登录页同理：这是**未认证**响应，不能回显密钥文件路径或来源（环境变量 vs 文件），
+        // 否则等于替攻击者标好下一步。这里只说明「怎么鉴权」，不透露密钥存在哪里。
+        message: "管理端需要鉴权：浏览器请打开 /admin 用管理密钥登录；脚本请带 Authorization: Bearer <admin-key>。",
       },
       // 点明认证方案：curl 这类客户端会据此提示，也便于确认「服务认得 Bearer」。
       { "www-authenticate": 'Bearer realm="codearts2api admin"' },
@@ -452,9 +448,6 @@ export function createHttpServer(host, options = {}) {
       renderLoginPage({
         error,
         next: sanitizeNext(url.searchParams.get("next") ?? "/admin"),
-        keyPath: join(host.home, ADMIN_KEY_FILE),
-        // 密钥来源只用于**提示文案**（「去这个文件里找」 vs「看环境变量」）。
-        fromEnv: adminKeyFromEnv,
         disabled: !adminKeyEnabled(),
       }),
       { "content-type": "text/html; charset=utf-8" },

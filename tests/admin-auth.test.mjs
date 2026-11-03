@@ -130,6 +130,10 @@ test("登录表单能换到会话 Cookie，之后可直接访问页面", async (
   const html = await page.text()
   assert.match(html, /type="password"/, "登录页应有密码框")
   assert.doesNotMatch(html, new RegExp(TEST_ADMIN_KEY), "登录页绝不能回显密钥")
+  // 登录页是**未认证**页面：密钥存在哪个文件、是否来自环境变量都属于部署内情。
+  // 回显给任何访问者，等于替他标好了下一步（找 .env / 读日志 / 猜路径）。
+  assert.doesNotMatch(html, /CODEARTS2API_ADMIN_KEY/, "登录页不应提示密钥来自环境变量")
+  assert.equal(html.includes(join(app.home, "admin-key")), false, "登录页不应回显密钥文件路径")
 
   // ② 提交正确密钥。
   const login = await fetch(`${app.origin}/admin/login`, {
@@ -152,6 +156,21 @@ test("登录表单能换到会话 Cookie，之后可直接访问页面", async (
   assert.equal(admin.status, 200, "带会话 Cookie 应能打开管理页")
   const adminHtml = await admin.text()
   assert.match(adminHtml, /admin-root/, "应返回真实的管理页面")
+})
+
+test("未授权的 401 JSON 不回显密钥位置与来源", async (t) => {
+  const app = await startTestApp()
+  t.after(() => app.close())
+
+  // 脚本 / 客户端（Accept 不含 text/html）拿到的是 401 JSON —— 同样是**未认证可达**的
+  // 响应面，密钥文件路径与「来自环境变量」都属于部署内情，不能写给任何访问者。
+  const response = await fetch(`${app.origin}/admin`, { headers: { accept: "*/*" } })
+  assert.equal(response.status, 401, "未授权的脚本请求应回 401")
+  const body = await response.text()
+  assert.match(body, /Authorization: Bearer/, "仍应提示 Bearer 鉴权方式")
+  assert.doesNotMatch(body, /CODEARTS2API_ADMIN_KEY/, "401 响应不应提及密钥环境变量名")
+  assert.doesNotMatch(body, /CODEARTS2API_HOME/, "401 响应不应暴露 home 路径变量")
+  assert.equal(body.includes(join(app.home, "admin-key")), false, "401 响应不应回显密钥文件路径")
 })
 
 test("伪造的会话 Cookie 无效", async (t) => {
