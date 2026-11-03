@@ -66,6 +66,9 @@ export async function startTestApp(options = {}) {
     // `adminAuth` 默认**开**（产品默认），只有需要验证「关掉鉴权」时才传 false。
     adminAuth: options.adminAuth !== false,
     adminKey: options.adminAuth === false ? null : adminKey,
+    // 闸门（callerGate）是可选旁挂层，默认不启用；需要验证「鉴权拦截发生在
+    // 转发之前」的用例把它传进来。
+    callerGate: options.callerGate ?? null,
   })
   await new Promise((resolve, reject) => {
     server.once("error", reject)

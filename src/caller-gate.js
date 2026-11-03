@@ -28,7 +28,7 @@ const BODY_CAP = 32 * 1024 * 1024
 const MODEL_PATHS = new Set(["/v1/chat/completions", "/v1/completions", "/v1/responses", "/v1/embeddings"])
 
 /** 走聚合路由的前缀：白名单不是 `*` 时必须显式授权。 */
-const AGGREGATE_PREFIXES = ["aggregate/", "jet-hub-auto/"]
+const AGGREGATE_PREFIXES = ["aggregate/*", "jet-hub-auto/*"]
 
 const sha256 = (s) => createHash("sha256").update(s, "utf8").digest("hex")
 

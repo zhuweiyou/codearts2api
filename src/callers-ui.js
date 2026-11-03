@@ -17,7 +17,7 @@
  *
  * 旧的 `caller-link.js` 插的是一个 `<a href="/admin/callers">` 链接（跳走）。
  * 本文件插的是 `<button>`（原地弹窗）。两者都挂着会导致 header 里出现两个入口，
- * 所以 `patch-callers-modal.mjs` 会把旧链接那条注入一起摘掉。
+ * 所以集成时必须把旧链接那条注入一起摘掉（只保留这里的 `<button>`）。
  *
  * ## 样式：自带一整套 Element Plus 皮肤（不依赖看板的 c2d 样式）
  *

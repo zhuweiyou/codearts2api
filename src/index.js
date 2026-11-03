@@ -104,7 +104,7 @@ const callerGate = createCallerGate({
 // <<< caller-gate
 const adminAuth = resolveAdminAuth()
 
-const server = createHttpServer(host, { logger: console, proxyGateway, adminAuth, callerGate, port })
+const server = createHttpServer(host, { logger: console, proxyGateway, adminAuth, callerGate })
 await new Promise((resolve, reject) => {
   server.once("error", reject)
   server.once("listening", resolve)

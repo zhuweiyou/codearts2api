@@ -13,6 +13,11 @@
 //
 // 安全边界：目标只允许 127.0.0.1 / localhost / [::1]，端口 1024–65535，方法只放 GET/POST/HEAD。
 // 绝不代理任意外网地址（否则本文件就是一个开放代理）。
+//
+// 已知残留面（有意接受）：端口无法白名单化 —— OAuth 监听器由上游随机挑选端口，
+// 唯一稳定的约束是「回环地址 + 1024–65535」。因此已登录的管理员在技术上可以
+// 反代本机任意回环端口。这里不改判定，改为对每一次中继留审计日志（见 audit），
+// 让「在什么时候打了哪个端口」可追溯。
 
 import { Readable } from "node:stream"
 
@@ -133,6 +138,16 @@ export function createOAuthRelay(options = {}) {
   const uiBody = Buffer.from(UI_SRC, "utf8")
 
   // ── 中继：/relay/<port>/<path> → http://127.0.0.1:<port>/<path> ──
+  /**
+   * 中继审计：记录每一次转发尝试。
+   *
+   * 只记「方法 + 目标端口 + 路径」，不记 header / body —— 回调 URL 的 query 里
+   * 就带 `code`，写进日志等于把一次性授权码长期留档。
+   */
+  function audit(method, port, rest) {
+    logger?.info?.(`[oauth-relay] 审计 中继 ${method} → 127.0.0.1:${port}${rest}`)
+  }
+
   async function proxy(request, response, url) {
     if (!ALLOWED_METHODS.has(request.method ?? "GET")) {
       response.writeHead(405, { "content-type": "text/plain; charset=utf-8" })
@@ -152,6 +167,7 @@ export function createOAuthRelay(options = {}) {
       return
     }
     const rest = match[2] ?? "/"
+    audit(request.method ?? "GET", port, rest)
     const target = `http://127.0.0.1:${port}${rest}${url.search}`
 
     const headers = new Headers()
