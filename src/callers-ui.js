@@ -311,6 +311,7 @@ export const UI_SRC = String.raw`
     data: null,           // caller-admin state 动作的返回
     records: null,        // records 动作的返回
     filter: { caller: "", model: "", status: "" },
+    modelCandidates: [],  // 见过的模型全集（跨查询累积，避免筛选后下拉里其它模型消失）
     days: [],             // 选中的日期
     daysOpen: false,      // 日期下拉是否展开
     // 上次成功加载的 state 快照：再次打开弹窗时先用它渲染，再去后台刷新。
@@ -457,16 +458,26 @@ export const UI_SRC = String.raw`
     /* 可选日期为空（还没跑过流量）时给一句空态，免得下拉点开是一片空白。 */
     if (!dayRows) dayRows = '<div class="c2m-ddempty">还没有任何调用日志</div>';
 
-    var callerOpts = ['<option value="">全部调用方</option>']
+    var cf = state.filter.caller || "";
+    var mf = state.filter.model || "";
+    var sf = state.filter.status || "";
+
+    var callerOpts = ['<option value=""' + (cf === "" ? " selected" : "") + ">全部调用方</option>"]
       .concat((state.data && state.data.keys || []).map(function (k) {
-        return '<option value="' + esc(k.id) + '">' + esc(k.id + " · " + k.name) + "</option>";
+        return '<option value="' + esc(k.id) + '"' + (k.id === cf ? " selected" : "") + ">"
+          + esc(k.id + " · " + k.name) + "</option>";
       }))
-      .concat(['<option value="master">master · 上游网关主 key</option>'])
+      .concat(['<option value="master"' + (cf === "master" ? " selected" : "") + ">master · 上游网关主 key</option>"])
       .join("");
 
-    var modelOpts = ['<option value="">全部模型</option>']
-      .concat((r.byModel || []).map(function (m) {
-        return '<option value="' + esc(m.model) + '">' + esc(m.model) + "</option>";
+    /* 模型候选来自「跨查询累积」的全集，而不是当前这次（可能已被过滤的）byModel，
+       否则按模型筛选后其它模型会从下拉里消失、没法直接切回去。 */
+    var modelList = (state.modelCandidates && state.modelCandidates.length
+      ? state.modelCandidates
+      : (r.byModel || []).map(function (m) { return m.model; })).slice().sort();
+    var modelOpts = ['<option value=""' + (mf === "" ? " selected" : "") + ">全部模型</option>"]
+      .concat(modelList.map(function (id) {
+        return '<option value="' + esc(id) + '"' + (id === mf ? " selected" : "") + ">" + esc(id) + "</option>";
       }))
       .join("");
 
@@ -484,7 +495,9 @@ export const UI_SRC = String.raw`
       '<div class="c2m-field"><label>调用方</label><select data-role="caller">' + callerOpts + "</select></div>" +
       '<div class="c2m-field"><label>模型</label><select data-role="model">' + modelOpts + "</select></div>" +
       '<div class="c2m-field"><label>结果</label><select data-role="status">' +
-      '<option value="">全部</option><option value="ok">成功</option><option value="error">失败</option></select></div>' +
+      '<option value=""' + (sf === "" ? " selected" : "") + ">全部</option>" +
+      '<option value="ok"' + (sf === "ok" ? " selected" : "") + ">成功</option>" +
+      '<option value="error"' + (sf === "error" ? " selected" : "") + ">失败</option></select></div>" +
       '<div class="c2m-field c2m-field-act"><label>&nbsp;</label>' +
       '<button class="dim-jh-btn" data-act="rec-apply">查询</button></div>' +
       "</div>";
@@ -595,6 +608,12 @@ export const UI_SRC = String.raw`
       days: state.days,
       filter: state.filter,
       limit: 300,
+    });
+    /* 把本次见到的模型并入候选全集（只增不减）：这样按某个模型筛选后，
+       下拉里其它模型仍在，用户能直接切回去。 */
+    var seen = state.modelCandidates;
+    (state.records.byModel || []).forEach(function (m) {
+      if (m && m.model && seen.indexOf(m.model) < 0) seen.push(m.model);
     });
   }
 
