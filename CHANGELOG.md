@@ -7,6 +7,67 @@
 ---
 
 <details open>
+<summary><b>2026-11-03 · 上游升级 <code>9047d42</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `c17a55661bd30aba321b55daf61426df9e319bbc` 更新到 `9047d42f47a0d04d99183abc15c0099ebc2285ed`。
+
+### 上游改动
+
+- fix(gateway): /v1/models 输出 context_window（issue #36）
+- docs(trae): 用原始 SSE 现场定论前缀缓存归零（issue IKSFT2）
+- fix(qoder): 设备锁失败码给出可读文案；登记设备锁限制（issue #17）
+- fix(codearts): 声明 providerRetryPolicy，瞬态失败交给宿主退避重试（issue #21）
+- fix(refresh): 首轮续期延后 15s，避免与宿主启动抢资源（issue #20）
+- fix(buddy): rewrite x-anthropic-billing-header fingerprint
+- fix(opencode): SOCKS5 隧道上按 https/wss 补 TLS 握手（issue #19）
+- fix(cline): 模型带日期/快照后缀时继承基底能力（issue #18）
+- fix(buddy): 登录判重改为「新凭据并入旧卡 + 删占位 + poll 重定向」
+- test+docs(pr171): 双轨审计取证 + 7 处假绿守卫补牙
+- fix(monkeycode): 稳定 user_id / 签到奖励实测 / PoW 总预算 / 邀请链接原语
+- fix(client): 补齐三家新 provider 的「新建账号」入口 + 签到零收益的展示兜底
+- test: 补齐三家 provider 的用例与编译图
+- feat(client): 账号卡片补「改 Key / 登录」与跨量纲后缀
+- feat(providers): 接入 MonkeyCode 两站与百智云
+- feat(buddy): 成长任务全路径自动化（体验专家族 + 小程序 Sequential 族 + 连登链）
+- fix(autoclawintl): 授权地址改由服务端签发（端口修对后报错逐字不变）
+- fix(autoclawintl): 回调端口改用注册过的 18432/19654/19723/53699
+- fix(autoclaw): Z.ai 授权端点用错 + state 全缺，导致登录成功但回调永不发生
+- docs(jet-hub): 登记「ASTUDIO 兜底恒不可达」与「两条用例各只有 1 条承重断言」（红队审查）
+- docs(jet-hub): 修正 product undefined 修复里的 5 处事实错误（审查后）
+- fix(jet-hub): product 恒为 undefined，凭据未配置时抛 TypeError（15 家共用）
+- fix(autoclawintl): 自查追加两条（读池失败不得删账号 / 停用原卡必须并入后启用）
+- fix(autoclawintl): 审查后修 11 条必修（站点门控/超时/有效期/去重/判据加固）
+- test(autoclawintl): 假凭据改用低熵桩值（repo-pii-guard 拦截）+ 断言同步
+- fix(autoclawintl): 补上 Z.ai OAuth 登录接线 —— 国际版此前没有任何可用的添加账号方式
+- fix(buddy): 登录成功后按 user_id 判重，同账号重复添加不再生成重复条目
+- test(account-pool): 钉住「落盘失败回滚内存」（对抗审计 B4）
+- fix(magicrew/credit-expiry/lock): 采纳 PR #168 双轨审计的 5 条打穿
+- fix(credit-expiry): 已作废额度不再冒充「临期」（PR #168 验证发现）
+- fix(client): 红条自救入口按真实按钮分支（文案收敛到纯函数，3 条用例钉住）
+- test(jet-hub-rpc): 守卫改成「探活真的成功」——否则 account.test 那条分支走不到（M12 仍无牙）
+- test(jet-hub-rpc): 钉住「account.test 探活不得清账号级封禁」（审计 M12 无牙）
+- test(account-pool): 钉住封禁标记的 early-return（同一报文不重复写盘）
+- fix: 采纳 2026-11-01 对抗审计的 5 条打穿 —— 封禁判据收紧、选号判据补齐、account.test 恢复不写存储
+- feat(magicrew): 永久/长期/临期三档积分 + 锁定/解锁永久积分（两站）
+- test(raccoon): 夹子的两个方向 —— 标题 64 不许抬高 / 网关 999999 不许漏出
+- test(buddy): 钉住「2xx 自愈清封禁」与「无标记时不写盘」（审计 M7 无牙）
+- fix: 修 Gitee IKS1L5（raccoon max_tokens 无夹子）与 IKS2MV（buddy 封禁不可见）
+- docs(auto-checkin): stop() 注释如实说明「回落值也不一定是 0」
+- test(auto-checkin): 渠道删掉再加回来时旧水位线必须失效（钉住 prunedSlots）
+- fix(auto-checkin): 第二轮审计 —— 补领窗改 3 小时、默认回 09:00、面板可退出、死代码清理
+- chore(auto-checkin): 收尾三处 —— RPC 拒绝混发、armNext 的 JSDoc 归位、文件末尾换行
+- fix(auto-checkin): 目标时段复用唯一判据 + stop() 清掉下次尝试时刻
+- test(auto-checkin): 逐渠道水位线的归一化判据（补上变异无牙的那一格）
+- fix(auto-checkin): 审计 P1 全修 —— 真 ±N 浮动 / 不吞时段 / 逐渠道补领 / 面板关闭即保存
+- feat(magicrew): 接入国际站 + 每日签到 + 新人奖励
+- feat(auto-checkin): 每天两个定时时段替代「首次启动跑一次」+ 随机浮动 + 修秒级忙循环
+- fix(qoder): 传输级失败改为换号（换出口）+ message 带上 cause 链（issue IKR5ZD）
+
+</details>
+
+<details>
 <summary><b>2026-11-03 · 调用方多 Key（分组授权）+ 磁盘读写全异步</b></summary>
 
 ## 调用方多 Key（分组授权）
