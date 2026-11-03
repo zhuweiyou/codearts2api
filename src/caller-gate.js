@@ -17,8 +17,7 @@
  */
 
 import { createHash, timingSafeEqual } from "node:crypto"
-import { readFileSync, statSync, writeFileSync } from "node:fs"
-import { appendFile, mkdir } from "node:fs/promises"
+import { appendFile, mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Readable, Transform } from "node:stream"
 
@@ -142,7 +141,7 @@ export function createCallerGate(options = {}) {
 
   let cached = null
   let cachedSig = ""
-  // 文件不存在（闸门关闭）时的负缓存到期时刻：期内不再 statSync，
+  // 文件不存在（闸门关闭）时的负缓存到期时刻：期内不再 stat，
   // 避免每个 /v1 请求都白做一次系统调用（闸门默认关闭是常态）。
   let missingUntil = 0
 
@@ -162,13 +161,17 @@ export function createCallerGate(options = {}) {
   // 缓存策略：按 mtime 失效（开关操作会原子重写 state.json，mtime 必变）。
   // 读不到文件时**返回空表**（放行），而不是拦住——闸门是旁挂组件，不能因为
   // 上游存储暂时不可读就把整条链路打死。
+  //
+  // ⚠️ 读盘一律异步：state.json 在每次带 model 的 /v1 请求上都要判一次，
+  //    同步 stat + readFile 会在并发下把事件循环钉住（一个 200KB 的 state.json
+  //    解析 + I/O 期间，其它所有连接都停摆）。
   const statePath = join(home, "jet-hub", "state.json")
   let stateCache = { at: "", disabled: new Map(), closed: null }
 
-  function loadDisabledState() {
-    let stat
+  async function loadDisabledState() {
+    let st
     try {
-      stat = statSync(statePath)
+      st = await stat(statePath)
     } catch {
       stateCache = { at: "", disabled: new Map(), closed: null }
       return stateCache
@@ -178,12 +181,12 @@ export function createCallerGate(options = {}) {
     // mtimeMs 完全相同，于是「刚关掉」/「刚打开」的变更会被旧缓存盖住 ——
     // 表现为开关点了没反应，或者测试里连续 seed() 后判定错乱（实测踩到）。
     // 加上 size（内容变化基本必变）与 ino（rename 换 inode）后，同毫秒重写也能区分。
-    const key = `${stat.mtimeMs}:${stat.size}:${stat.ino}`
+    const key = `${st.mtimeMs}:${st.size}:${st.ino}`
     if (key === stateCache.at && stateCache.closed) return stateCache
 
     let parsed
     try {
-      parsed = JSON.parse(readFileSync(statePath, "utf8"))
+      parsed = JSON.parse(await readFile(statePath, "utf8"))
     } catch (error) {
       logger?.warn?.(`[caller-gate] 读取 ${statePath} 失败，本次放行（不拦模型）：${String(error)}`)
       return { at: -1, disabled: new Map(), closed: null }
@@ -218,16 +221,16 @@ export function createCallerGate(options = {}) {
    * `/` 切分——与上游 `parseModelRoute`（messages.js:507）**同一口径**。
    * 不切分而用整体 id 去查黑名单会永远查不到（黑名单键是裸模型名）。
    *
-   * @returns {{ blocked: boolean, reason?: string, provider?: string, model?: string }}
+   * @returns {Promise<{ blocked: boolean, reason?: string, provider?: string, model?: string }>}
    */
-  function checkDisabled(model) {
+  async function checkDisabled(model) {
     if (typeof model !== "string" || !model) return { blocked: false }
     const slash = model.indexOf("/")
     if (slash <= 0 || slash === model.length - 1) return { blocked: false }
     const provider = model.slice(0, slash)
     const bare = model.slice(slash + 1)
 
-    const state = loadDisabledState()
+    const state = await loadDisabledState()
     if (!state.closed) return { blocked: false } // 存储不可读 = 不拦
 
     if (state.closed.has(provider)) {
@@ -240,11 +243,11 @@ export function createCallerGate(options = {}) {
     return { blocked: false, provider, model: bare }
   }
 
-  function loadStore() {
+  async function loadStore() {
     if (Date.now() < missingUntil) return null
-    let stat
+    let st
     try {
-      stat = statSync(storePath)
+      st = await stat(storePath)
     } catch {
       cached = null
       cachedSig = ""
@@ -252,12 +255,12 @@ export function createCallerGate(options = {}) {
       return null
     }
     missingUntil = 0
-    const sig = stat.mtimeMs + ":" + stat.size + ":" + stat.ino
+    const sig = st.mtimeMs + ":" + st.size + ":" + st.ino
     if (cachedSig === sig && cached) return cached
 
     let parsed
     try {
-      parsed = JSON.parse(readFileSync(storePath, "utf8"))
+      parsed = JSON.parse(await readFile(storePath, "utf8"))
     } catch (error) {
       // 文件坏了不能静默放行，也不能把服务打死：保持上一次可用状态。
       logger?.warn?.(`[caller-gate] 读取 ${storePath} 失败，沿用上一次配置：${String(error)}`)
@@ -297,10 +300,20 @@ export function createCallerGate(options = {}) {
     return cached
   }
 
+  /**
+   * 取「上游网关那把 key」。
+   *
+   * `options.upstreamKey` 允许返回字符串或 Promise（`index.js` 里是异步读文件 +
+   * 短缓存）。这里统一 await，调用方不必关心它是哪一种。
+   */
+  async function upstreamKeyValue() {
+    const getter = options.upstreamKey
+    if (typeof getter !== "function") return null
+    return await getter()
+  }
+
   /** 上游网关那把 key 永远当「主 key」，全权放行——留一条不会把自己锁在门外的路。 */
   function masterEntry() {
-    const key = typeof options.upstreamKey === "function" ? options.upstreamKey() : null
-    if (!key) return null
     return {
       master: true,
       entry: {
@@ -314,16 +327,16 @@ export function createCallerGate(options = {}) {
     }
   }
 
-  function authenticate(request) {
-    const store = loadStore()
+  async function authenticate(request) {
+    const store = await loadStore()
     if (!store) return null // 闸门未启用
     const header = String(request.headers?.authorization ?? "")
     const match = /^Bearer\s+(.+)$/i.exec(header.trim())
     if (!match) return { unknown: true }
     const digest = sha256(match[1].trim())
 
-    const master = masterEntry()
-    if (master && hexEqual(sha256(String(options.upstreamKey()).trim()), digest)) return master
+    const masterKey = await upstreamKeyValue()
+    if (masterKey && hexEqual(sha256(String(masterKey).trim()), digest)) return masterEntry()
 
     const hit = store.byDigest.get(digest)
     if (!hit || !hexEqual(hit.digest, digest)) return { unknown: true }
@@ -336,7 +349,7 @@ export function createCallerGate(options = {}) {
    * @returns {Promise<{ ok: boolean, status?: number, error?: object, body?: Buffer, entry?: object, unbuffered?: boolean }>}
    */
   async function inspect(request, url, method) {
-    const auth = authenticate(request)
+    const auth = await authenticate(request)
     if (!auth) return { ok: true, disabled: true }
     if (auth.unknown) {
       return {
@@ -423,7 +436,7 @@ export function createCallerGate(options = {}) {
     // 因此「关掉 = 调不了」这条产品语义只能由这一层兑现。
     // ⚠️ 放在白名单之后判定：白名单是「这个 key 能不能用」，关闭表是「这个模型
     //    在整台网关上还能不能用」，两者是叠加关系，不该混在一条错误里。
-    const disabled = checkDisabled(parsed?.model)
+    const disabled = await checkDisabled(parsed?.model)
     if (disabled.blocked) {
       return {
         ok: false,
@@ -490,7 +503,9 @@ export function createCallerGate(options = {}) {
    */
   function tapStream(source, ctx) {
     // 闸门没开（没有 store）就直接把原流交回去，一个字节都不多碰。
-    if (!loadStore()) return source
+    // ⚠️ 这里读的是 `inspect()` 刚刚刷新的缓存，不再发一次 I/O：
+    //    tapStream 是同步的（要求它返回可 pipe 的流），而读盘已经全部异步化。
+    if (cached === null) return source
     const startedAt = Date.now()
     const isStream = Boolean(ctx.stream)
     let status = ctx.status ?? 200
@@ -612,7 +627,7 @@ export function createCallerGate(options = {}) {
   }
 
   /** 首次生成一份可用样例：一个 full 组 + 一条 key（需要用户填 key 值）。 */
-  function scaffold() {
+  async function scaffold() {
     const template = {
       version: 1,
       _comment:
@@ -628,7 +643,8 @@ export function createCallerGate(options = {}) {
       ],
       keys: [],
     }
-    writeFileSync(storePath, `${JSON.stringify(template, null, 2)}\n`, "utf8")
+    await mkdir(home, { recursive: true })
+    await writeFile(storePath, `${JSON.stringify(template, null, 2)}\n`, "utf8")
     return template
   }
 
@@ -640,19 +656,24 @@ export function createCallerGate(options = {}) {
     log,
     tapStream,
     scaffold,
-    reload: () => {
+    reload: async () => {
       cachedSig = ""
       missingUntil = 0
       stateCache = { at: "", disabled: new Map(), closed: null }
-      return loadStore()
+      return await loadStore()
     },
     sendJson,
     Readable,
-    /** server.js 反代前要用它把调用方的 key 换成上游真 key。 */
-    upstreamKey: () => (typeof options.upstreamKey === "function" ? options.upstreamKey() : null),
+    /**
+     * server.js 反代前要用它把调用方的 key 换成上游真 key。
+     *
+     * ⚠️ 返回 Promise（`index.js` 里是异步读文件）：上游 key 可能在运行期被换掉，
+     *    所以不能只在启动时读一次就存死。
+     */
+    upstreamKey: () => upstreamKeyValue(),
     /** 供 /admin 与排查用：当前被关掉的模型/渠道（不含实现细节）。 */
-    disabledSnapshot: () => {
-      const state = loadDisabledState()
+    disabledSnapshot: async () => {
+      const state = await loadDisabledState()
       const out = { providers: {}, closed: [] }
       if (!state.closed) return out
       for (const [provider, ids] of state.disabled.entries()) out.providers[provider] = Array.from(ids)

@@ -21,7 +21,7 @@
 import { createHost } from "./host.js"
 import { createHttpServer } from "./server.js"
 import { join as joinPath } from "node:path"
-import { readFileSync as readFileSyncNode } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { createCallerGate } from "./caller-gate.js"
 
 /** 默认管理端口。 */
@@ -88,23 +88,45 @@ const proxyGateway = resolveProxyGateway()
 
 // >>> caller-gate
 // data/caller-keys.json 不存在时闸门自动关闭，行为与改造前一致。
+
+/**
+ * 上游网关 Key 的短缓存。
+ *
+ * 为什么不能只在启动时读一次：用户可以在 `/admin` 里重置网关 Key（那会重写
+ * `openai-gateway/api-key`），读死值就会让「换过 Key 之后所有 /v1 请求 401」。
+ *
+ * 为什么不能每个请求都异步读一遍：每次读盘都是真实 I/O（`/v1` 是热路径）。
+ * 折中：命中缓存 5 秒；**读不到不缓存**（文件可能刚被创建，下一次立刻重试）。
+ */
+const upstreamKeyCache = { value: null, until: 0 }
+
+async function readUpstreamKey() {
+  const fromEnv = process.env.DSH_OPENAI_GATEWAY_API_KEY
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim()
+
+  if (upstreamKeyCache.value !== null && Date.now() < upstreamKeyCache.until) return upstreamKeyCache.value
+  try {
+    const value = (await readFile(joinPath(host.home, "openai-gateway", "api-key"), "utf8")).trim()
+    if (!value) return null
+    upstreamKeyCache.value = value
+    upstreamKeyCache.until = Date.now() + 5_000
+    return value
+  } catch {
+    upstreamKeyCache.value = null
+    upstreamKeyCache.until = 0
+    return null
+  }
+}
+
 const callerGate = createCallerGate({
   home: host.home,
   logger: console,
-  upstreamKey: () => {
-    const fromEnv = process.env.DSH_OPENAI_GATEWAY_API_KEY
-    if (fromEnv && fromEnv.trim()) return fromEnv.trim()
-    try {
-      return readFileSyncNode(joinPath(host.home, "openai-gateway", "api-key"), "utf8").trim()
-    } catch {
-      return null
-    }
-  },
+  upstreamKey: readUpstreamKey,
 })
 // <<< caller-gate
 const adminAuth = resolveAdminAuth()
 
-const server = createHttpServer(host, { logger: console, proxyGateway, adminAuth, callerGate })
+const server = await createHttpServer(host, { logger: console, proxyGateway, adminAuth, callerGate })
 await new Promise((resolve, reject) => {
   server.once("error", reject)
   server.once("listening", resolve)

@@ -60,7 +60,7 @@ export async function startTestApp(options = {}) {
   const { createHttpServer } = await import("../src/server.js")
 
   const host = await createHost()
-  const server = createHttpServer(host, {
+  const server = await createHttpServer(host, {
     logger: console,
     proxyGateway: options.proxyGateway !== false,
     // `adminAuth` 默认**开**（产品默认），只有需要验证「关掉鉴权」时才传 false。

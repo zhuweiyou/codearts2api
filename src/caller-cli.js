@@ -17,7 +17,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 
 const HOME = process.env.CODEARTS2API_HOME || resolve(process.cwd(), "data")
@@ -46,26 +46,43 @@ function parseArgs(argv) {
   return out
 }
 
-function load() {
-  if (!existsSync(STORE)) {
+/** 文件/目录是否存在（`access` 只探一下，不读内容）。 */
+async function fileExists(path) {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function load() {
+  try {
+    return JSON.parse(await readFile(STORE, "utf8"))
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error
     console.error(`找不到 ${STORE}\n先跑：node src/caller-cli.js init`)
     process.exit(2)
   }
-  return JSON.parse(readFileSync(STORE, "utf8"))
 }
 
-function save(data) {
-  writeFileSync(STORE, `${JSON.stringify(data, null, 2)}\n`, "utf8")
+async function save(data) {
+  await writeFile(STORE, `${JSON.stringify(data, null, 2)}\n`, "utf8")
 }
 
 function mask(digest) {
   return digest ? `${digest.slice(0, 8)}…${digest.slice(-4)}` : "-"
 }
 
-function todayLog(day) {
+async function todayLog(day) {
   const file = join(LOG_DIR, `${day}.jsonl`)
-  if (!existsSync(file)) return []
-  return readFileSync(file, "utf8")
+  let text
+  try {
+    text = await readFile(file, "utf8")
+  } catch {
+    return []
+  }
+  return text
     .split("\n")
     .filter(Boolean)
     .map((line) => {
@@ -83,12 +100,12 @@ const args = parseArgs(process.argv.slice(3))
 
 switch (cmd) {
   case "init": {
-    if (existsSync(STORE)) {
+    if (await fileExists(STORE)) {
       console.log(`已存在，未覆盖：${STORE}`)
       break
     }
-    mkdirSync(HOME, { recursive: true })
-    save({
+    await mkdir(HOME, { recursive: true })
+    await save({
       version: 1,
       _comment:
         "groups[].allow / deny 支持 `*`、`provider/*`、完整模型名。aggregate/* 与 jet-hub-auto/* 在白名单不是 * 时必须显式列出才可用。",
@@ -108,7 +125,7 @@ switch (cmd) {
   }
 
   case "list": {
-    const data = load()
+    const data = await load()
     const groups = new Map((data.groups ?? []).map((g) => [g.name, g]))
     console.log(`分组 ${groups.size} 个 / key ${(data.keys ?? []).length} 把\n`)
     for (const key of data.keys ?? []) {
@@ -124,7 +141,7 @@ switch (cmd) {
   }
 
   case "groups": {
-    const data = load()
+    const data = await load()
     for (const group of data.groups ?? []) {
       console.log(`${group.name}${group.desc ? `  — ${group.desc}` : ""}`)
       console.log(`    allow: ${(group.allow ?? []).join(", ") || "（空 = 全部拒绝）"}`)
@@ -140,7 +157,7 @@ switch (cmd) {
       console.error("缺 --name")
       process.exit(2)
     }
-    const data = load()
+    const data = await load()
     data.groups ??= []
     const allow = args.allow
       ? String(args.allow)
@@ -164,20 +181,20 @@ switch (cmd) {
       data.groups.push({ name, desc: args.desc ? String(args.desc) : "", allow, deny })
       console.log(`已新增分组 ${name}`)
     }
-    save(data)
+    await save(data)
     break
   }
 
   case "group-rm": {
     const name = String(args.name ?? "").trim()
-    const data = load()
+    const data = await load()
     const used = (data.keys ?? []).filter((k) => k.group === name).length
     if (used) {
       console.error(`分组 ${name} 还被 ${used} 把 key 使用，先改绑再删。`)
       process.exit(3)
     }
     data.groups = (data.groups ?? []).filter((g) => g.name !== name)
-    save(data)
+    await save(data)
     console.log(`已删除分组 ${name}`)
     break
   }
@@ -189,7 +206,7 @@ switch (cmd) {
       console.error("缺 --name 或 --group")
       process.exit(2)
     }
-    const data = load()
+    const data = await load()
     const groupExists = (data.groups ?? []).some((g) => g.name === group)
     if (!groupExists) {
       console.error(`分组 ${group} 不存在。现有：${(data.groups ?? []).map((g) => g.name).join(", ")}`)
@@ -203,7 +220,7 @@ switch (cmd) {
       process.exit(4)
     }
     data.keys.push({ id, name, group, sha256: sha256(plain), enabled: true, createdAt: new Date().toISOString() })
-    save(data)
+    await save(data)
     console.log(`已新增 ${id}（${name} / ${group}）\n`)
     console.log(`  key = ${plain}`)
     console.log("\n这串只显示这一次。立刻告诉对方，别存进仓库/聊天记录。")
@@ -213,31 +230,31 @@ switch (cmd) {
   case "enable":
   case "disable": {
     const id = String(args.id ?? "").trim()
-    const data = load()
+    const data = await load()
     const key = (data.keys ?? []).find((k) => k.id === id)
     if (!key) {
       console.error(`没有 ${id}`)
       process.exit(4)
     }
     key.enabled = cmd === "enable"
-    save(data)
+    await save(data)
     console.log(`${id} → ${key.enabled ? "启用" : "停用"}`)
     break
   }
 
   case "rm": {
     const id = String(args.id ?? "").trim()
-    const data = load()
+    const data = await load()
     const before = (data.keys ?? []).length
     data.keys = (data.keys ?? []).filter((k) => k.id !== id)
-    save(data)
+    await save(data)
     console.log(before === data.keys.length ? `没有 ${id}` : `已删除 ${id}`)
     break
   }
 
   case "usage": {
     const day = String(args.day ?? new Date().toISOString().slice(0, 10))
-    const rows = todayLog(day)
+    const rows = await todayLog(day)
     if (!rows.length) {
       console.log(`${day} 没有调用记录（${join(LOG_DIR, `${day}.jsonl`)}）`)
       break
@@ -274,13 +291,11 @@ switch (cmd) {
   }
 
   case "days": {
-    if (!existsSync(LOG_DIR)) {
+    if (!(await fileExists(LOG_DIR))) {
       console.log("还没有用量日志")
       break
     }
-    for (const file of readdirSync(LOG_DIR)
-      .filter((f) => f.endsWith(".jsonl"))
-      .sort()) {
+    for (const file of (await readdir(LOG_DIR)).filter((f) => f.endsWith(".jsonl")).sort()) {
       console.log(file.replace(/\.jsonl$/, ""))
     }
     break

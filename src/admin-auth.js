@@ -44,7 +44,7 @@
  */
 
 import { createHmac, randomBytes, timingSafeEqual, createHash } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 
 /** 密钥文件名（放在 state home 下）。 */
@@ -76,18 +76,22 @@ const SESSION_MAX_AGE = 30 * 24 * 60 * 60
 /**
  * 读取或生成管理密钥。
  *
+ * ⚠️ **异步**：磁盘 I/O 一律走 `node:fs/promises`。本函数在启动时只跑一次，
+ * 同步写也不会卡住谁，但本项目其余读写都已异步化 —— 留着同步调用等于给后来人
+ * 立一个「这里可以 sync」的先例，而那正是把事件循环堵死的起点。
+ *
  * @param home - state home 目录。
  * @param env - 进程环境变量（便于单测注入）。
- * @returns `{ value, path, fromEnv, generated }`。
+ * @returns `Promise<{ value, path, fromEnv, generated }>`。
  */
-export function loadOrCreateAdminKey(home, env = process.env) {
+export async function loadOrCreateAdminKey(home, env = process.env) {
   const configured = env.CODEARTS2API_ADMIN_KEY?.trim()
   if (configured) return { value: configured, path: null, fromEnv: true, generated: false }
 
   const path = join(home, ADMIN_KEY_FILE)
   let stored
   try {
-    stored = readFileSync(path, "utf8").trim()
+    stored = (await readFile(path, "utf8")).trim()
   } catch {
     // 不存在 / 不可读：走生成路径；写入失败会向调用方暴露。
   }
@@ -102,18 +106,20 @@ export function loadOrCreateAdminKey(home, env = process.env) {
   }
 
   const key = randomBytes(32).toString("base64url")
-  mkdirSync(home, { recursive: true })
+  await mkdir(home, { recursive: true })
   // 先写临时文件再 rename：避免「写到一半崩了」留下半个密钥（那会让下次启动
   // 读到不符合形态的内容并直接报错，用户只能手工删文件）。
   const temporary = `${path}.${process.pid}.${Date.now()}.tmp`
-  writeFileSync(temporary, key, { encoding: "utf8", mode: 0o600 })
+  await writeFile(temporary, key, { encoding: "utf8", mode: 0o600 })
   try {
-    renameSync(temporary, path)
+    await rename(temporary, path)
   } catch (error) {
     // 并发启动：另一个进程已经落盘，优先复用它，避免生成两个有效密钥。
-    if (existsSync(path)) {
-      const existing = readFileSync(path, "utf8").trim()
+    try {
+      const existing = (await readFile(path, "utf8")).trim()
       if (ADMIN_KEY_PATTERN.test(existing)) return { value: existing, path, fromEnv: false, generated: false }
+    } catch {
+      // 真的读不到：把**第一次** rename 的错误抛出去，它才是根因。
     }
     throw error
   }

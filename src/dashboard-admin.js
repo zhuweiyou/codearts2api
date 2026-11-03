@@ -10,7 +10,7 @@
  * 数据全部读本机文件，不向上游发请求（余额除外，有 5 分钟缓存 + 单飞）。
  */
 
-import { readFileSync, existsSync, readdirSync } from "node:fs"
+import { readFile, readdir } from "node:fs/promises"
 import { join } from "node:path"
 
 export const API_PATH = "/admin/dashboard/api"
@@ -19,32 +19,38 @@ export const UI_PATH = "/admin/dashboard-ui.js"
 /** 余额缓存时长：5 分钟，避免多个浏览器窗口同时打上游。 */
 const BALANCE_TTL_MS = 5 * 60 * 1000
 
-function readJson(file) {
+/**
+ * 读一个 JSON 文件；不存在或坏掉都返回 `undefined`（看板不该因为少一个文件 500）。
+ *
+ * ⚠️ 异步读：看板一次快照要读 5~6 个文件（含当日 300KB+ 的用量 JSONL），
+ *    同步读会让整个进程在这段时间里停止响应 `/v1` 流式请求。
+ */
+async function readJson(file) {
   try {
-    if (!existsSync(file)) return undefined
-    return JSON.parse(readFileSync(file, "utf8"))
+    return JSON.parse(await readFile(file, "utf8"))
   } catch {
     return undefined
   }
 }
 
-function readJsonl(file) {
+async function readJsonl(file) {
+  let text
   try {
-    if (!existsSync(file)) return []
-    return readFileSync(file, "utf8")
-      .split(/\r?\n/)
-      .filter((l) => l.trim())
-      .map((l) => {
-        try {
-          return JSON.parse(l)
-        } catch {
-          return undefined
-        }
-      })
-      .filter(Boolean)
+    text = await readFile(file, "utf8")
   } catch {
     return []
   }
+  return text
+    .split(/\r?\n/)
+    .filter((l) => l.trim())
+    .map((l) => {
+      try {
+        return JSON.parse(l)
+      } catch {
+        return undefined
+      }
+    })
+    .filter(Boolean)
 }
 
 /** 按 UTC+8 取日期字符串。 */
@@ -171,10 +177,10 @@ export function createDashboard(deps) {
     })
   }
 
-  function collectUsage(today) {
+  async function collectUsage(today) {
     let files
     try {
-      files = readdirSync(usageDir).filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
+      files = (await readdir(usageDir)).filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
     } catch {
       files = []
     }
@@ -183,7 +189,7 @@ export function createDashboard(deps) {
     for (const f of files) {
       const date = f.slice(0, 10)
       const agg = { date, requests: 0, ok: 0, errors: 0, inTokens: 0, outTokens: 0, models: {}, callers: {} }
-      for (const r of readJsonl(join(usageDir, f))) {
+      for (const r of await readJsonl(join(usageDir, f))) {
         agg.requests += 1
         if ((r.status === undefined ? 200 : r.status) < 400) agg.ok += 1
         else agg.errors += 1
@@ -235,8 +241,8 @@ export function createDashboard(deps) {
     return { days, today: t }
   }
 
-  function collectLedger() {
-    const doc = readJson(join(jetHub, "token-ledger.json"))
+  async function collectLedger() {
+    const doc = await readJson(join(jetHub, "token-ledger.json"))
     if (!doc || !doc.days) return []
     const out = []
     for (const [date, entries] of Object.entries(doc.days)) {
@@ -392,8 +398,8 @@ export function createDashboard(deps) {
    *    直接透传文件会让前端 `c.ranToday === true` 恒为 false，看板永远显示「今日签到 未完成」，
    *    2026-11-02 用户实测报「为什么显示今日签到未完成，最近 2026-11-02」。这里自己判一次。
    */
-  function checkinOf() {
-    const doc = readJson(join(jetHub, "auto-checkin.json"))
+  async function checkinOf() {
+    const doc = await readJson(join(jetHub, "auto-checkin.json"))
     if (!doc) return null
     const today = utc8Date()
     const lastDate = typeof doc.lastDate === "string" ? doc.lastDate : ""
@@ -408,19 +414,19 @@ export function createDashboard(deps) {
   }
   async function snapshot({ fresh = false } = {}) {
     const today = utc8Date()
-    const state = readJson(join(jetHub, "state.json")) || {}
+    const state = (await readJson(join(jetHub, "state.json"))) || {}
     const accounts = accountsOf(state)
     const providers = [...new Set(accounts.map((a) => a.provider).filter(Boolean))]
     // ⚠️ 解构出的变量不能叫 balances —— 与上面的 balances() 函数同名会在本作用域
     //    形成 TDZ，调用时抛 ReferenceError: Cannot access 'balances' before initialization。
     const { value: balanceMap, cachedAt } = await balances(providers, fresh)
 
-    const callers = readJson(join(dataDir, "caller-keys.json"))
+    const callers = await readJson(join(dataDir, "caller-keys.json"))
 
     // 模型清单：优先读 model-catalog.json（若有），否则回落 gateway.getEnabled 的 models。
     // ⚠️ 该网关的 data/jet-hub 下**没有** model-catalog.json，所以不能只靠文件。
     let models = []
-    const catalog = readJson(join(jetHub, "model-catalog.json"))
+    const catalog = await readJson(join(jetHub, "model-catalog.json"))
     if (Array.isArray(catalog)) models = catalog
     else if (Array.isArray(catalog?.models)) models = catalog.models
     if (models.length === 0 && typeof deps.rpc === "function") {
@@ -444,13 +450,13 @@ export function createDashboard(deps) {
       //    直接透传会让前端 `c.ranToday === true` 恒为 false，显示「今日签到 未完成」——
       //    2026-11-02 用户实测报「为什么显示今日签到未完成，最近 2026-11-02」。
       //    这里按 UTC+8 日键自己判一次。
-      checkin: checkinOf(),
+      checkin: await checkinOf(),
       callers: {
         keys: Array.isArray(callers?.keys) ? callers.keys.length : 0,
         groups: Array.isArray(callers?.groups) ? callers.groups.length : 0,
       },
-      usage: collectUsage(today),
-      ledger: collectLedger(),
+      usage: await collectUsage(today),
+      ledger: await collectLedger(),
       // 积分收支（账本级，不是逐笔流水 —— 上游没有流水接口）
       credits: collectCredits(balanceMap),
     }
