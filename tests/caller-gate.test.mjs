@@ -27,7 +27,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { Readable } from "node:stream"
 import { _internal, createCallerGate } from "../src/caller-gate.js"
 
@@ -222,7 +222,7 @@ test("非模型路径与 GET 只做鉴权、不读请求体（streaming 透传�
 
 test("用量日志目录只有真实放行的请求才会被创建", async () => {
   const gate = createCallerGate({ home: makeHome() })
-  const home = gate.storePath.replace(/\/caller-keys\.json$/, "")
+  const home = dirname(gate.storePath)
 
   const ok = await gate.inspect(fakeRequest(FULL_KEY, '{"model":"codearts/gpt-4"}'), CHAT, "POST")
   assert.equal(ok.ok, true)

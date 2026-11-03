@@ -490,11 +490,18 @@ export function createDashboardAdmin(options) {
       }
 
       if (url.pathname === UI_PATH) {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          response.writeHead(405, { "content-type": "text/plain; charset=utf-8" })
+          response.end("Method Not Allowed")
+          return true
+        }
+        const body = Buffer.from(UI_SRC, "utf8")
         response.writeHead(200, {
           "content-type": "application/javascript; charset=utf-8",
+          "content-length": String(body.length),
           "cache-control": "no-store",
         })
-        response.end(UI_SRC)
+        response.end(request.method === "HEAD" ? undefined : body)
         return true
       }
 

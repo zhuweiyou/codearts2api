@@ -21,6 +21,8 @@
 
 import { Readable } from "node:stream"
 
+import { SESSION_COOKIE } from "./admin-auth.js"
+
 export const UI_PATH = "/admin/oauth-relay-ui.js"
 export const RELAY_PREFIX = "/relay/"
 export const REPLAY_PATH = "/admin/oauth-relay/replay"
@@ -128,6 +130,19 @@ function readRequestBody(request, limit) {
   })
 }
 
+/**
+ * 把上游 Set-Cookie 的 Path 挂到该端口的中继前缀下。
+ * 没写 Path 或 Path=/ 时铺满这个端口的中继空间，保证同一监听器的后续请求都带得上。
+ */
+function rewriteCookiePath(cookie, port) {
+  const prefix = RELAY_PREFIX + port
+  const match = /;\s*path=([^;]*)/i.exec(cookie)
+  const raw = String(match && match[1] ? match[1] : "").trim()
+  const target = raw === "" || raw === "/" ? prefix + "/" : prefix + (raw.startsWith("/") ? raw : "/" + raw)
+  if (!match) return cookie + "; Path=" + target
+  return cookie.slice(0, match.index) + "; Path=" + target + cookie.slice(match.index + match[0].length)
+}
+
 function writeHead(response, status, outHeaders) {
   response.writeHead(status, outHeaders)
 }
@@ -174,12 +189,14 @@ export function createOAuthRelay(options = {}) {
     for (const [key, value] of Object.entries(request.headers)) {
       if (value === undefined) continue
       if (HOP_BY_HOP.has(key.toLowerCase())) continue
+      // 管理端会话凭证一律不下发给回环上游。
+      if (key.toLowerCase() === "authorization") continue
       if (key.toLowerCase() === "cookie") {
         // 去掉管理端自己的 cookie，避免把 admin 会话带给上游登录页
         const kept = String(value)
           .split(";")
           .map((item) => item.trim())
-          .filter((item) => item !== "" && !/^(c2d_|c2admin|admin_)/i.test(item))
+          .filter((item) => item !== "" && !item.startsWith(SESSION_COOKIE + "="))
           .join("; ")
         if (kept !== "") headers.set(key, kept)
         continue
@@ -220,12 +237,26 @@ export function createOAuthRelay(options = {}) {
 
     const outHeaders = {}
     upstream.headers.forEach((value, key) => {
-      if (HOP_BY_HOP.has(key.toLowerCase())) return
-      if (key.toLowerCase() === "content-security-policy") return // 允许注入的补丁脚本执行
-      if (key.toLowerCase() === "x-frame-options") return
+      const lower = key.toLowerCase()
+      if (HOP_BY_HOP.has(lower)) return
+      if (lower === "content-security-policy") return // 允许注入的补丁脚本执行
+      if (lower === "x-frame-options") return
+      // forEach 会把多枚 set-cookie 合并成一条，必须单独逐条取。
+      if (lower === "set-cookie") return
       outHeaders[key] = value
     })
     outHeaders["cache-control"] = "no-store"
+    // 上游登录页给自己种 cookie 时 Path 常写死模块路径，不改到中继前缀下的话
+    // 浏览器会把它记到面板自己的路径上，后续请求根本带不回监听器。
+    const upstreamCookies = typeof upstream.headers.getSetCookie === "function" ? upstream.headers.getSetCookie() : []
+    if (upstreamCookies.length > 0) {
+      outHeaders["set-cookie"] = upstreamCookies.map((cookie) => rewriteCookiePath(cookie, port))
+    }
+    // 站内跳转不带前缀就会跳出中继空间（面板根路径没有这个路由，直接 404）。
+    const upstreamLocation = outHeaders["location"]
+    if (typeof upstreamLocation === "string" && upstreamLocation.startsWith("/")) {
+      outHeaders["location"] = RELAY_PREFIX + port + upstreamLocation
+    }
 
     const contentType = upstream.headers.get("content-type") ?? ""
     if (contentType.includes("text/html") && upstream.body !== null) {

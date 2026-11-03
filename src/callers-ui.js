@@ -718,13 +718,13 @@ export const UI_SRC = String.raw`
     try {
       if (act === "group-new") {
         formModal("新建分组", groupFields(null), async function (v) {
-          await call({ action: "group.save", group: { name: v.name.trim(), desc: v.desc, allow: splitAllow(v.allow) } });
+          await call({ action: "group.save", name: v.name.trim(), desc: v.desc, allow: splitAllow(v.allow) });
           await refresh("state");
         });
       } else if (act === "group-edit") {
         var g = (state.data.groups || []).filter(function (x) { return x.name === name; })[0];
         formModal("编辑分组 · " + name, groupFields(g), async function (v) {
-          await call({ action: "group.save", group: { name: name, desc: v.desc, allow: splitAllow(v.allow) } });
+          await call({ action: "group.save", name: name, desc: v.desc, allow: splitAllow(v.allow) });
           await refresh("state");
         });
       } else if (act === "group-rm") {
@@ -735,7 +735,9 @@ export const UI_SRC = String.raw`
         formModal("新建 Key", keyFields(null), async function (v) {
           var out = await call({
             action: "key.add",
-            key: { name: v.name.trim(), group: v.group, enabled: v.enabled === "true" },
+            name: v.name.trim(),
+            group: v.group,
+            enabled: v.enabled === "true",
           });
           await refresh("state");
           if (out && out.secret) {
@@ -765,7 +767,9 @@ export const UI_SRC = String.raw`
           await call({
             action: "key.update",
             id: id,
-            patch: { name: v.name.trim(), group: v.group, enabled: v.enabled === "true" },
+            name: v.name.trim(),
+            group: v.group,
+            enabled: v.enabled === "true",
           });
           await refresh("state");
         });

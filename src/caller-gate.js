@@ -24,7 +24,12 @@ import { Readable, Transform } from "node:stream"
 /** 请求体上限。与 nginx 的 client_max_body_size 32m 对齐。 */
 const BODY_CAP = 32 * 1024 * 1024
 
-/** 需要取 `model` 字段做白名单判定的路径。其余路径只做鉴权。 */
+/**
+ * 需要取 `model` 字段做白名单判定的路径。其余路径只做鉴权。
+ *
+ * 上游新增任何需要看 model 的路由都必须同步加入本集合，否则该路由的白名单判定失效
+ * （只做鉴权、不比对 groups[].allow）。
+ */
 const MODEL_PATHS = new Set(["/v1/chat/completions", "/v1/completions", "/v1/responses", "/v1/embeddings"])
 
 /** 走聚合路由的前缀：白名单不是 `*` 时必须显式授权。 */
@@ -135,7 +140,7 @@ export function createCallerGate(options = {}) {
   const logDir = join(home, "caller-usage")
 
   let cached = null
-  let cachedMtimeMs = -1
+  let cachedSig = ""
 
   // ── 模型关闭表（disabledModels / providerClosed）的只读镜像 ──────────────────
   //
@@ -237,10 +242,11 @@ export function createCallerGate(options = {}) {
       stat = statSync(storePath)
     } catch {
       cached = null
-      cachedMtimeMs = -1
+      cachedSig = ""
       return null
     }
-    if (stat.mtimeMs === cachedMtimeMs && cached) return cached
+    const sig = stat.mtimeMs + ":" + stat.size + ":" + stat.ino
+    if (cachedSig === sig && cached) return cached
 
     let parsed
     try {
@@ -279,7 +285,7 @@ export function createCallerGate(options = {}) {
     }
 
     cached = { groups, keys, byDigest, raw: parsed }
-    cachedMtimeMs = stat.mtimeMs
+    cachedSig = sig
     logger?.info?.(`[caller-gate] 已加载 ${keys.size} 把调用方 key / ${groups.size} 个分组`)
     return cached
   }
@@ -445,7 +451,14 @@ export function createCallerGate(options = {}) {
   function log(entry) {
     try {
       mkdirSync(logDir, { recursive: true })
-      const day = new Date().toISOString().slice(0, 10)
+      // 目录按人眼里的「今天」分文件；用 UTC 会让 UTC+8 的 00:00-08:00 记到前一天。
+      const now = new Date()
+      const day =
+        String(now.getFullYear()) +
+        "-" +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(now.getDate()).padStart(2, "0")
       appendFileSync(join(logDir, `${day}.jsonl`), `${JSON.stringify(entry)}\n`, "utf8")
     } catch (error) {
       logger?.warn?.(`[caller-gate] 写用量日志失败：${String(error)}`)
@@ -561,7 +574,7 @@ export function createCallerGate(options = {}) {
     tapStream,
     scaffold,
     reload: () => {
-      cachedMtimeMs = -1
+      cachedSig = ""
       stateCache = { at: "", disabled: new Map(), closed: null }
       return loadStore()
     },

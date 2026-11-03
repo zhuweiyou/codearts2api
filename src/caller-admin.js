@@ -390,7 +390,7 @@ export function createCallerAdmin(options = {}) {
           name,
           group,
           sha256: sha256(secret),
-          enabled: true,
+          enabled: typeof payload.enabled === "boolean" ? payload.enabled : true,
           createdAt: new Date().toISOString(),
         }
         store.keys.push(entry)
