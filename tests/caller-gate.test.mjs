@@ -232,7 +232,7 @@ test("用量日志目录只有真实放行的请求才会被创建", async () =>
 
   // 直接写一条，验证落盘格式（不经过 HTTP 流，避免测试依赖 Transform 时序）。
   const ts = "2026-01-01T00:00:00.000Z"
-  gate.log({ ts, caller: "k-full", model: "codearts/gpt-4", status: 200 })
+  await gate.log({ ts, caller: "k-full", model: "codearts/gpt-4", status: 200 })
 
   // 文件名按「写入当天」滚动，不取 entry.ts，所以这里只能断言形状。
   const files = readdirSync(gate.logDir)

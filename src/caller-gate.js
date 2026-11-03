@@ -17,7 +17,8 @@
  */
 
 import { createHash, timingSafeEqual } from "node:crypto"
-import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { readFileSync, statSync, writeFileSync } from "node:fs"
+import { appendFile, mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import { Readable, Transform } from "node:stream"
 
@@ -141,6 +142,9 @@ export function createCallerGate(options = {}) {
 
   let cached = null
   let cachedSig = ""
+  // 文件不存在（闸门关闭）时的负缓存到期时刻：期内不再 statSync，
+  // 避免每个 /v1 请求都白做一次系统调用（闸门默认关闭是常态）。
+  let missingUntil = 0
 
   // ── 模型关闭表（disabledModels / providerClosed）的只读镜像 ──────────────────
   //
@@ -237,14 +241,17 @@ export function createCallerGate(options = {}) {
   }
 
   function loadStore() {
+    if (Date.now() < missingUntil) return null
     let stat
     try {
       stat = statSync(storePath)
     } catch {
       cached = null
       cachedSig = ""
+      missingUntil = Date.now() + 2000
       return null
     }
+    missingUntil = 0
     const sig = stat.mtimeMs + ":" + stat.size + ":" + stat.ino
     if (cachedSig === sig && cached) return cached
 
@@ -448,21 +455,28 @@ export function createCallerGate(options = {}) {
     return { ...payload, data: kept }
   }
 
+  // 异步写 + 串行队列：不阻塞事件循环，同时保证同一进程内写入有序、不交叉。
+  // 返回 Promise，便于测试/调用方在需要时 await（服务热路径不 await）。
+  let logChain = Promise.resolve()
   function log(entry) {
-    try {
-      mkdirSync(logDir, { recursive: true })
-      // 目录按人眼里的「今天」分文件；用 UTC 会让 UTC+8 的 00:00-08:00 记到前一天。
-      const now = new Date()
-      const day =
-        String(now.getFullYear()) +
-        "-" +
-        String(now.getMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(now.getDate()).padStart(2, "0")
-      appendFileSync(join(logDir, `${day}.jsonl`), `${JSON.stringify(entry)}\n`, "utf8")
-    } catch (error) {
-      logger?.warn?.(`[caller-gate] 写用量日志失败：${String(error)}`)
-    }
+    const line = `${JSON.stringify(entry)}\n`
+    logChain = logChain.then(async () => {
+      try {
+        await mkdir(logDir, { recursive: true })
+        // 目录按人眼里的「今天」分文件；用 UTC 会让 UTC+8 的 00:00-08:00 记到前一天。
+        const now = new Date()
+        const day =
+          String(now.getFullYear()) +
+          "-" +
+          String(now.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(now.getDate()).padStart(2, "0")
+        await appendFile(join(logDir, `${day}.jsonl`), line, "utf8")
+      } catch (error) {
+        logger?.warn?.(`[caller-gate] 写用量日志失败：${String(error)}`)
+      }
+    })
+    return logChain
   }
 
   /**
@@ -628,6 +642,7 @@ export function createCallerGate(options = {}) {
     scaffold,
     reload: () => {
       cachedSig = ""
+      missingUntil = 0
       stateCache = { at: "", disabled: new Map(), closed: null }
       return loadStore()
     },
