@@ -158,6 +158,21 @@ test("登录表单能换到会话 Cookie，之后可直接访问页面", async (
   assert.match(adminHtml, /admin-root/, "应返回真实的管理页面")
 })
 
+test("未授权的 401 JSON 不回显密钥位置与来源", async (t) => {
+  const app = await startTestApp()
+  t.after(() => app.close())
+
+  // 脚本 / 客户端（Accept 不含 text/html）拿到的是 401 JSON —— 同样是**未认证可达**的
+  // 响应面，密钥文件路径与「来自环境变量」都属于部署内情，不能写给任何访问者。
+  const response = await fetch(`${app.origin}/admin`, { headers: { accept: "*/*" } })
+  assert.equal(response.status, 401, "未授权的脚本请求应回 401")
+  const body = await response.text()
+  assert.match(body, /Authorization: Bearer/, "仍应提示 Bearer 鉴权方式")
+  assert.doesNotMatch(body, /CODEARTS2API_ADMIN_KEY/, "401 响应不应提及密钥环境变量名")
+  assert.doesNotMatch(body, /CODEARTS2API_HOME/, "401 响应不应暴露 home 路径变量")
+  assert.equal(body.includes(join(app.home, "admin-key")), false, "401 响应不应回显密钥文件路径")
+})
+
 test("伪造的会话 Cookie 无效", async (t) => {
   const app = await startTestApp()
   t.after(() => app.close())

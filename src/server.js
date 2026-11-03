@@ -431,9 +431,9 @@ export function createHttpServer(host, options = {}) {
       401,
       {
         error: "unauthorized",
-        message:
-          "管理端需要鉴权：浏览器请打开 /admin 用管理密钥登录；脚本请带 Authorization: Bearer <admin-key>。" +
-          "密钥在 <CODEARTS2API_HOME>/admin-key，或由 CODEARTS2API_ADMIN_KEY 指定。",
+        // 与登录页同理：这是**未认证**响应，不能回显密钥文件路径或来源（环境变量 vs 文件），
+        // 否则等于替攻击者标好下一步。这里只说明「怎么鉴权」，不透露密钥存在哪里。
+        message: "管理端需要鉴权：浏览器请打开 /admin 用管理密钥登录；脚本请带 Authorization: Bearer <admin-key>。",
       },
       // 点明认证方案：curl 这类客户端会据此提示，也便于确认「服务认得 Bearer」。
       { "www-authenticate": 'Bearer realm="codearts2api admin"' },
