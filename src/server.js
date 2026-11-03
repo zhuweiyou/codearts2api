@@ -71,7 +71,7 @@
  */
 
 import { createServer } from "node:http"
-import { readFileSync, existsSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { extname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { Readable } from "node:stream"
@@ -298,12 +298,15 @@ async function readLoginForm(request) {
 /**
  * 创建 HTTP 服务。
  *
+ * ⚠️ **异步工厂**：装配阶段要读/生成管理密钥文件（`await loadOrCreateAdminKey`）。
+ * 磁盘 I/O 一律异步，避免在服务启动路径上留同步读写。
+ *
  * @param host - 插件宿主（`createHost()` 的返回值）。
  * @param options - `{ logger, proxyGateway, adminAuth, adminKey }`。
  *   `adminAuth: false` 关闭鉴权（仅本机开发；公网等于裸奔）。
  *   `adminKey` 用于测试注入，省略则从 home 解析。
  */
-export function createHttpServer(host, options = {}) {
+export async function createHttpServer(host, options = {}) {
   const proxyGateway = options.proxyGateway === true
   // >>> caller-gate
   const callerGate = options.callerGate ?? null
@@ -324,7 +327,7 @@ export function createHttpServer(host, options = {}) {
   /** 管理密钥（读到就不变；`null` 表示鉴权已关闭）。 */
   let adminKey = typeof options.adminKey === "string" && options.adminKey !== "" ? options.adminKey : null
   if (adminAuthEnabled && adminKey === null) {
-    const loaded = loadOrCreateAdminKey(host.home)
+    const loaded = await loadOrCreateAdminKey(host.home)
     adminKey = loaded.value
     if (loaded.generated) {
       // ⚠️ 只在**首次生成**时打印全文：之后每次启动都打一遍，等于把它写进
@@ -454,7 +457,8 @@ export function createHttpServer(host, options = {}) {
         gateEntry = verdict.entry ?? null
         gateModel = verdict.model
         gateBody = verdict.body
-        const upstreamKey = callerGate.upstreamKey()
+        // 上游真 key 可能是从文件现读的（异步），故这里 await。
+        const upstreamKey = await callerGate.upstreamKey()
         if (upstreamKey) headers.set("authorization", `Bearer ${upstreamKey}`)
         if (gateEntry?.id) headers.set("x-caller-id", String(gateEntry.id))
       }
@@ -747,13 +751,19 @@ export function createHttpServer(host, options = {}) {
       const file = STATIC_FILES.get(path)
       if (file !== undefined && (request.method === "GET" || request.method === "HEAD")) {
         const target = join(PUBLIC_DIR, file)
-        if (!existsSync(target)) {
+        // 一次 readFile 就够了：`existsSync` + `readFileSync` 那种两步写法既有
+        // TOCTOU 窗口，也在每个页面/脚本请求上堵住事件循环（admin.js 有 600KB+）。
+        let body
+        try {
+          body = await readFile(target)
+        } catch (error) {
+          if (error?.code !== "ENOENT") throw error
           sendAdmin(response, 503, "管理界面尚未构建：请先执行 npm run build", {
             "content-type": "text/plain; charset=utf-8",
           })
           return
         }
-        sendAdmin(response, 200, readFileSync(target), {
+        sendAdmin(response, 200, body, {
           "content-type": CONTENT_TYPES[extname(target)] ?? "application/octet-stream",
         })
         return

@@ -7,6 +7,37 @@
 ---
 
 <details open>
+<summary><b>2026-11-03 · 调用方多 Key（分组授权）+ 磁盘读写全异步</b></summary>
+
+## 调用方多 Key（分组授权）
+
+- `/admin` 新增「调用方」弹窗（页头入口，与「总览」「网关」并列）：**分组**（模型白名单）、
+  **Key**（一把 Key 一个人）、**用量**、**调用记录** 四个页签；
+- 后端 `src/caller-gate.js` 旁挂在 `/v1/*` 反代之前：命中调用方 Key 就换成上游 Key 再转发，
+  不碰上游代码；未配置 `<home>/caller-keys.json` 时闸门完全关闭，行为与改造前一致；
+- Key 只存 `sha256`（常量时间比对），明文仅在新建响应里出现一次；停用 / 改分组按文件
+  mtime 立即生效；
+- 命令行：`src/caller-cli.js`（`init` / `add` / `list` / `groups` / `usage` / `days` …），
+  适合脚本化发 Key；
+- README 补 **[多把调用方 Key（分组授权）](README.md#多把调用方-key分组授权)** 一节
+  （开启方式、白名单语法、错误码与回滚）。
+
+## 磁盘读写全部异步
+
+- `src/` 下**不再有 `*Sync` 调用**：静态资源（`admin.js` 600KB+）与登录页、管理密钥、
+  调用方配置、用量 JSONL、看板快照全部改走 `node:fs/promises`；
+- 随之改为异步的对外接口：`createHttpServer()`、`loadOrCreateAdminKey()`、
+  `callerGate.loadStore()` / `checkDisabled()` / `scaffold()` / `reload()` /
+  `disabledSnapshot()` / `upstreamKey()`（调用方需 `await`）；测试辅助 `startTestApp()`
+  已同步更新；
+- `/v1` 热路径的上游 Key 读取加 **5 秒缓存**（换 Key 后最多 5 秒生效），闸门未启用时对
+  `caller-keys.json` 保留 2 秒负缓存，不再每个请求都 `stat` 一次；
+- 用量日志保持**异步串行写**：不阻塞事件循环，同一进程内写入有序、不交叉；
+- `scripts/upgrade-upstream.mjs` 保持全同步（一次性 CI 批处理，跑完即退出），不影响运行时。
+
+</details>
+
+<details>
 <summary><b>2026-11-01 · 上游升级 <code>c17a556</code>（自动升级）</b></summary>
 
 ## 上游升级

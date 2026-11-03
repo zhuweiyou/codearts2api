@@ -15,7 +15,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto"
-import { existsSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs"
+import { readFile, readdir, rename, stat, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 
 export const PAGE_PATH = "/admin/callers"
@@ -156,11 +156,21 @@ export function createCallerAdmin(options = {}) {
   const gatewayPort = process.env.DSH_OPENAI_GATEWAY_PORT || "8326"
   const masterKeyPath = options.masterKeyPath ?? join(home, "openai-gateway", "api-key")
 
-  function readStore() {
-    if (!existsSync(storePath)) {
+  /**
+   * 读配置。文件不存在视为「还没建过」（空结构，不是错误）。
+   *
+   * ⚠️ 异步：这些接口虽在管理面（并发不高），但读的可能是 300KB+ 的文件；
+   *    同步读会在那几十毫秒里把整个进程（包括 `/v1` 推理流）钉住。
+   */
+  async function readStore() {
+    let text
+    try {
+      text = await readFile(storePath, "utf8")
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error
       return { version: STORE_VERSION, _comment: STORE_COMMENT, groups: [], keys: [] }
     }
-    const parsed = JSON.parse(readFileSync(storePath, "utf8"))
+    const parsed = JSON.parse(text)
     return {
       version: parsed.version ?? STORE_VERSION,
       _comment: parsed._comment ?? STORE_COMMENT,
@@ -169,12 +179,17 @@ export function createCallerAdmin(options = {}) {
     }
   }
 
-  /** 原子写：先写旁路文件再 rename，读侧永远看不到半截 JSON。 */
-  function writeStore(data) {
+  /**
+   * 原子写：先写旁路文件再 rename，读侧永远看不到半截 JSON。
+   *
+   * 旁路文件名带随机后缀：两个并发的保存请求各写各的临时文件，rename 本身是原子的，
+   * 不会出现「A 写完临时文件、B 覆盖同一临时文件、A 把 B 的内容 rename 走」这种串味。
+   */
+  async function writeStore(data) {
     const text = JSON.stringify(data, null, 2) + "\n"
-    const tmp = `${storePath}.tmp-${process.pid}`
-    writeFileSync(tmp, text, { mode: 0o600 })
-    renameSync(tmp, storePath)
+    const tmp = `${storePath}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`
+    await writeFile(tmp, text, { mode: 0o600 })
+    await rename(tmp, storePath)
   }
 
   function publicKey(key) {
@@ -207,11 +222,14 @@ export function createCallerAdmin(options = {}) {
       return modelsCache.ids
     }
     try {
-      if (!existsSync(masterKeyPath)) {
+      let key
+      try {
+        key = (await readFile(masterKeyPath, "utf8")).trim()
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error
         modelsCache = { at: now, ids: [] }
         return []
       }
-      const key = readFileSync(masterKeyPath, "utf8").trim()
       const res = await fetch(`http://127.0.0.1:${gatewayPort}/v1/models`, {
         headers: { authorization: `Bearer ${key}` },
         signal: AbortSignal.timeout(8000),
@@ -243,23 +261,21 @@ export function createCallerAdmin(options = {}) {
   const usageCache = new Map() // day -> { sig, rows }
   const USAGE_CACHE_MAX = 2
 
-  function readUsage(day) {
+  async function readUsage(day) {
     const path = join(logDir, `${day}.jsonl`)
-    if (!existsSync(path)) return []
 
-    let sig
+    let st
     try {
-      const st = statSync(path)
-      sig = `${st.size}:${st.mtimeMs}`
-    } catch {
-      sig = null
+      st = await stat(path)
+    } catch (error) {
+      if (error?.code === "ENOENT") return []
+      throw error
     }
-    if (sig) {
-      const hit = usageCache.get(day)
-      if (hit && hit.sig === sig) return hit.rows
-    }
+    const sig = `${st.size}:${st.mtimeMs}`
+    const hit = usageCache.get(day)
+    if (hit && hit.sig === sig) return hit.rows
 
-    const rows = readFileSync(path, "utf8")
+    const rows = (await readFile(path, "utf8"))
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean)
@@ -272,12 +288,10 @@ export function createCallerAdmin(options = {}) {
       })
       .filter(Boolean)
 
-    if (sig) {
-      usageCache.set(day, { sig, rows })
-      // 简单的 LRU 上界：超出就丢最早插入的键。
-      while (usageCache.size > USAGE_CACHE_MAX) {
-        usageCache.delete(usageCache.keys().next().value)
-      }
+    usageCache.set(day, { sig, rows })
+    // 简单的 LRU 上界：超出就丢最早插入的键。
+    while (usageCache.size > USAGE_CACHE_MAX) {
+      usageCache.delete(usageCache.keys().next().value)
     }
     return rows
   }
@@ -289,10 +303,9 @@ export function createCallerAdmin(options = {}) {
   }
 
   /** 磁盘上实际有流水的日期（倒序），供前端日期选择器直接列出，避免瞎猜。 */
-  function availableDays() {
+  async function availableDays() {
     try {
-      if (!existsSync(logDir)) return []
-      return readdirSync(logDir)
+      return (await readdir(logDir))
         .map((name) => (/^(\d{4}-\d{2}-\d{2})\.jsonl$/.exec(name) ?? [])[1])
         .filter(Boolean)
         .sort()
@@ -314,13 +327,13 @@ export function createCallerAdmin(options = {}) {
 
     try {
       if (action === "state") {
-        const store = readStore()
+        const store = await readStore()
         const day = typeof payload.day === "string" && payload.day ? payload.day : today()
         sendJson(response, 200, {
           groups: store.groups,
           keys: store.keys.map(publicKey),
           models: await listModels(),
-          usage: { day, rows: aggregateUsage(readUsage(day)) },
+          usage: { day, rows: aggregateUsage(await readUsage(day)) },
           storePath,
         })
         return
@@ -349,7 +362,7 @@ export function createCallerAdmin(options = {}) {
 
         const all = []
         for (const day of wantDays) {
-          for (const row of readUsage(day)) all.push({ ...row, day })
+          for (const row of await readUsage(day)) all.push({ ...row, day })
         }
 
         const callerWant = String(filter.caller ?? "").trim()
@@ -371,7 +384,7 @@ export function createCallerAdmin(options = {}) {
           rows: sorted.slice(0, limit),
           byCaller: aggregateUsage(kept),
           byModel: aggregateByModel(kept),
-          availableDays: availableDays(),
+          availableDays: await availableDays(),
         })
         return
       }
@@ -380,7 +393,7 @@ export function createCallerAdmin(options = {}) {
         const name = String(payload.name ?? "").trim()
         const group = String(payload.group ?? "").trim()
         if (!name) return sendJson(response, 400, { error: "名字不能为空" })
-        const store = readStore()
+        const store = await readStore()
         if (!store.groups.some((g) => g.name === group)) {
           return sendJson(response, 400, { error: `分组 ${group} 不存在` })
         }
@@ -394,7 +407,7 @@ export function createCallerAdmin(options = {}) {
           createdAt: new Date().toISOString(),
         }
         store.keys.push(entry)
-        writeStore(store)
+        await writeStore(store)
         logger?.info?.(`[caller-admin] 新增调用方 ${entry.id}（${name} / ${group}）`)
         // 明文只在这一行响应里出现一次，之后任何接口都拿不到。
         sendJson(response, 200, { key: entry.id, secret, group })
@@ -403,7 +416,7 @@ export function createCallerAdmin(options = {}) {
 
       if (action === "key.update") {
         const id = String(payload.id ?? "")
-        const store = readStore()
+        const store = await readStore()
         const entry = store.keys.find((k) => k.id === id)
         if (!entry) return sendJson(response, 404, { error: `key ${id} 不存在` })
         if (typeof payload.name === "string" && payload.name.trim()) entry.name = payload.name.trim()
@@ -414,18 +427,18 @@ export function createCallerAdmin(options = {}) {
           entry.group = payload.group
         }
         if (typeof payload.enabled === "boolean") entry.enabled = payload.enabled
-        writeStore(store)
+        await writeStore(store)
         sendJson(response, 200, { ok: true, key: publicKey(entry) })
         return
       }
 
       if (action === "key.rm") {
         const id = String(payload.id ?? "")
-        const store = readStore()
+        const store = await readStore()
         const before = store.keys.length
         store.keys = store.keys.filter((k) => k.id !== id)
         if (store.keys.length === before) return sendJson(response, 404, { error: `key ${id} 不存在` })
-        writeStore(store)
+        await writeStore(store)
         logger?.info?.(`[caller-admin] 删除调用方 ${id}`)
         sendJson(response, 200, { ok: true })
         return
@@ -437,7 +450,7 @@ export function createCallerAdmin(options = {}) {
         if (!/^[A-Za-z0-9_.-]{1,40}$/.test(name)) {
           return sendJson(response, 400, { error: "分组名只能用字母数字和 _ . -，最长 40" })
         }
-        const store = readStore()
+        const store = await readStore()
         const existing = store.groups.find((g) => g.name === name)
         const allow = normalizeAllow(payload.allow)
         if (!allow.length) return sendJson(response, 400, { error: "白名单不能为空（全放行请填 *）" })
@@ -447,7 +460,7 @@ export function createCallerAdmin(options = {}) {
         } else {
           store.groups.push({ name, desc: String(payload.desc ?? ""), allow })
         }
-        writeStore(store)
+        await writeStore(store)
         logger?.info?.(`[caller-admin] 保存分组 ${name}（allow=${allow.length} 条）`)
         sendJson(response, 200, { ok: true })
         return
@@ -455,7 +468,7 @@ export function createCallerAdmin(options = {}) {
 
       if (action === "group.rm") {
         const name = String(payload.name ?? "")
-        const store = readStore()
+        const store = await readStore()
         // 删掉还在被引用的分组 = 那批 key 全部变成「分组不存在一律拒绝」，
         // 与其让运行时 403 让人一头雾水，不如在这里直接拒绝，并说清是谁在用。
         const users = store.keys.filter((k) => k.group === name).map((k) => k.name || k.id)
@@ -469,7 +482,7 @@ export function createCallerAdmin(options = {}) {
         if (store.groups.length === before) {
           return sendJson(response, 404, { error: `分组 ${name} 不存在` })
         }
-        writeStore(store)
+        await writeStore(store)
         sendJson(response, 200, { ok: true })
         return
       }
