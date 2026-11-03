@@ -275,7 +275,17 @@ export function createCallerAdmin(options = {}) {
     const hit = usageCache.get(day)
     if (hit && hit.sig === sig) return hit.rows
 
-    const rows = (await readFile(path, "utf8"))
+    let text
+    try {
+      text = await readFile(path, "utf8")
+    } catch (error) {
+      // stat 成功但紧接着文件被删（并发清理 / 跨天滚动）：当作这一天没有流水，
+      // 而不是把一次管理端查询变成 500。
+      if (error?.code === "ENOENT") return []
+      throw error
+    }
+
+    const rows = text
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean)
