@@ -20,6 +20,9 @@
 
 import { createHost } from "./host.js"
 import { createHttpServer } from "./server.js"
+import { join as joinPath } from "node:path"
+import { readFileSync as readFileSyncNode } from "node:fs"
+import { createCallerGate } from "./caller-gate.js"
 
 /** 默认管理端口。 */
 const DEFAULT_PORT = 8080
@@ -82,9 +85,26 @@ const host = await createHost()
 const port = resolvePort()
 const bind = resolveHost()
 const proxyGateway = resolveProxyGateway()
+
+// >>> caller-gate
+// data/caller-keys.json 不存在时闸门自动关闭，行为与改造前一致。
+const callerGate = createCallerGate({
+  home: host.home,
+  logger: console,
+  upstreamKey: () => {
+    const fromEnv = process.env.DSH_OPENAI_GATEWAY_API_KEY
+    if (fromEnv && fromEnv.trim()) return fromEnv.trim()
+    try {
+      return readFileSyncNode(joinPath(host.home, "openai-gateway", "api-key"), "utf8").trim()
+    } catch {
+      return null
+    }
+  },
+})
+// <<< caller-gate
 const adminAuth = resolveAdminAuth()
 
-const server = createHttpServer(host, { logger: console, proxyGateway, adminAuth })
+const server = createHttpServer(host, { logger: console, proxyGateway, adminAuth, callerGate })
 await new Promise((resolve, reject) => {
   server.once("error", reject)
   server.once("listening", resolve)
