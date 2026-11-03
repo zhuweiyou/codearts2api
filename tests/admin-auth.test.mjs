@@ -130,6 +130,10 @@ test("登录表单能换到会话 Cookie，之后可直接访问页面", async (
   const html = await page.text()
   assert.match(html, /type="password"/, "登录页应有密码框")
   assert.doesNotMatch(html, new RegExp(TEST_ADMIN_KEY), "登录页绝不能回显密钥")
+  // 登录页是**未认证**页面：密钥存在哪个文件、是否来自环境变量都属于部署内情。
+  // 回显给任何访问者，等于替他标好了下一步（找 .env / 读日志 / 猜路径）。
+  assert.doesNotMatch(html, /CODEARTS2API_ADMIN_KEY/, "登录页不应提示密钥来自环境变量")
+  assert.equal(html.includes(join(app.home, "admin-key")), false, "登录页不应回显密钥文件路径")
 
   // ② 提交正确密钥。
   const login = await fetch(`${app.origin}/admin/login`, {

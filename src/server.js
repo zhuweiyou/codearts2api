@@ -78,7 +78,6 @@ import { Readable } from "node:stream"
 
 import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./upstream.js"
 import {
-  ADMIN_KEY_FILE,
   LOGIN_PATH,
   LOGOUT_PATH,
   LoginThrottle,
@@ -302,12 +301,9 @@ export function createHttpServer(host, options = {}) {
 
   /** 管理密钥（读到就不变；`null` 表示鉴权已关闭）。 */
   let adminKey = typeof options.adminKey === "string" && options.adminKey !== "" ? options.adminKey : null
-  /** 密钥是否来自环境变量（仅用于登录页的提示文案）。 */
-  let adminKeyFromEnv = false
   if (adminAuthEnabled && adminKey === null) {
     const loaded = loadOrCreateAdminKey(host.home)
     adminKey = loaded.value
-    adminKeyFromEnv = loaded.fromEnv
     if (loaded.generated) {
       // ⚠️ 只在**首次生成**时打印全文：之后每次启动都打一遍，等于把它写进
       //    所有容器的日志历史里（docker logs 是长期可查的）。
@@ -452,9 +448,6 @@ export function createHttpServer(host, options = {}) {
       renderLoginPage({
         error,
         next: sanitizeNext(url.searchParams.get("next") ?? "/admin"),
-        keyPath: join(host.home, ADMIN_KEY_FILE),
-        // 密钥来源只用于**提示文案**（「去这个文件里找」 vs「看环境变量」）。
-        fromEnv: adminKeyFromEnv,
         disabled: !adminKeyEnabled(),
       }),
       { "content-type": "text/html; charset=utf-8" },
