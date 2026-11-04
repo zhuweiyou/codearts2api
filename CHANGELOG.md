@@ -7,6 +7,23 @@
 ---
 
 <details open>
+<summary><b>2026-11-04 · 上游升级 <code>fddb875</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `9047d42f47a0d04d99183abc15c0099ebc2285ed` 更新到 `fddb8751f82b7ece80b398f514c974705b656fe4`。
+
+### 上游改动
+
+- fix(zcode,baizhi): 未推送改动的审计修正（probe 假绿 / 复核失败文案）
+- test(zcode): 真机 claim 探针（3.17.1 实测 +300M token）
+- fix(zcode,baizhi): 双路审计修正 —— 推理版本与营销门控分离 / claimed:false 复核 / 测试去同义反复
+- feat(baizhi): 接入每日临时积分签到（Cap PoW，实测 +100）
+- fix(zcode): 营销门控下限抬到 3.17.1 —— 它是「逐期」的，定值必然腐坏
+
+</details>
+
+<details>
 <summary><b>2026-11-03 · 上游升级 <code>9047d42</code>（自动升级）</b></summary>
 
 ## 上游升级
