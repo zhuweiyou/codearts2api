@@ -7,6 +7,55 @@
 ---
 
 <details open>
+<summary><b>2026-11-06 · 上游升级 <code>a5b3cd1</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `fddb8751f82b7ece80b398f514c974705b656fe4` 更新到 `a5b3cd10dd49c27064c1270da205ca19a5e77d0a`。
+
+### 上游改动
+
+- fix(magicrew,buddy,jet-hub): 第二轮审计返工 —— 降级读数不得烧永久积分 / 文案补域名与出路 / 补 7 条零守卫
+- fix(codearts): 收图能力补两条「目录过期」的主模型 —— deepseek-v4.1-flash / -1017
+- fix(monkeycode,baizhi): 第二轮审计返工 —— 代理加固 / NO_PROXY / 多值编码 / 授信边界
+- fix(monkeycode,baizhi): 按两轮审计返工 —— 直连传输 / 假分母 / 跨 provider 回归
+- fix: 关闭全部模型时补设「供应商关闭」意图（setDisabledMany 第三入口）
+- fix(monkeycode,baizhi): 修复签名直连与额度窗口/积分展示
+- fix(magicrew): 按两轮审计返工 —— Snappy 上限 / 失败日志 / 逐对回退 / 序列去重与 tombstone
+- fix(codearts): 三个「非凭据问题」业务码各自单列 —— 别再吞成「API 密钥无效」
+- fix(zcode): 身份块跟上官方 3.17.x —— 3012 的真正判据是「版本 × 身份块同代」
+- fix(codearts): 推理请求覆盖 UA —— 华为 WAF 按 `deepseek-harness/` 前缀拒发
+- test: 补两条假绿/无牙守卫 —— 合法 JSON 非对象、ensureLoaded 可重试
+- test: 修 4 条基线红 —— 测试桩的 settings.register 必须返回 scope 对象
+- fix(jet-hub): 四审 10 条 —— 「读不到目录」不再断言「没关闭」、前端补丁回调逐层透传
+- fix(client): 核实失败时开关必须给出原因（不再渲染成「可点的已打开」）
+- docs(protocol-wire): 三审记录 —— 5 条真缺陷、变异、5 条可推广教训
+- fix(aggregate): 补写「整个 provider 已关闭」必须 await（否则把用户刚打开的模型重新关掉）
+- fix(client): 供应商开关不再「跳回去」（序号防乱序 + 全开后刷新状态）
+- fix(jet-hub): 核实腿失败时透出原因（开关不再「点不动且无解释」）
+- perf(jet-hub): provider.status 的核实腿改并发（56 秒 → 2 秒）
+- fix(jet-hub): 三审 P0/P1 —— 读盘失败不再覆盖磁盘、降级不再烧永久积分
+- test(jet-hub): 二审 4 条必修 —— 去过强断言、补漏掉的写入断言
+- fix(jet-hub): 冷帧拒绝文案与「无账号」分开说 + 补类型保护（二审 3 条建议）
+- test(jet-hub): 补冷帧守卫 + 修两条不判别断言（红队 34 变异复核）
+- docs(jet-hub): 审查后修正 12 处过时注释与文档（三态 keep / 五段判据）
+- fix(jet-hub): 「关闭供应商」不再被后来的「全关模型」静默删除
+- fix(magicrew): 补 referer 头，修昵称恒回落与 gateway key 恒签发失败
+- fix(magicrew): 读本机浏览器登录态时解 leveldb Snappy 压缩块，并补 CDP 前缀键名
+- fix(jet-hub): 模型列表屏的「全关」在供应商无账号时不再报「没有可关闭的模型」
+- fix(magicrew): 锁定态读不到余额时不再清空模型列表
+- fix(magicrew): 归因改口 —— 「境外出口/地区封锁」已被完整出口矩阵证伪
+- fix(magicrew): 失败原因不再塌成一句 —— 非 JSON 分两格、锁定态点名 403/405、401 说明锁不丢
+- docs(magicrew): 补记整站被拦的取证（目录/积分/推理三条腿同 host 全 403/405）
+- fix(magicrew): 报错里给域名而不是完整 URL（代理直连规则匹配域名）
+- docs(magicrew): 补两条可推广教训（锁定与出模型同一件事、两条取数腿）
+- docs(magicrew): 补记 403/405 同档与六条变异
+- fix(magicrew): 405 与 403 必须同档（国际站被 WAF 拒时回的是 405）
+- fix(magicrew): 积分查询失败必须说清原因（真机：境外出口被 WAF 拒）
+
+</details>
+
+<details>
 <summary><b>2026-11-04 · 上游升级 <code>fddb875</code>（自动升级）</b></summary>
 
 ## 上游升级
