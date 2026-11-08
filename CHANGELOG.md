@@ -7,6 +7,21 @@
 ---
 
 <details open>
+<summary><b>2026-11-08 · 上游升级 <code>5042cec</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `a5b3cd10dd49c27064c1270da205ca19a5e77d0a` 更新到 `5042cec86a88c01e0061346de0b8c5d325aa2422`。
+
+### 上游改动
+
+- fix(qoder): 目录并 app 场景（QoDuck 只发布在那里）+ COSY_VERSION 抬到 1.1.79
+- fix(loomy): stream 档位白名单与声明同源（审计 #9）+ 图片覆盖表补登 + 审计 #6 已知残余登记
+- fix(loomy): 兜底表补 DeepSeek-V4.1-Flash + 目录外 id 仍声明档位（切模型即整轮失败）
+
+</details>
+
+<details>
 <summary><b>2026-11-06 · 上游升级 <code>a5b3cd1</code>（自动升级）</b></summary>
 
 ## 上游升级
