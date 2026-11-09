@@ -7,6 +7,26 @@
 ---
 
 <details open>
+<summary><b>2026-11-09 · 上游升级 <code>9c04c56</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `5042cec86a88c01e0061346de0b8c5d325aa2422` 更新到 `9c04c56d4beea6822214952b9cda642c0835db47`。
+
+### 上游改动
+
+- fix(jet-hub): PR #52 二审 —— 补 3 条「代码对、守卫可被静默拿掉」的行为级用例
+- fix(jet-hub): PR #52 审计返工 —— 修「黑名单不动」假文案 + 补 9 条零守卫
+- fix(magicrew): UA 收敛为真实 build 号，修「整站 405」（issue IKTPRV）
+- fix(qoder): 积分「永久」改为「到期未知」（issue IKTLMX）
+- fix(monkeycode,baizhi): 审计返工 —— 补 3 条无牙守卫 + 归因订正 + 未声明模型告警
+- feat(jet-hub): 页头按钮搬进侧边栏底部操作行 + 「设置」弹窗 + 供应商开关
+- fix(astudio): 推理网关迁移至 maas-api.cn-huabei-1.xf-yun.com/v1
+- fix(monkeycode,baizhi): 声明逐模型输出上限，修「4096 兜底 ⇒ 长回答被静默截断」
+
+</details>
+
+<details>
 <summary><b>2026-11-08 · 上游升级 <code>5042cec</code>（自动升级）</b></summary>
 
 ## 上游升级
