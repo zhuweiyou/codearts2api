@@ -183,6 +183,7 @@ const STATIC_FILES = new Map([
   ["/admin", "admin.html"],
   ["/admin/", "admin.html"],
   ["/admin.css", "admin.css"],
+  ["/admin-shell.js", "admin-shell.js"],
   ["/admin-boot.js", "admin-boot.js"],
   ["/admin.js", "admin.js"],
   ["/upstream-jet-hub.js", "upstream-jet-hub.js"],

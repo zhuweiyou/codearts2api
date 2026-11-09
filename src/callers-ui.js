@@ -39,7 +39,6 @@ export const UI_SRC = String.raw`
   "use strict";
 
   var API = "/admin/callers/api";
-  var MOUNTED_ATTR = "data-c2m-btn";
   var STYLE_ID = "c2m-style";
 
   /* ── 小工具（与看板保持同名的给同名，读代码时不串）────────────── */
@@ -195,109 +194,107 @@ export const UI_SRC = String.raw`
     if (document.getElementById(STYLE_ID)) return;
     var st = document.createElement("style");
     st.id = STYLE_ID;
-    /* Element Plus 令牌（取自 element-plus/theme-chalk 的 CSS 变量默认值）：
-       primary #409eff / success #67c23a / danger #f56c6c / warning #e6a23c
-       text-primary #303133 / regular #606266 / secondary #909399 / placeholder #a8abb2
-       border #dcdfe6 / light #e4e7ed / lighter #ebeef5 / fill #f5f7fa */
     st.textContent = [
       /* ── 作用域：一切样式只作用于调用方弹窗内部，不污染 /admin 其它区域 ── */
       /* ── 表格（Element Table 外观）────────────────────────────────── */
-      ".c2m-scope .c2d-tbl{width:100%;border-collapse:collapse;table-layout:auto;font-size:13px;color:#606266;background:#fff;border-radius:4px}",
-      ".c2m-scope .c2d-tbl th{background:#f5f7fa;color:#909399;font-weight:700;font-size:13px;text-align:left;padding:8px 12px;border-bottom:1px solid #ebeef5;white-space:nowrap}",
-      ".c2m-scope .c2d-tbl td{text-align:left;padding:8px 12px;border-bottom:1px solid #ebeef5;color:#606266;font-size:13px;vertical-align:middle;line-height:1.5}",
-      ".c2m-scope .c2d-tbl tbody tr:hover > td{background:#f5f7fa}",
+      ".c2m-scope .c2d-tbl{width:100%;border-collapse:collapse;table-layout:auto;font-size:13px;color:var(--c2-text-2);background:var(--c2-surface);border-radius:4px}",
+      ".c2m-scope .c2d-tbl th{background:var(--c2-surface-2);color:var(--c2-text-3);font-weight:600;font-size:13px;text-align:left;padding:8px 12px;border-bottom:1px solid var(--c2-border-soft);white-space:nowrap}",
+      ".c2m-scope .c2d-tbl td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--c2-border-soft);color:var(--c2-text-2);font-size:13px;vertical-align:middle;line-height:1.5}",
+      ".c2m-scope .c2d-tbl tbody tr:hover > td{background:var(--c2-surface-2)}",
       ".c2m-scope .c2d-tbl tr:last-child > td{border-bottom:0}",
       ".c2m-scope .c2d-tbl .num{text-align:right;font-variant-numeric:tabular-nums}",
       /* 固定列宽的表：溢出省略，避免长模型名把操作列挤成两行 */
       ".c2m-scope .c2d-tbl-fixed{table-layout:fixed}",
+      ".c2m-scope .c2m-tblWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--c2-border-soft);border-radius:8px}",
+      "@media (max-width:720px){.c2m-scope .c2m-tblWrap>.c2d-tbl{min-width:680px}.c2m-scope .c2m-filters{padding:10px}.c2m-scope .c2m-field{flex:1 1 140px}.c2m-scope .c2m-ddbtn{min-width:0;max-width:none;width:100%}.c2m-scope .c2m-tabs{gap:18px}}",
       ".c2m-scope .c2d-tbl-fixed td,.c2m-scope .c2d-tbl-fixed th{overflow:hidden;text-overflow:ellipsis}",
       /* ── 区块 / 空态 / 次要文字（原先靠看板注入，弹窗单独打开时就缺失）── */
       ".c2m-scope .c2d-section{margin-bottom:4px}",
-      ".c2m-scope .c2d-sectionTitle{font-size:13px;font-weight:600;color:#303133;margin:0 0 10px}",
-      ".c2m-scope .c2d-muted{color:#909399}",
-      ".c2m-scope .c2d-empty{padding:28px 12px;text-align:center;color:#909399;font-size:13px}",
+      ".c2m-scope .c2d-sectionTitle{font-size:13px;font-weight:600;color:var(--c2-text);margin:0 0 10px}",
+      ".c2m-scope .c2d-muted{color:var(--c2-text-3)}",
+      ".c2m-scope .c2d-empty{padding:28px 12px;text-align:center;color:var(--c2-text-3);font-size:13px}",
       /* ── 页签（Element Tabs：底部 2px 主色条）────────────────────────── */
-      ".c2m-scope .c2m-tabs{display:flex;gap:2px;border-bottom:1px solid #e4e7ed;margin:0 0 14px}",
-      ".c2m-scope .c2m-tab{appearance:none;border:0;background:none;padding:0 18px 9px;font:inherit;font-size:13px;line-height:20px;cursor:pointer;color:#303133;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}",
-      ".c2m-scope .c2m-tab:hover{color:#409eff}",
-      ".c2m-scope .c2m-tab.on{color:#409eff;border-bottom-color:#409eff;font-weight:600}",
-      ".c2m-scope .c2m-tab .n{font-size:11px;color:#909399;margin-left:5px;font-weight:400}",
+      ".c2m-scope .c2m-tabs{display:flex;gap:32px;border-bottom:1px solid var(--c2-border);margin:0 0 14px}",
+      ".c2m-scope .c2m-tab{appearance:none;border:0;background:none;padding:0 0 9px;font:inherit;font-size:13px;line-height:20px;cursor:pointer;color:var(--c2-text);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}",
+      ".c2m-scope .c2m-tab:hover{color:var(--c2-brand)}",
+      ".c2m-scope .c2m-tab.on{color:var(--c2-brand);border-bottom-color:var(--c2-brand);font-weight:600}",
+      ".c2m-scope .c2m-tab .n{font-size:11px;color:var(--c2-text-3);margin-left:5px;font-weight:400}",
       /* ── 筛选行 ─────────────────────────────────────────────────────── */
-      ".c2m-scope .c2m-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin:0 0 12px;padding:12px 14px;border:1px solid #ebeef5;border-radius:6px;background:#fafafa}",
+      ".c2m-scope .c2m-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin:0 0 12px;padding:12px 14px;border:1px solid var(--c2-border-soft);border-radius:6px;background:var(--c2-surface-2)}",
       ".c2m-scope .c2m-field{display:flex;flex-direction:column;gap:4px;min-width:0}",
-      ".c2m-scope .c2m-field label{font-size:12px;color:#606266;line-height:16px}",
-      ".c2m-scope .c2m-field select,.c2m-scope .c2m-field input{box-sizing:border-box;height:28px;border:1px solid #dcdfe6;border-radius:4px;padding:0 8px;font:inherit;font-size:12px;background:#fff;color:#606266;outline:none;transition:border-color .15s}",
-      ".c2m-scope .c2m-field select:hover,.c2m-scope .c2m-field input:hover{border-color:#c0c4cc}",
-      ".c2m-scope .c2m-field select:focus,.c2m-scope .c2m-field input:focus{border-color:#409eff}",
+      ".c2m-scope .c2m-field label{font-size:12px;color:var(--c2-text-2);line-height:16px}",
+      ".c2m-scope .c2m-field select,.c2m-scope .c2m-field input{box-sizing:border-box;height:28px;border:1px solid var(--c2-border);border-radius:4px;padding:0 8px;font:inherit;font-size:12px;background:var(--c2-surface);color:var(--c2-text-2);outline:none;transition:border-color .15s}",
+      ".c2m-scope .c2m-field select:hover,.c2m-scope .c2m-field input:hover{border-color:color-mix(in srgb,var(--c2-text-3) 50%,var(--c2-border))}",
+      ".c2m-scope .c2m-field select:focus,.c2m-scope .c2m-field input:focus{border-color:var(--c2-brand)}",
       ".c2m-scope .c2m-field-days{position:relative}",
       /* ── 日期下拉（Element Select 风格）────────────────────────────────
          原生 select multiple 要求按 Ctrl 才能多选、且固定三行高，
          换成「按钮 + 浮层面板」，点一下即切换。 */
       ".c2m-scope .c2m-dd{position:relative;display:inline-block}",
-      ".c2m-scope .c2m-ddbtn{box-sizing:border-box;height:28px;min-width:196px;max-width:260px;display:inline-flex;align-items:center;gap:6px;justify-content:space-between;border:1px solid #dcdfe6;border-radius:4px;padding:0 8px;font:inherit;font-size:12px;background:#fff;color:#606266;cursor:pointer;text-align:left;transition:border-color .15s}",
-      ".c2m-scope .c2m-ddbtn:hover{border-color:#c0c4cc}",
-      ".c2m-scope .c2m-dd[data-open='1'] .c2m-ddbtn{border-color:#409eff}",
+      ".c2m-scope .c2m-ddbtn{box-sizing:border-box;height:28px;min-width:196px;max-width:260px;display:inline-flex;align-items:center;gap:6px;justify-content:space-between;border:1px solid var(--c2-border);border-radius:4px;padding:0 8px;font:inherit;font-size:12px;background:var(--c2-surface);color:var(--c2-text-2);cursor:pointer;text-align:left;transition:border-color .15s}",
+      ".c2m-scope .c2m-ddbtn:hover{border-color:color-mix(in srgb,var(--c2-text-3) 50%,var(--c2-border))}",
+      ".c2m-scope .c2m-dd[data-open='1'] .c2m-ddbtn{border-color:var(--c2-brand)}",
       ".c2m-scope .c2m-ddbtn>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-      ".c2m-scope .c2m-ddarrow{flex:0 0 auto;color:#a8abb2;font-size:10px}",
-      ".c2m-scope .c2m-ddpanel{position:absolute;z-index:20;top:calc(100% + 4px);left:0;width:252px;background:#fff;border:1px solid #e4e7ed;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.1);padding:8px}",
+      ".c2m-scope .c2m-ddarrow{flex:0 0 auto;color:var(--c2-text-3);font-size:10px}",
+      ".c2m-scope .c2m-ddpanel{position:absolute;z-index:20;top:calc(100% + 4px);left:0;width:252px;background:var(--c2-surface);border:1px solid var(--c2-border);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.1);padding:8px}",
       ".c2m-scope .c2m-ddpanel[hidden]{display:none}",
-      ".c2m-scope .c2m-ddpre{display:flex;gap:6px;flex-wrap:wrap;padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid #ebeef5}",
-      ".c2m-scope .c2m-preset{appearance:none;border:1px solid #dcdfe6;background:#fff;color:#606266;border-radius:4px;font:inherit;font-size:11.5px;line-height:20px;padding:0 8px;cursor:pointer;transition:all .15s}",
-      ".c2m-scope .c2m-preset:hover{color:#409eff;border-color:#c6e2ff;background:#ecf5ff}",
-      ".c2m-scope .c2m-preset.on{color:#fff;background:#409eff;border-color:#409eff}",
+      ".c2m-scope .c2m-ddpre{display:flex;gap:6px;flex-wrap:wrap;padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--c2-border-soft)}",
+      ".c2m-scope .c2m-preset{appearance:none;border:1px solid var(--c2-border);background:var(--c2-surface);color:var(--c2-text-2);border-radius:4px;font:inherit;font-size:11.5px;line-height:20px;padding:0 8px;cursor:pointer;transition:all .15s}",
+      ".c2m-scope .c2m-preset:hover{color:var(--c2-brand);border-color:color-mix(in srgb,var(--c2-brand) 35%,var(--c2-border));background:var(--c2-brand-soft)}",
+      ".c2m-scope .c2m-preset.on{color:#fff;background:var(--c2-brand);border-color:var(--c2-brand)}",
       ".c2m-scope .c2m-ddlist{max-height:196px;overflow:auto}",
-      ".c2m-scope .c2m-ddrow{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px;color:#606266}",
-      ".c2m-scope .c2m-ddrow:hover{background:#f5f7fa}",
-      ".c2m-scope .c2m-ddbox{flex:0 0 auto;width:14px;height:14px;border:1px solid #dcdfe6;border-radius:3px;background:#fff;position:relative;box-sizing:border-box}",
-      ".c2m-scope .c2m-ddrow.on .c2m-ddbox{background:#409eff;border-color:#409eff}",
+      ".c2m-scope .c2m-ddrow{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px;color:var(--c2-text-2)}",
+      ".c2m-scope .c2m-ddrow:hover{background:var(--c2-surface-2)}",
+      ".c2m-scope .c2m-ddbox{flex:0 0 auto;width:14px;height:14px;border:1px solid var(--c2-border);border-radius:3px;background:var(--c2-surface);position:relative;box-sizing:border-box}",
+      ".c2m-scope .c2m-ddrow.on .c2m-ddbox{background:var(--c2-brand);border-color:var(--c2-brand)}",
       ".c2m-scope .c2m-ddrow.on .c2m-ddbox::after{content:'';position:absolute;left:3px;top:0px;width:5px;height:9px;border:2px solid #fff;border-top:0;border-left:0;transform:rotate(45deg)}",
       ".c2m-scope .c2m-ddlab{flex:1 1 auto;font-variant-numeric:tabular-nums}",
-      ".c2m-scope .c2m-ddw{flex:0 0 auto;color:#a8abb2;font-size:11px}",
-      ".c2m-scope .c2m-ddempty{padding:10px 6px;color:#909399;font-size:12px;text-align:center}",
+      ".c2m-scope .c2m-ddw{flex:0 0 auto;color:var(--c2-text-3);font-size:11px}",
+      ".c2m-scope .c2m-ddempty{padding:10px 6px;color:var(--c2-text-3);font-size:12px;text-align:center}",
       ".c2m-scope .c2m-field-act{justify-content:flex-end}",
       /* ── 标签徽章（Element Tag）──────────────────────────────────────── */
       ".c2m-scope .c2m-badge{display:inline-block;padding:0 7px;border-radius:4px;font-size:12px;line-height:20px;border:1px solid;white-space:nowrap}",
-      ".c2m-scope .c2m-badge.ok{color:#67c23a;border-color:#e1f3d8;background:#f0f9eb}",
-      ".c2m-scope .c2m-badge.bad{color:#f56c6c;border-color:#fde2e2;background:#fef0f0}",
-      ".c2m-scope .c2m-badge.off{color:#909399;border-color:#e9e9eb;background:#f4f4f5}",
+      ".c2m-scope .c2m-badge.ok{color:var(--c2-ok);border-color:color-mix(in srgb,var(--c2-ok) 30%,var(--c2-border));background:var(--c2-ok-soft)}",
+      ".c2m-scope .c2m-badge.bad{color:var(--c2-err);border-color:color-mix(in srgb,var(--c2-err) 30%,var(--c2-border));background:var(--c2-err-soft)}",
+      ".c2m-scope .c2m-badge.off{color:var(--c2-text-3);border-color:var(--c2-border-soft);background:var(--c2-surface-2)}",
       /* ── 模型清单胶囊（Element Tag 朴素风格，密排时压到 11px）────────── */
       ".c2m-scope .c2m-chips{display:flex;flex-wrap:wrap;gap:4px}",
-      ".c2m-scope .c2m-chip{display:inline-block;font-size:11px;line-height:20px;padding:0 8px;border-radius:4px;border:1px solid #e9e9eb;background:#f4f4f5;color:#909399;white-space:nowrap}",
+      ".c2m-scope .c2m-chip{display:inline-block;font-size:11px;line-height:20px;padding:0 8px;border-radius:4px;border:1px solid var(--c2-border-soft);background:var(--c2-surface-2);color:var(--c2-text-3);white-space:nowrap}",
       /* ── 等宽字体（模型名 / key / 时间）──────────────────────────────── */
       ".c2m-scope .c2m-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}",
       ".c2m-scope .c2m-wrap{white-space:normal;word-break:break-word}",
       ".c2m-scope .c2m-nowrap{white-space:nowrap}",
       /* ── 按钮（Element Button：默认白底细边框，主色为实心，删除为红字）── */
-      ".c2m-scope .dim-jh-btn{appearance:none;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:28px;padding:0 13px;font:inherit;font-size:12px;line-height:1;color:#606266;background:#fff;border:1px solid #dcdfe6;border-radius:4px;cursor:pointer;transition:color .15s,border-color .15s,background-color .15s;white-space:nowrap}",
-      ".c2m-scope .dim-jh-btn:hover{color:#409eff;border-color:#c6e2ff;background:#ecf5ff}",
-      ".c2m-scope .dim-jh-btn:active{color:#3a8ee6;border-color:#3a8ee6}",
-      '.c2m-scope .dim-jh-btn[data-act$="-rm"]{color:#f56c6c}',
-      '.c2m-scope .dim-jh-btn[data-act$="-rm"]:hover{color:#f56c6c;border-color:#fbc4c4;background:#fef0f0}',
-      '.c2m-scope .dim-jh-btn[data-act$="-new"],.c2m-scope .dim-jh-btn[data-act="rec-apply"]{color:#fff;background:#409eff;border-color:#409eff;height:30px;padding:0 16px}',
-      '.c2m-scope .dim-jh-btn[data-act$="-new"]:hover,.c2m-scope .dim-jh-btn[data-act="rec-apply"]:hover{color:#fff;background:#66b1ff;border-color:#66b1ff}',
+      ".c2m-scope .dim-jh-btn{appearance:none;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:28px;padding:0 13px;font:inherit;font-size:12px;line-height:1;color:var(--c2-text-2);background:var(--c2-surface);border:1px solid var(--c2-border);border-radius:4px;cursor:pointer;transition:color .15s,border-color .15s,background-color .15s;white-space:nowrap}",
+      ".c2m-scope .dim-jh-btn:hover{color:var(--c2-brand);border-color:color-mix(in srgb,var(--c2-brand) 35%,var(--c2-border));background:var(--c2-brand-soft)}",
+      ".c2m-scope .dim-jh-btn:active{color:var(--c2-brand);border-color:var(--c2-brand)}",
+      '.c2m-scope .dim-jh-btn[data-act$="-rm"]{color:var(--c2-err)}',
+      '.c2m-scope .dim-jh-btn[data-act$="-rm"]:hover{color:var(--c2-err);border-color:color-mix(in srgb,var(--c2-err) 40%,var(--c2-border));background:var(--c2-err-soft)}',
+      '.c2m-scope .dim-jh-btn[data-act$="-new"],.c2m-scope .dim-jh-btn[data-act="rec-apply"]{color:#fff;background:var(--c2-brand);border-color:var(--c2-brand);height:30px;padding:0 16px}',
+      '.c2m-scope .dim-jh-btn[data-act$="-new"]:hover,.c2m-scope .dim-jh-btn[data-act="rec-apply"]:hover{color:#fff;background:color-mix(in srgb,var(--c2-brand) 85%,#000);border-color:var(--c2-brand)}',
       /* 表格内的操作按钮更紧凑，并禁止换行堆叠（之前竖排两行是主要丑点） */
       ".c2m-scope .c2m-ops{display:flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap}",
       ".c2m-scope .c2m-ops .dim-jh-btn{height:24px;padding:0 9px;font-size:11.5px}",
       /* ── 滚动区 / 左右分栏 ───────────────────────────────────────────── */
-      ".c2m-scope .c2m-scroll{max-height:calc(72vh - 170px);overflow:auto}",
+      ".c2m-scope .c2m-scroll{max-height:calc(100vh - 300px);overflow:auto}",
       /* 左右分栏：汇总在左、明细在右，各自独立滚动。
          为什么不用上下堆叠：弹窗 max-height 有限，上下两块各带滚动条会叠出
          「弹窗自己滚 + 表格自己滚」的双层滚动，实测滚动区互相打架。 */
       ".c2m-scope .c2m-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:12px;align-items:start}",
       ".c2m-scope .c2m-pane{min-width:0}",
-      ".c2m-scope .c2m-pane-scroll{max-height:calc(64vh - 150px);overflow:auto;border:1px solid #ebeef5;border-radius:4px}",
+      ".c2m-scope .c2m-pane-scroll{max-height:calc(100vh - 330px);min-height:240px;overflow:auto;border:1px solid var(--c2-border-soft);border-radius:8px}",
       ".c2m-scope .c2m-pane-scroll .c2d-tbl th{position:sticky;top:0;z-index:1}",
       /* 表头不许折行：左栏窄，宽度一旦不够，浏览器就把「次数」拆成两行。 */
       ".c2m-scope .c2m-pane .c2d-tbl th{white-space:nowrap}",
       ".c2m-scope .c2m-pane .c2d-tbl th.num,.c2m-scope .c2m-pane .c2d-tbl td.num{white-space:nowrap;text-align:right}",
       "@media (max-width:1080px){.c2m-scope .c2m-split{grid-template-columns:minmax(0,1fr)}}",
       /* ── 表单弹层（新建/编辑分组与 Key）────────────────────────────── */
-      ".c2m-scope .c2m-form{display:flex;flex-direction:column;gap:14px;min-width:440px}",
-      ".c2m-scope .c2m-form label{font-size:13px;color:#606266;display:block;margin-bottom:5px}",
-      ".c2m-scope .c2m-form input,.c2m-scope .c2m-form textarea,.c2m-scope .c2m-form select{width:100%;box-sizing:border-box;border:1px solid #dcdfe6;border-radius:4px;padding:6px 10px;font:inherit;font-size:13px;color:#606266;outline:none}",
-      ".c2m-scope .c2m-form input:focus,.c2m-scope .c2m-form textarea:focus,.c2m-scope .c2m-form select:focus{border-color:#409eff}",
-      ".c2m-scope .c2m-form .err{color:#f56c6c;font-size:12px;min-height:16px}",
-      ".c2m-scope .c2m-secret{background:#f0f9eb;border:1px solid #e1f3d8;border-radius:4px;padding:10px 12px;font-family:ui-monospace,monospace;font-size:12.5px;word-break:break-all;color:#67c23a;margin:10px 0}",
+      ".c2m-scope .c2m-form{display:flex;flex-direction:column;gap:14px;min-width:min(440px,100%)}",
+      ".c2m-scope .c2m-form label{font-size:13px;color:var(--c2-text-2);display:block;margin-bottom:5px}",
+      ".c2m-scope .c2m-form input,.c2m-scope .c2m-form textarea,.c2m-scope .c2m-form select{width:100%;box-sizing:border-box;border:1px solid var(--c2-border);border-radius:4px;padding:6px 10px;font:inherit;font-size:13px;color:var(--c2-text-2);outline:none}",
+      ".c2m-scope .c2m-form input:focus,.c2m-scope .c2m-form textarea:focus,.c2m-scope .c2m-form select:focus{border-color:var(--c2-brand)}",
+      ".c2m-scope .c2m-form .err{color:var(--c2-err);font-size:12px;min-height:16px}",
+      ".c2m-scope .c2m-secret{background:var(--c2-ok-soft);border:1px solid color-mix(in srgb,var(--c2-ok) 30%,var(--c2-border));border-radius:4px;padding:10px 12px;font-family:ui-monospace,monospace;font-size:12.5px;word-break:break-all;color:var(--c2-ok);margin:10px 0}",
       ".c2m-scope .c2m-row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}",
     ].join("\n");
     document.head.appendChild(st);
@@ -337,7 +334,7 @@ export const UI_SRC = String.raw`
       ? "<colgroup>" + colWidths.map(function (w) { return w ? '<col style="width:' + w + '">' : "<col>"; }).join("") + "</colgroup>"
       : "";
     var cls = cg ? "c2d-tbl c2d-tbl-fixed" : "c2d-tbl";
-    return '<table class="' + cls + '">' + cg + "<thead><tr>" + th + "</tr></thead><tbody>" + tb + "</tbody></table>";
+    return '<div class="c2m-tblWrap"><table class="' + cls + '">' + cg + "<thead><tr>" + th + "</tr></thead><tbody>" + tb + "</tbody></table></div>";
   }
 
   /* 表格里的一排操作按钮：横排、不换行、间距统一（竖着堆两个按钮是之前最丑的地方）。 */
@@ -649,7 +646,7 @@ export const UI_SRC = String.raw`
     wrap.className = "dim-jh-modalOverlay";
     wrap.style.zIndex = 3200;
     wrap.innerHTML =
-      '<div role="dialog" aria-modal="true" class="dim-jh-modal c2m-scope" data-scope="c2m" style="width:520px">' +
+      '<div role="dialog" aria-modal="true" class="dim-jh-modal c2m-scope" data-scope="c2m" style="width:min(520px,calc(100vw - 24px))">' +
       '<div class="dim-jh-modalHead"><div class="dim-jh-modalTitle"><strong>' + esc(title) + "</strong></div></div>" +
       '<div class="dim-jh-modalBody"><div class="c2m-form">' +
       fields.map(function (f) {
@@ -808,24 +805,19 @@ export const UI_SRC = String.raw`
 
   function build() {
     var ov = document.createElement("div");
-    ov.className = "dim-jh-modalOverlay";
+    ov.className = "c2-page";
     ov.innerHTML =
-      '<div role="dialog" aria-modal="true" aria-label="调用方" class="dim-jh-modal dim-jh-modal--ledger"' +
-      ' style="width:min(1180px,calc(100vw - 48px));max-height:min(780px,calc(100vh - 48px))">' +
-      '<div class="dim-jh-modalHead">' +
-      '<div class="dim-jh-modalTitle"><strong>调用方</strong>' +
-      '<span class="dim-jh-modalSubtitle" id="c2m-sub">加载中…</span></div>' +
-      '<div class="dim-jh-modelPanelActions">' +
-      '<button class="dim-jh-btn" id="c2m-refresh">刷新</button>' +
-      '<button class="dim-jh-btn" id="c2m-close">关闭</button>' +
-      "</div></div>" +
-      '<p class="dim-jh-modalHint">token 分发：分组决定能用哪些模型，Key 决定谁在调；' +
-      "用量与调用记录按 key / 模型实时汇总，超管 key 一并统计。</p>" +
-      '<div class="dim-jh-modalBody"><div class="c2m-scope c2d-body" id="c2m-body">加载中…</div></div>' +
-      "</div>";
+      '<div class="c2-pageHead">' +
+      "<div>" +
+      '<h1 class="c2-pageTitle">调用方</h1>' +
+      '<p class="c2-pageSub"><span id="c2m-sub">加载中…</span> · 分组决定能用哪些模型，Key 决定谁在调；' +
+      "用量与调用记录按 Key / 模型实时汇总，超管 Key 一并统计。</p>" +
+      "</div>" +
+      '<div class="c2-pageActions"><button type="button" class="c2-btn" id="c2m-refresh">刷新</button></div>' +
+      "</div>" +
+      '<div class="c2m-scope c2d-body" id="c2m-body">加载中…</div>';
 
     ov.addEventListener("click", function (e) {
-      if (e.target === ov) { close(); return; }
       var tab = e.target.closest && e.target.closest("[data-tab]");
       if (tab) {
         state.tab = tab.getAttribute("data-tab");
@@ -849,7 +841,6 @@ export const UI_SRC = String.raw`
       }
     });
 
-    ov.querySelector("#c2m-close").addEventListener("click", close);
     ov.querySelector("#c2m-refresh").addEventListener("click", function () {
       state.records = null;
       refresh();
@@ -857,62 +848,27 @@ export const UI_SRC = String.raw`
     return ov;
   }
 
-  function close() {
-    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    overlay = null;
-    document.removeEventListener("keydown", onKey);
-  }
-  function onKey(e) { if (e.key === "Escape" && overlay) close(); }
-
-  function open() {
+  function mount(container) {
     ensureStyle();
-    if (overlay) return;
     overlay = build();
-    document.body.appendChild(overlay);
-    document.addEventListener("keydown", onKey);
+    container.appendChild(overlay);
+  }
+
+  function onShow() {
+    if (!overlay) return;
     // 有上次的快照就先把内容画出来（毫秒级），随后 refresh 再更新 ——
     // 否则用户点开后要盯着「加载中…」等 state 请求（冷启动可达 1s）。
-    if (state.cached) {
+    if (state.cached && !state.data) {
       state.data = state.cached;
-      if (state.records) repaint();
-      else {
-        state.tab = "groups";
-        repaint();
-      }
+      repaint();
     }
     refresh();
   }
 
-  /* ── 按钮注入（与看板同一套策略：常驻 observer + 兜底轮询）──────── */
-
-  function mountButton() {
-    if (document.querySelector("[" + MOUNTED_ATTR + "]")) return true;
-    var actions = document.querySelector(".dim-jh-headerActions");
-    var host = actions || document.querySelector(".dim-jh-header") || document.querySelector("header");
-    if (!host) return false;
-    var btn = document.createElement("button");
-    btn.className = "dim-jh-btn";
-    btn.setAttribute(MOUNTED_ATTR, "1");
-    btn.title = "调用方：分组白名单、分发 Key、按 key/模型的用量与逐次调用记录。";
-    btn.textContent = "调用方";
-    btn.addEventListener("click", open);
-    // 紧跟在「总览」后面（总览被要求排在供应商之前，调用方跟它并排即可）。
-    const dashBtn = document.querySelector("[data-c2d-btn]");
-    if (dashBtn && dashBtn.parentNode === host) host.insertBefore(btn, dashBtn.nextSibling);
-    else host.insertBefore(btn, host.firstChild);
-    return true;
-  }
-
-  var raf = 0;
-  var obs = new MutationObserver(function () {
-    if (raf) return;
-    raf = requestAnimationFrame(function () { raf = 0; mountButton(); });
-  });
-  if (!mountButton()) {
-    obs.observe(document.documentElement, { childList: true, subtree: true });
-    var t0 = setInterval(function () { if (mountButton()) clearInterval(t0); }, 500);
+  if (window.__c2Shell) {
+    window.__c2Shell.registerView("callers", { mount: mount, onShow: onShow });
   } else {
-    obs.observe(document.documentElement, { childList: true, subtree: true });
+    console.error("[callers-ui] 外壳 admin-shell.js 未加载，调用方无处挂载");
   }
 })();
 `
