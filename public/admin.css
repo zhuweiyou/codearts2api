@@ -113,7 +113,7 @@
   --c2-shadow-pop: 0 12px 40px rgb(15 20 30 / 18%);
   --c2-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --c2-topbar-h: 52px;
-  --c2-content-max: 1280px;
+  --c2-content-max: 1680px;
   --c2-content-pad: 24px;
 }
 
@@ -160,10 +160,6 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
-}
-
-:root[data-c2-view="callers"] {
-  --c2-content-max: 1680px;
 }
 
 :root[data-c2-view="channels"] .c2-topbar {
