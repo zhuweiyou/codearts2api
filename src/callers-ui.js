@@ -76,6 +76,47 @@ export const UI_SRC = String.raw`
     function p(n) { return String(n).padStart(2, "0"); }
     return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
   }
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function localDay(value) {
+    var d = value instanceof Date ? value : new Date(value);
+    if (!isFinite(d.getTime())) return "";
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  function dayHead(day) {
+    if (!day) return "日期未知";
+    var now = new Date();
+    var yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    var p = String(day).split("-");
+    var md = p.length === 3 ? Number(p[1]) + " 月 " + Number(p[2]) + " 日" : String(day);
+    var lead = day === localDay(now) ? "今天" : day === localDay(yest) ? "昨天" : p[0] + " 年";
+    return lead + " · " + md + " " + wd(day);
+  }
+  function fmtMs(ms) {
+    var v = Number(ms);
+    if (ms == null || !isFinite(v)) return "—";
+    if (v < 1000) return Math.round(v) + " ms";
+    if (v < 60000) return (v / 1000).toFixed(1) + " s";
+    var s = Math.round(v / 1000);
+    return Math.floor(s / 60) + " 分 " + pad2(s % 60) + " 秒";
+  }
+  var STATUS_TEXT = {
+    400: "请求有误", 401: "Key 无效", 403: "无权调用", 404: "模型不存在", 408: "请求超时",
+    413: "请求过大", 429: "被限流", 500: "服务出错", 502: "上游出错", 503: "暂不可用", 504: "上游超时",
+  };
+  var CODE_TEXT = {
+    rate_limit_exceeded: "被限流", insufficient_quota: "额度不足", quota_exceeded: "额度不足",
+    model_not_allowed: "无权调用", model_disabled: "模型已关闭", invalid_api_key: "Key 无效",
+    context_length_exceeded: "上下文超长", gateway_unreachable: "网关不可达", server_error: "服务出错",
+    timeout: "超时", upstream_error: "上游出错",
+  };
+  function statusReason(x) {
+    if (x.error_code) return CODE_TEXT[x.error_code] || String(x.error_code);
+    var s = Number(x.status);
+    return STATUS_TEXT[s] || (s >= 500 ? "服务出错" : "请求失败");
+  }
+  function recKey(x) {
+    return [x.ts, x.caller, x.model, x.status, x.ms, x.in_tokens, x.out_tokens].join("|");
+  }
 
   /* ── 日期选择器（下拉多选，替换原生 select multiple）──────────────
      原生的 <select multiple size=3> 有两个硬伤：多选必须按 Ctrl 点
@@ -161,6 +202,7 @@ export const UI_SRC = String.raw`
       if (presetMatches(b.getAttribute("data-preset"))) b.classList.add("on");
       else b.classList.remove("on");
     });
+    updateAutoUi();
   }
 
   /* 返回值 true = 这次点击被日期控件吞掉，不再走后面的按钮分派。 */
@@ -280,14 +322,91 @@ export const UI_SRC = String.raw`
       /* 左右分栏：汇总在左、明细在右，各自独立滚动。
          为什么不用上下堆叠：弹窗 max-height 有限，上下两块各带滚动条会叠出
          「弹窗自己滚 + 表格自己滚」的双层滚动，实测滚动区互相打架。 */
-      ".c2m-scope .c2m-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:12px;align-items:start}",
+      ".c2m-scope .c2m-split{display:grid;grid-template-columns:minmax(0,0.92fr) minmax(0,1.48fr);gap:12px;align-items:start}",
       ".c2m-scope .c2m-pane{min-width:0}",
       ".c2m-scope .c2m-pane-scroll{max-height:calc(100vh - 330px);min-height:240px;overflow:auto;border:1px solid var(--c2-border-soft);border-radius:8px}",
       ".c2m-scope .c2m-pane-scroll .c2d-tbl th{position:sticky;top:0;z-index:1}",
       /* 表头不许折行：左栏窄，宽度一旦不够，浏览器就把「次数」拆成两行。 */
       ".c2m-scope .c2m-pane .c2d-tbl th{white-space:nowrap}",
       ".c2m-scope .c2m-pane .c2d-tbl th.num,.c2m-scope .c2m-pane .c2d-tbl td.num{white-space:nowrap;text-align:right}",
-      "@media (max-width:1080px){.c2m-scope .c2m-split{grid-template-columns:minmax(0,1fr)}}",
+      "@media (max-width:1280px){.c2m-scope .c2m-split{grid-template-columns:minmax(0,1fr)}}",
+      ".c2m-scope .c2m-auto{margin-left:auto;align-self:center;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--c2-text-3)}",
+      ".c2m-scope .c2m-autodot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--c2-text-3)}",
+      ".c2m-scope .c2m-auto[data-mode='on'] .c2m-autodot{background:var(--c2-ok);box-shadow:0 0 0 3px var(--c2-ok-soft)}",
+      ".c2m-scope .c2m-auto[data-mode='wait'] .c2m-autodot{background:var(--c2-warn);box-shadow:0 0 0 3px var(--c2-warn-soft)}",
+      ".c2m-scope .c2m-auto[data-mode='err'] .c2m-autodot{background:var(--c2-err);box-shadow:0 0 0 3px var(--c2-err-soft)}",
+      ".c2m-scope .c2m-auto[data-mode='err'] [data-rec-autotext]{color:var(--c2-err)}",
+      ".c2m-scope .c2m-auto .dim-jh-btn{height:26px;padding:0 11px}",
+      ".c2m-scope .c2m-rectbl th,.c2m-scope .c2m-rectbl td{padding:7px 8px}",
+      ".c2m-scope .c2m-rectbl th{font-size:12px}",
+      ".c2m-scope .c2m-recday>td{background:var(--c2-surface-2);color:var(--c2-text-3);font-size:12px;font-weight:600;padding:5px 10px}",
+      ".c2m-scope .c2m-rectbl tbody tr.c2m-recday:hover>td{background:var(--c2-surface-2)}",
+      ".c2m-scope .c2m-rectime{font-family:var(--c2-mono);font-size:12px;color:var(--c2-text-3);white-space:nowrap}",
+      ".c2m-scope .c2m-recnew{display:inline-block;margin-left:6px;padding:0 5px;border-radius:8px;font-size:10px;line-height:16px;color:var(--c2-brand);background:var(--c2-brand-soft);vertical-align:1px}",
+      ".c2m-scope .c2m-recwho{display:block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--c2-text)}",
+      ".c2m-scope .c2m-recsub{display:block;font-family:var(--c2-mono);font-size:11px;line-height:15px;color:var(--c2-text-3);white-space:nowrap}",
+      ".c2m-scope .c2m-recmodel{display:block;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--c2-mono);font-size:12px;color:var(--c2-text)}",
+      ".c2m-scope .c2m-recprov{color:var(--c2-text-3)}",
+      ".c2m-scope .c2m-recok{color:var(--c2-ok);white-space:nowrap}",
+      ".c2m-scope .c2m-recbad{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}",
+      ".c2m-scope .c2m-recwhy{color:var(--c2-err);font-size:12px;max-width:84px;overflow:hidden;text-overflow:ellipsis}",
+      ".c2m-scope .c2m-rectbl tbody tr.c2m-recrow.bad>td{background:var(--c2-err-soft)}",
+      ".c2m-scope .c2m-recms{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px;font-family:var(--c2-mono);font-size:12px;white-space:nowrap}",
+      ".c2m-scope .c2m-recbar{display:block;width:56px;height:3px;border-radius:2px;background:var(--c2-border-soft);overflow:hidden}",
+      ".c2m-scope .c2m-recbar>i{display:block;height:100%;border-radius:2px;background:var(--c2-brand)}",
+      ".c2m-scope .c2m-recbar.slow>i{background:var(--c2-warn)}",
+      ".c2m-scope .c2m-recbar.bad>i{background:var(--c2-err)}",
+      ".c2m-scope .c2m-rectok{font-family:var(--c2-mono);font-size:12px;white-space:nowrap}",
+      ".c2m-scope .c2m-recway{display:inline-block;padding:0 6px;border-radius:4px;font-size:11px;line-height:18px;white-space:nowrap;color:var(--c2-text-3);border:1px solid var(--c2-border-soft);background:var(--c2-surface-2)}",
+      ".c2m-scope .c2m-recway.stream{color:var(--c2-brand);border-color:color-mix(in srgb,var(--c2-brand) 30%,var(--c2-border));background:var(--c2-brand-soft)}",
+      ".c2m-scope .c2m-modeltbl th,.c2m-scope .c2m-modeltbl td{padding:8px;vertical-align:middle}",
+      ".c2m-scope .c2m-modeltbl th{font-size:12px}",
+      ".c2m-scope .c2m-modeltbl .c2m-recmodel{max-width:150px}",
+      ".c2m-scope .c2m-mcalls{display:block;font-size:14px;font-weight:600;color:var(--c2-text);font-variant-numeric:tabular-nums}",
+      ".c2m-scope .c2m-merr{display:block;font-size:11px;color:var(--c2-err);white-space:nowrap}",
+      ".c2m-scope .c2m-mtok{display:block;font-family:var(--c2-mono);font-size:12px;line-height:18px;white-space:nowrap}",
+      ".c2m-scope .c2m-mtok>span{margin-right:6px;font-family:inherit;font-size:11px;color:var(--c2-text-3)}",
+      ".c2m-scope .c2m-mwhos{display:flex;flex-wrap:wrap;gap:4px}",
+      ".c2m-scope .c2m-mwho{display:inline-flex;align-items:center;gap:4px;max-width:84px;padding:0 6px;border-radius:4px;font-size:11px;line-height:18px;color:var(--c2-text-2);border:1px solid var(--c2-border-soft);background:var(--c2-surface-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".c2m-scope .c2m-mwho>b{font-weight:600;color:var(--c2-text-3);font-variant-numeric:tabular-nums}",
+      ".c2m-scope .c2m-mwho.more{color:var(--c2-text-3)}",
+      ".c2m-scope .c2m-mwho.wide{display:none}",
+      "@media (max-width:1280px){.c2m-scope .c2m-mwho.wide{display:inline-flex}.c2m-scope .c2m-mwho.narrow{display:none}}",
+      "@media (max-width:1280px){.c2m-scope .c2m-modeltbl .c2m-recmodel{max-width:280px}.c2m-scope .c2m-mwho{max-width:160px}}",
+      ".c2m-scope .c2m-mmore>td{font-size:11.5px;color:var(--c2-text-3);text-align:center}",
+      "@keyframes c2mRecFresh{from{background:var(--c2-brand-soft)}to{background:transparent}}",
+      ".c2m-scope .c2m-recrow.fresh>td{animation:c2mRecFresh 4s ease-out}",
+      "@media (max-width:720px){" +
+        ".c2m-scope .c2m-auto{margin-left:0;flex:1 1 100%}" +
+        ".c2m-scope .c2m-rectbl,.c2m-scope .c2m-rectbl tbody{display:block}" +
+        ".c2m-scope .c2m-rectbl thead{display:none}" +
+        ".c2m-scope .c2m-recday,.c2m-scope .c2m-recday>td{display:block}" +
+        ".c2m-scope .c2m-recrow{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:9px 10px;border-bottom:1px solid var(--c2-border-soft)}" +
+        ".c2m-scope .c2m-recrow.bad{background:var(--c2-err-soft)}" +
+        ".c2m-scope .c2m-rectbl tbody tr.c2m-recrow>td{display:block;padding:0;border:0;background:none;text-align:left}" +
+        ".c2m-scope .c2m-recrow>td.c-model{order:1;flex:1 1 100%}" +
+        ".c2m-scope .c2m-recrow>td.c-time{order:2}" +
+        ".c2m-scope .c2m-recrow>td.c-who{order:3}" +
+        ".c2m-scope .c2m-recrow>td.c-res{order:4;margin-left:auto}" +
+        ".c2m-scope .c2m-recrow>td.c-ms,.c2m-scope .c2m-recrow>td.c-in,.c2m-scope .c2m-recrow>td.c-out,.c2m-scope .c2m-recrow>td.c-way{order:5}" +
+        ".c2m-scope .c2m-recrow>td[data-l]::before{content:attr(data-l) ' ';font-size:11px;color:var(--c2-text-3)}" +
+        ".c2m-scope .c2m-recwho,.c2m-scope .c2m-recsub{display:inline;max-width:none}" +
+        ".c2m-scope .c2m-recsub{margin-left:6px}" +
+        ".c2m-scope .c2m-recmodel{max-width:none}" +
+        ".c2m-scope .c2m-recms{flex-direction:row;align-items:center;gap:6px}" +
+        ".c2m-scope .c2m-recbar{width:40px}" +
+        ".c2m-scope .c2m-modeltbl,.c2m-scope .c2m-modeltbl tbody{display:block}" +
+        ".c2m-scope .c2m-modeltbl thead{display:none}" +
+        ".c2m-scope .c2m-modeltbl tbody tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:9px 10px;border-bottom:1px solid var(--c2-border-soft)}" +
+        ".c2m-scope .c2m-modeltbl tbody tr>td{display:block;padding:0;border:0;text-align:left}" +
+        ".c2m-scope .c2m-modeltbl tbody tr>td:first-child{flex:1 1 100%}" +
+        ".c2m-scope .c2m-modeltbl tbody tr>td[data-l]::before{content:attr(data-l) ' ';font-size:11px;color:var(--c2-text-3)}" +
+        ".c2m-scope .c2m-modeltbl .c2m-mcalls{display:inline;font-size:13px}" +
+        ".c2m-scope .c2m-modeltbl .c2m-merr{display:inline;margin-left:6px}" +
+        ".c2m-scope .c2m-modeltbl .c2m-mtok{display:inline;margin-right:10px}" +
+        ".c2m-scope .c2m-modeltbl .c2m-recmodel{max-width:none}" +
+        ".c2m-scope .c2m-modeltbl .c2m-mmore>td{flex:1 1 100%}" +
+      "}",
       /* ── 表单弹层（新建/编辑分组与 Key）────────────────────────────── */
       ".c2m-scope .c2m-form{display:flex;flex-direction:column;gap:14px;min-width:min(440px,100%)}",
       ".c2m-scope .c2m-form label{font-size:13px;color:var(--c2-text-2);display:block;margin-bottom:5px}",
@@ -314,7 +433,41 @@ export const UI_SRC = String.raw`
     // 上次成功加载的 state 快照：再次打开弹窗时先用它渲染，再去后台刷新。
     // 这样「点开 → 有内容」不用等任何请求（实测 state 冷启动要 1.0s）。
     cached: null,
+    query: null,
+    auto: { on: readAutoOn(), lastAt: 0, busy: false, err: "", fresh: {}, timer: null, visible: false },
   };
+
+  var AUTO_KEY = "c2-rec-auto";
+  function autoMs() {
+    var v = Number(window.__c2RecAutoMs);
+    return v > 0 ? v : 15000;
+  }
+  function readAutoOn() {
+    try { return window.localStorage.getItem("c2-rec-auto") !== "0"; } catch (e) { return true; }
+  }
+  function writeAutoOn(on) {
+    try {
+      if (on) window.localStorage.removeItem(AUTO_KEY);
+      else window.localStorage.setItem(AUTO_KEY, "0");
+    } catch (e) { return; }
+  }
+  function snapshotQuery() {
+    return {
+      days: (state.days || []).slice(),
+      filter: {
+        caller: state.filter.caller || "",
+        model: state.filter.model || "",
+        status: state.filter.status || "",
+      },
+    };
+  }
+  function sameQuery(a, b) {
+    return sameSet(a.days, b.days) &&
+      a.filter.caller === b.filter.caller && a.filter.model === b.filter.model && a.filter.status === b.filter.status;
+  }
+  function dirty() {
+    return Boolean(state.query) && !sameQuery(state.query, snapshotQuery());
+  }
 
   function section(title, body) {
     return '<div class="c2d-section"><div class="c2d-sectionTitle">' + esc(title) + "</div>" + body + "</div>";
@@ -497,55 +650,172 @@ export const UI_SRC = String.raw`
       '<option value="error"' + (sf === "error" ? " selected" : "") + ">失败</option></select></div>" +
       '<div class="c2m-field c2m-field-act"><label>&nbsp;</label>' +
       '<button class="dim-jh-btn" data-act="rec-apply">查询</button></div>' +
+      '<div class="c2m-auto" data-rec-auto data-mode="on">' +
+      '<span class="c2m-autodot"></span><span data-rec-autotext></span>' +
+      '<button type="button" class="dim-jh-btn" data-act="rec-auto"></button></div>' +
       "</div>";
-
-    var byModelRows = (r.byModel || []).slice(0, 12).map(function (m) {
-      var callers = Object.keys(m.byCaller || {}).map(function (c) {
-        return c + "×" + m.byCaller[c];
-      }).join(", ");
-      /* 左栏一共只有一格宽度，列太多表头会被压成「次/数」「平均耗/时」两行。
-         故 in / out 合成一列「token in·out」，错误数挂到次数列后面。 */
-      return "<td class=\"c2m-mono c2m-wrap\" style=\"font-size:11.5px\">" + esc(m.model) + "</td>" +
-        num(fmt(m.calls) + (m.errors > 0 ? ' <span class="c2m-badge bad">' + fmt(m.errors) + " 错</span>" : "")) +
-        num('<span class="c2m-mono">' + fmtTokens(m.inTokens) + " / " + fmtTokens(m.outTokens) + "</span>") +
-        num(m.avgMs == null ? "—" : fmt(m.avgMs) + " ms") +
-        '<td class="c2d-muted c2m-wrap" style="font-size:11px">' + esc(callers) + "</td>";
-    });
-
-    var detailRows = (r.rows || []).map(function (x) {
-      var bad = Number(x.status) >= 400;
-      return '<td class="c2m-mono">' + esc(hhmmss(x.ts)) + "</td>" +
-        '<td class="c2m-mono">' + esc(x.caller) + "</td>" +
-        '<td class="c2m-mono" style="font-size:11px">' + esc(x.model) + "</td>" +
-        "<td>" + (bad
-          ? '<span class="c2m-badge bad">' + esc(x.status) + "</span>"
-          : '<span class="c2m-badge ok">' + esc(x.status) + "</span>") + "</td>" +
-        num(x.ms == null ? "—" : fmt(x.ms) + " ms") +
-        num(fmtTokens(x.in_tokens)) +
-        num(fmtTokens(x.out_tokens)) +
-        "<td>" + (x.stream ? "流式" : "一次性") + "</td>";
-    });
 
     /* 左右分栏：汇总在左、明细在右。之前上下堆叠会顶破弹窗高度，
        出现「弹窗自己滚 + 表格自己滚」的双层滚动条。 */
     return filters +
       '<div class="c2m-split">' +
       '<div class="c2m-pane c2m-pane-left">' +
-      section("按模型汇总 · 共 " + (r.total || 0) + " 次调用",
-        '<div class="c2m-pane-scroll">' + table([{ label: "模型" }, { label: "次数", num: true },
-          { label: "token in / out", num: true }, { label: "平均耗时", num: true },
-          { label: "谁在调" }], byModelRows) + "</div>") +
+      recSection("model", modelTitle(r), modelHtml(r)) +
       "</div>" +
       '<div class="c2m-pane c2m-pane-right">' +
-      section("逐条明细 · 最近 " + (r.shown || 0) + " / 共 " + (r.total || 0) + " 条",
-        '<div class="c2m-pane-scroll">' + table(
-          [{ label: "时间" }, { label: "调用方" }, { label: "模型" }, { label: "状态" },
-           { label: "耗时", num: true }, { label: "in", num: true }, { label: "out", num: true },
-           { label: "方式" }], detailRows) + "</div>") +
+      recSection("detail", detailTitle(r), detailHtml(r)) +
       "</div></div>" +
       '<p class="c2d-muted" style="font-size:11.5px;margin-top:6px">' +
       "记录只含元数据（调用方、模型、状态、耗时、token 数），<strong>不落 prompt / 回复正文</strong>。" +
       "日期多选可跨天查询，最多 31 天。</p>";
+  }
+
+  function recSection(kind, title, body) {
+    return '<div class="c2d-section"><div class="c2d-sectionTitle" data-rec-title="' + kind + '">' + esc(title) +
+      '</div><div class="c2m-pane-scroll" data-rec-pane="' + kind + '">' + body + "</div></div>";
+  }
+
+  function modelTitle(r) {
+    return "按模型汇总 · 共 " + fmt(r.total || 0) + " 次调用";
+  }
+
+  function detailTitle(r) {
+    var bad = (r.byModel || []).reduce(function (n, m) { return n + (Number(m.errors) || 0); }, 0);
+    return "逐条明细 · 最近 " + fmt(r.shown || 0) + " / 共 " + fmt(r.total || 0) + " 条" +
+      (bad > 0 ? " · 失败 " + fmt(bad) : "");
+  }
+
+  function callerName(id) {
+    if (id === "master") return "超管";
+    var k = ((state.data && state.data.keys) || []).filter(function (x) { return x.id === id; })[0];
+    return k && k.name ? k.name : id;
+  }
+
+  function modelRows(r) {
+    var list = r.byModel || [];
+    var maxAvg = list.reduce(function (n, m) { return Math.max(n, Number(m.avgMs) || 0); }, 0);
+    var rows = list.slice(0, 12).map(function (m) {
+      var model = String(m.model || "");
+      var cut = model.indexOf("/");
+      var prov = cut > 0 ? model.slice(0, cut) : "";
+      var short = cut > 0 ? model.slice(cut + 1) : model;
+      var calls = Number(m.calls) || 0;
+      var avg = Number(m.avgMs);
+      var hasAvg = m.avgMs != null && isFinite(avg);
+      var avgPct = hasAvg && maxAvg > 0 ? Math.max(2, Math.round((avg / maxAvg) * 100)) : 0;
+      var who = Object.keys(m.byCaller || {})
+        .sort(function (a, b) { return m.byCaller[b] - m.byCaller[a]; });
+      var label = function (c) { return callerName(c) + " ×" + m.byCaller[c]; };
+      var chips = who.slice(0, 3).map(function (c, i) {
+        return '<span class="c2m-mwho' + (i > 0 ? " wide" : "") + '" title="' + esc(c) + '">' +
+          esc(callerName(c)) + "<b>" + fmt(m.byCaller[c]) + "</b></span>";
+      }).join("") +
+        (who.length > 1
+          ? '<span class="c2m-mwho more narrow" title="' + esc(who.slice(1).map(label).join("、")) + '">+' +
+            (who.length - 1) + "</span>"
+          : "") +
+        (who.length > 3
+          ? '<span class="c2m-mwho more wide" title="' + esc(who.slice(3).map(label).join("、")) + '">+' +
+            (who.length - 3) + "</span>"
+          : "");
+      /* 左栏一共只有一格宽度，列太多表头会被压成「次/数」「平均耗/时」两行。
+         故 in / out 合成一列「token in·out」，错误数挂到次数列后面。 */
+      var cells =
+        '<td><span class="c2m-recmodel" title="' + esc(model) + '">' +
+        (prov ? '<span class="c2m-recprov">' + esc(prov) + " / </span>" : "") + esc(short) + "</span></td>" +
+        '<td class="num" data-l="调用"><span class="c2m-mcalls">' + fmt(calls) + "</span>" +
+        (m.errors > 0 ? '<span class="c2m-merr">失败 ' + fmt(m.errors) + "</span>" : "") + "</td>" +
+        '<td class="num"><span class="c2m-mtok"><span>输入</span>' + esc(fmtTokens(m.inTokens)) + "</span>" +
+        '<span class="c2m-mtok"><span>输出</span>' + esc(fmtTokens(m.outTokens)) + "</span></td>" +
+        '<td class="num" data-l="平均"><span class="c2m-recms">' + esc(fmtMs(m.avgMs)) +
+        (hasAvg ? '<span class="c2m-recbar' + (avg >= 10000 ? " slow" : "") + '"><i style="width:' + avgPct +
+          '%"></i></span>' : "") + "</span></td>" +
+        '<td><div class="c2m-mwhos">' + chips + "</div></td>";
+      var sig = [calls, m.errors, m.inTokens, m.outTokens, m.avgMs, avgPct,
+        who.map(function (c) { return callerName(c) + m.byCaller[c]; }).join(",")].join("|");
+      return '<tr data-k="' + esc("m:" + model) + '" data-s="' + esc(sig) + '">' + cells + "</tr>";
+    });
+    if (list.length > 12) {
+      rows.push('<tr class="c2m-mmore" data-k="m:+more" data-s="' + (list.length - 12) + '"><td colspan="5">另有 ' +
+        (list.length - 12) + " 个模型调用较少，未列出</td></tr>");
+    }
+    return rows.join("");
+  }
+
+  function modelHtml(r) {
+    var body = modelRows(r);
+    if (!body) return '<div class="c2d-empty">暂无数据</div>';
+    return '<table class="c2d-tbl c2m-modeltbl"><thead><tr><th>模型</th><th class="num">调用</th>' +
+      '<th class="num">token</th><th class="num">平均耗时</th><th>谁在调</th></tr></thead>' +
+      "<tbody>" + body + "</tbody></table>";
+  }
+
+  function detailRow(x, maxMs, key) {
+    var bad = Number(x.status) >= 400;
+    var isNew = Boolean(state.auto.fresh[recKey(x)]);
+    var model = String(x.model || "");
+    var cut = model.indexOf("/");
+    var prov = cut > 0 ? model.slice(0, cut) : "";
+    var short = cut > 0 ? model.slice(cut + 1) : model;
+    var master = x.caller === "master";
+    var who = master ? "超管" : (x.name || x.caller || "—");
+    var whoSub = master ? "上游网关主 key" : (x.name ? x.caller : "");
+    var ms = Number(x.ms);
+    var hasMs = x.ms != null && isFinite(ms);
+    var pct = hasMs && maxMs > 0 ? Math.max(2, Math.round((ms / maxMs) * 100)) : 0;
+    var barCls = bad ? " bad" : hasMs && ms >= 10000 ? " slow" : "";
+    var outTok = bad && !Number(x.out_tokens) ? "—" : fmtTokens(x.out_tokens);
+    var inTok = x.in_tokens == null ? "—" : fmtTokens(x.in_tokens);
+    var result = bad
+      ? '<span class="c2m-recbad"><span class="c2m-badge bad">' + esc(x.status) + "</span>" +
+        '<span class="c2m-recwhy" title="' + esc(x.error_code || statusReason(x)) + '">' + esc(statusReason(x)) + "</span></span>"
+      : '<span class="c2m-recok" title="HTTP ' + esc(x.status) + '">✓ 成功</span>';
+    return '<tr class="c2m-recrow' + (bad ? " bad" : "") + (isNew ? " fresh" : "") + '" data-k="' + esc(key) +
+      '" data-s="' + (isNew ? "n" : "o") + pct + '">' +
+      '<td class="c-time"><span class="c2m-rectime">' + esc(hhmmss(x.ts)) + "</span>" +
+      (isNew ? '<span class="c2m-recnew">新</span>' : "") + "</td>" +
+      '<td class="c-who"><span class="c2m-recwho" title="' + esc(who) + '">' + esc(who) + "</span>" +
+      (whoSub ? '<span class="c2m-recsub">' + esc(whoSub) + "</span>" : "") + "</td>" +
+      '<td class="c-model"><span class="c2m-recmodel" title="' + esc(model) + '">' +
+      (prov ? '<span class="c2m-recprov">' + esc(prov) + " / </span>" : "") + esc(short) + "</span></td>" +
+      '<td class="c-res">' + result + "</td>" +
+      '<td class="c-ms num" data-l="耗时"><span class="c2m-recms">' + esc(fmtMs(x.ms)) +
+      (hasMs ? '<span class="c2m-recbar' + barCls + '"><i style="width:' + pct + '%"></i></span>' : "") + "</span></td>" +
+      '<td class="c-in num" data-l="输入"><span class="c2m-rectok">' + esc(inTok) + "</span></td>" +
+      '<td class="c-out num" data-l="输出"><span class="c2m-rectok">' + esc(outTok) + "</span></td>" +
+      '<td class="c-way"><span class="c2m-recway' + (x.stream ? " stream" : "") + '">' +
+      (x.stream ? "流式" : "一次性") + "</span></td></tr>";
+  }
+
+  function detailRows(r) {
+    var rows = r.rows || [];
+    var maxMs = rows.reduce(function (m, x) {
+      var v = Number(x.ms);
+      return x.ms != null && isFinite(v) && v > m ? v : m;
+    }, 0);
+    var out = [];
+    var lastDay = null;
+    var seen = {};
+    rows.forEach(function (x) {
+      var day = localDay(x.ts) || x.day || "";
+      if (day !== lastDay) {
+        out.push('<tr class="c2m-recday" data-k="' + esc("d:" + day) + '" data-s="' + esc(dayHead(day)) + '">' +
+          '<td colspan="8">' + esc(dayHead(day)) + "</td></tr>");
+        lastDay = day;
+      }
+      var base = recKey(x);
+      seen[base] = (seen[base] || 0) + 1;
+      out.push(detailRow(x, maxMs, seen[base] > 1 ? base + "#" + seen[base] : base));
+    });
+    return out.join("");
+  }
+
+  function detailHtml(r) {
+    var body = detailRows(r);
+    if (!body) return '<div class="c2d-empty">所选日期内没有调用记录</div>';
+    return '<table class="c2d-tbl c2m-rectbl"><thead><tr><th>时间</th><th>调用方</th><th>模型</th><th>结果</th>' +
+      '<th class="num">耗时</th><th class="num">输入</th><th class="num">输出</th><th>方式</th></tr></thead>' +
+      "<tbody>" + body + "</tbody></table>";
   }
 
   var TABS = [
@@ -575,6 +845,7 @@ export const UI_SRC = String.raw`
       sub.textContent = (state.data.keys || []).length + " 个 Key · " +
         (state.data.groups || []).length + " 个分组";
     }
+    updateAutoUi();
   }
 
   /* ── 数据 ─────────────────────────────────────────────────────────── */
@@ -599,19 +870,218 @@ export const UI_SRC = String.raw`
     }
   }
 
-  async function loadRecords() {
-    state.records = await call({
+  async function fetchRecords(q) {
+    var res = await call({
       action: "records",
-      days: state.days,
-      filter: state.filter,
+      days: q.days,
+      filter: q.filter,
       limit: 300,
     });
     /* 把本次见到的模型并入候选全集（只增不减）：这样按某个模型筛选后，
        下拉里其它模型仍在，用户能直接切回去。 */
     var seen = state.modelCandidates;
-    (state.records.byModel || []).forEach(function (m) {
+    (res.byModel || []).forEach(function (m) {
       if (m && m.model && seen.indexOf(m.model) < 0) seen.push(m.model);
     });
+    return res;
+  }
+
+  async function loadRecords() {
+    var q = snapshotQuery();
+    var res = await fetchRecords(q);
+    if (q.days.length === 0 && Array.isArray(res.days)) {
+      q.days = res.days.slice();
+      if ((state.days || []).length === 0) state.days = res.days.slice();
+    }
+    state.records = res;
+    state.query = q;
+    state.auto.fresh = {};
+    state.auto.err = "";
+    state.auto.lastAt = Date.now();
+  }
+
+  function autoBlock() {
+    if (!state.auto.on) return "off";
+    if (state.daysOpen) return "days";
+    if (dirty()) return "dirty";
+    return "";
+  }
+
+  function canAuto() {
+    return state.auto.visible && state.tab === "records" && !document.hidden &&
+      Boolean(state.records) && Boolean(state.query) && !state.auto.busy && autoBlock() === "";
+  }
+
+  function updateAutoUi() {
+    var box = overlay && overlay.querySelector("[data-rec-auto]");
+    if (!box) return;
+    var a = state.auto;
+    var block = autoBlock();
+    var text;
+    var mode;
+    if (block === "off") {
+      text = "自动刷新已暂停";
+      mode = "off";
+    } else if (block === "days") {
+      text = "正在选日期，自动刷新暂停";
+      mode = "wait";
+    } else if (block === "dirty") {
+      text = "筛选已改动，点「查询」后继续自动刷新";
+      mode = "wait";
+    } else if (a.busy) {
+      text = "正在刷新…";
+      mode = "on";
+    } else if (a.err) {
+      text = "刷新失败：" + a.err + "，稍后自动重试";
+      mode = "err";
+    } else {
+      var s = a.lastAt ? Math.max(0, Math.round((Date.now() - a.lastAt) / 1000)) : 0;
+      text = "每 " + Math.max(1, Math.round(autoMs() / 1000)) + " 秒自动刷新 · " +
+        (s < 2 ? "刚刚更新" : s + " 秒前更新");
+      mode = "on";
+    }
+    box.setAttribute("data-mode", mode);
+    var t = box.querySelector("[data-rec-autotext]");
+    if (t && t.textContent !== text) t.textContent = text;
+    var b = box.querySelector('[data-act="rec-auto"]');
+    var label = a.on ? "暂停" : "继续";
+    if (b && b.textContent !== label) b.textContent = label;
+  }
+
+  function rowTop(row, pane) {
+    return row.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+  }
+
+  function findAnchor(pane) {
+    if (pane.scrollTop <= 0) return null;
+    var rows = pane.querySelectorAll("tr[data-k]");
+    for (var i = 0; i < rows.length; i++) {
+      var top = rowTop(rows[i], pane);
+      if (top + rows[i].getBoundingClientRect().height > 0) {
+        return { key: rows[i].getAttribute("data-k"), offset: top };
+      }
+    }
+    return null;
+  }
+
+  function restoreAnchor(pane, anchor) {
+    if (!anchor) return;
+    var row = Array.prototype.filter.call(pane.querySelectorAll("tr[data-k]"), function (el) {
+      return el.getAttribute("data-k") === anchor.key;
+    })[0];
+    if (row) pane.scrollTop = pane.scrollTop + (rowTop(row, pane) - anchor.offset);
+  }
+
+  function reconcile(tbody, rowsHtml) {
+    var tpl = document.createElement("tbody");
+    tpl.innerHTML = rowsHtml;
+    var incoming = Array.prototype.slice.call(tpl.children);
+    var want = {};
+    incoming.forEach(function (el) { want[el.getAttribute("data-k")] = true; });
+    var have = {};
+    Array.prototype.slice.call(tbody.children).forEach(function (el) {
+      var k = el.getAttribute("data-k");
+      if (k && want[k] && !have[k]) have[k] = el;
+      else tbody.removeChild(el);
+    });
+    incoming.forEach(function (el, i) {
+      var k = el.getAttribute("data-k");
+      var node = have[k];
+      if (node && node.getAttribute("data-s") !== el.getAttribute("data-s")) {
+        tbody.replaceChild(el, node);
+        node = el;
+      }
+      if (!node) node = el;
+      var ref = tbody.children[i];
+      if (ref !== node) tbody.insertBefore(node, ref || null);
+    });
+  }
+
+  function syncPane(kind, rowsHtml, fullHtml) {
+    var pane = overlay && overlay.querySelector('[data-rec-pane="' + kind + '"]');
+    if (!pane) return;
+    var anchor = findAnchor(pane);
+    var tbody = pane.querySelector("tbody");
+    if (tbody && rowsHtml) {
+      reconcile(tbody, rowsHtml);
+    } else {
+      var keep = pane.scrollTop;
+      pane.innerHTML = fullHtml;
+      pane.scrollTop = keep;
+    }
+    restoreAnchor(pane, anchor);
+  }
+
+  function setText(selector, text) {
+    var el = overlay && overlay.querySelector(selector);
+    if (el && el.textContent !== text) el.textContent = text;
+  }
+
+  function syncRecords() {
+    var r = state.records;
+    if (!overlay || !r) return;
+    syncPane("model", modelRows(r), modelHtml(r));
+    syncPane("detail", detailRows(r), detailHtml(r));
+    setText('[data-rec-title="model"]', modelTitle(r));
+    setText('[data-rec-title="detail"]', detailTitle(r));
+  }
+
+  function recordsSig(r) {
+    var rows = (r && r.rows) || [];
+    return [
+      r && r.total,
+      r && r.shown,
+      rows.length ? recKey(rows[0]) : "",
+      rows.length ? recKey(rows[rows.length - 1]) : "",
+      ((r && r.byModel) || []).map(function (m) { return m.model + ":" + m.calls + ":" + m.errors; }).join(","),
+    ].join("~");
+  }
+
+  async function autoTick() {
+    updateAutoUi();
+    if (!canAuto() || Date.now() - state.auto.lastAt < autoMs()) return;
+    var q = state.query;
+    state.auto.busy = true;
+    updateAutoUi();
+    try {
+      var res = await fetchRecords(q);
+      if (q !== state.query) return;
+      state.auto.err = "";
+      if (recordsSig(res) === recordsSig(state.records)) {
+        state.records = res;
+        return;
+      }
+      var before = {};
+      ((state.records && state.records.rows) || []).forEach(function (x) { before[recKey(x)] = 1; });
+      var fresh = {};
+      (res.rows || []).forEach(function (x) {
+        var k = recKey(x);
+        if (!before[k]) fresh[k] = 1;
+      });
+      state.records = res;
+      state.auto.fresh = fresh;
+      if (state.tab === "records") syncRecords();
+    } catch (err) {
+      state.auto.err = (err && err.message) || String(err);
+    } finally {
+      state.auto.busy = false;
+      state.auto.lastAt = Date.now();
+      updateAutoUi();
+    }
+  }
+
+  function startAuto() {
+    stopAuto();
+    state.auto.visible = true;
+    state.auto.timer = setInterval(autoTick, Math.min(1000, autoMs()));
+  }
+
+  function stopAuto() {
+    state.auto.visible = false;
+    if (state.auto.timer) {
+      clearInterval(state.auto.timer);
+      state.auto.timer = null;
+    }
   }
 
   /**
@@ -795,6 +1265,12 @@ export const UI_SRC = String.raw`
         await refresh("state");
       } else if (act === "rec-apply") {
         await refresh("records");
+      } else if (act === "rec-auto") {
+        state.auto.on = !state.auto.on;
+        writeAutoOn(state.auto.on);
+        if (state.auto.on) state.auto.lastAt = 0;
+        updateAutoUi();
+        if (state.auto.on) autoTick();
       }
     } catch (err) {
       alert(err.message);
@@ -838,6 +1314,7 @@ export const UI_SRC = String.raw`
       if (!role) return;
       if (role === "caller" || role === "model" || role === "status") {
         state.filter[role] = e.target.value;
+        updateAutoUi();
       }
     });
 
@@ -852,6 +1329,13 @@ export const UI_SRC = String.raw`
     ensureStyle();
     overlay = build();
     container.appendChild(overlay);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && state.auto.visible) autoTick();
+    });
+  }
+
+  function onHide() {
+    stopAuto();
   }
 
   function onShow() {
@@ -863,10 +1347,11 @@ export const UI_SRC = String.raw`
       repaint();
     }
     refresh();
+    startAuto();
   }
 
   if (window.__c2Shell) {
-    window.__c2Shell.registerView("callers", { mount: mount, onShow: onShow });
+    window.__c2Shell.registerView("callers", { mount: mount, onShow: onShow, onHide: onHide });
   } else {
     console.error("[callers-ui] 外壳 admin-shell.js 未加载，调用方无处挂载");
   }
