@@ -264,6 +264,31 @@ async function rpcCall(method, payload, signal) {
   throw new Error("管理接口返回了无法识别的响应")
 }
 
+let proxyGatewayPromise = null
+function proxyGatewayEnabled() {
+  if (proxyGatewayPromise === null) {
+    proxyGatewayPromise = fetch("/healthz", { headers: { accept: "application/json" } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => data?.proxyGateway === true)
+      .catch(() => false)
+  }
+  return proxyGatewayPromise
+}
+
+async function hostRpcCall(method, payload, signal) {
+  const value = await rpcCall(method, payload, signal)
+  if (
+    method === "gateway.getEnabled" &&
+    value !== null &&
+    typeof value === "object" &&
+    !(typeof value.publicUrl === "string" && value.publicUrl.trim() !== "") &&
+    (await proxyGatewayEnabled())
+  ) {
+    return { ...value, publicUrl: `${window.location.origin}/v1` }
+  }
+  return value
+}
+
 /**
  * 从上游 bundle 的行里取出 `JetHubPage` 组件。
  *
@@ -332,7 +357,7 @@ function loadUpstreamPage() {
     connection: {
       rpc: {
         async call(_channel, _endpoint, request, signal) {
-          return rpcCall(request?.method, request?.payload, signal)
+          return hostRpcCall(request?.method, request?.payload, signal)
         },
       },
     },
@@ -348,7 +373,7 @@ try {
   const Page = loadUpstreamPage()
   // `close` 传 undefined：上游页头会据此**不渲染**「关闭」按钮
   // （`close ? <button…> : null`），这正合独立页面的形态。
-  createRoot(root).render(React.createElement(Page, { rpcCall }))
+  createRoot(root).render(React.createElement(Page, { rpcCall: hostRpcCall }))
 } catch (error) {
   root.innerHTML = `<pre style="padding:24px;font:13px/1.6 ui-monospace,monospace;color:#b42318;white-space:pre-wrap">管理界面加载失败：${String(error?.message ?? error)}</pre>`
 }

@@ -4,16 +4,61 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
-    <title>Jet Hub · 渠道与网关管理</title>
+    <title>codearts2api</title>
     <!--
     样式拆成独立文件而不是内联 <style>：本页由服务端配了 CSP
     （见 src/server.js 的 SECURITY_HEADERS），内联样式会被拦。
     上游页面自己的样式由它在运行时 installJetHubStyles() 注入 <style> 标签。
   -->
     <link rel="stylesheet" href="/admin.css" />
+    <script src="/admin-shell.js"></script>
   </head>
   <body>
-    <div id="admin-root"><div class="boot">正在加载管理界面…</div></div>
+    <div class="c2-app">
+      <header class="c2-topbar">
+        <div class="c2-topbarInner">
+          <a class="c2-brand" href="#overview" aria-label="codearts2api 总览">
+            <span class="c2-brandMark" aria-hidden="true"></span>
+            <span class="c2-brandText">codearts2api</span>
+          </a>
+          <nav class="c2-nav" id="c2-nav" role="tablist" aria-label="主导航"></nav>
+          <div class="c2-actions" id="c2-actions">
+            <button
+              type="button"
+              class="c2-btn c2-iconBtn"
+              id="c2-theme"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-label="切换主题"
+            >
+              ◐
+            </button>
+            <a class="c2-btn c2-btn--ghost" id="c2-logout" href="/admin/logout" title="退出管理后台">退出</a>
+          </div>
+        </div>
+      </header>
+      <main class="c2-main">
+        <section
+          class="c2-view"
+          id="c2-view-overview"
+          data-view="overview"
+          role="tabpanel"
+          aria-label="总览"
+          hidden
+        ></section>
+        <div class="c2-view" id="admin-root" data-view="channels" role="tabpanel" aria-label="渠道管理" hidden>
+          <div class="boot">正在加载管理界面…</div>
+        </div>
+        <section
+          class="c2-view"
+          id="c2-view-callers"
+          data-view="callers"
+          role="tabpanel"
+          aria-label="调用方"
+          hidden
+        ></section>
+      </main>
+    </div>
 
     <!--
     ⚠️⚠️ 三个 script 必须留在 **<body> 末尾**（而不是 <head> 里）。

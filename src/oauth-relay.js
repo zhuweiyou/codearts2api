@@ -464,7 +464,9 @@ export const UI_SRC = String.raw`(function () {
     schedule();
   }
 
-  // 3) 右下角「回调修复」挂件
+  var MIN_PORT = 1024;
+  var MAX_PORT = 65535;
+
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -472,135 +474,213 @@ export const UI_SRC = String.raw`(function () {
     return node;
   }
 
-  function buildPanel() {
-    var style = el("style");
-    style.textContent = [
-      ".c2or-fab{position:fixed;right:18px;bottom:18px;z-index:2147482000;height:32px;padding:0 14px;",
-      "border:1px solid #dcdfe6;border-radius:16px;background:#fff;color:#606266;font-size:12px;",
-      "line-height:30px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.12);}",
-      ".c2or-fab:hover{color:#409eff;border-color:#c6e2ff;}",
-      ".c2or-panel{position:fixed;right:18px;bottom:60px;z-index:2147482001;width:420px;background:#fff;",
-      "border:1px solid #e4e7ed;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.16);padding:14px 16px;",
-      "font-size:13px;color:#303133;font-family:inherit;}",
-      ".c2or-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}",
-      ".c2or-hd b{font-size:13px;font-weight:600;}",
-      ".c2or-x{border:0;background:none;color:#909399;font-size:16px;line-height:1;cursor:pointer;padding:0 2px;}",
-      ".c2or-x:hover{color:#409eff;}",
-      ".c2or-tip{color:#909399;font-size:12px;line-height:1.7;margin-bottom:8px;}",
-      ".c2or-ta{width:100%;box-sizing:border-box;height:64px;resize:vertical;border:1px solid #dcdfe6;",
-      "border-radius:4px;padding:6px 8px;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;",
-      "color:#303133;outline:none;}",
-      ".c2or-ta:focus{border-color:#409eff;}",
-      ".c2or-row{display:flex;align-items:center;gap:8px;margin-top:10px;}",
-      ".c2or-btn{height:28px;padding:0 14px;border-radius:4px;border:1px solid #409eff;background:#409eff;",
-      "color:#fff;font-size:12px;cursor:pointer;}",
-      ".c2or-btn:disabled{opacity:.6;cursor:default;}",
-      ".c2or-btn.plain{background:#fff;color:#606266;border-color:#dcdfe6;}",
-      ".c2or-out{margin-top:10px;font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all;}",
-      ".c2or-ok{color:#67c23a;}.c2or-bad{color:#f56c6c;}.c2or-dim{color:#909399;}"
-    ].join("");
-    document.head.appendChild(style);
+  function inspect(raw) {
+    var text = String(raw || "").trim();
+    if (text === "") return { state: "empty" };
+    var m = LOOPBACK.exec(text);
+    if (!m) {
+      return {
+        state: "bad",
+        reason: "这不是本机回调地址：应以 http://127.0.0.1:端口/ 或 http://localhost:端口/ 开头。" +
+          "请复制浏览器地址栏里报「无法访问」的那一整条。",
+      };
+    }
+    var port = Number(m[2]);
+    if (!(port >= MIN_PORT && port <= MAX_PORT)) {
+      return { state: "bad", reason: "端口 " + m[2] + " 超出允许范围（1024–65535）。" };
+    }
+    var rest = m[3] || "/";
+    var q = rest.indexOf("?");
+    var path = q >= 0 ? rest.slice(0, q) : rest;
+    var query = q >= 0 ? rest.slice(q + 1) : "";
+    var hasCode = /(^|&)code=/.test(query);
+    return { state: "ok", url: text, port: port, path: path, hasCode: hasCode };
+  }
 
-    var fab = el("button", "c2or-fab", "回调修复");
-    var panel = el("div", "c2or-panel");
-    var hd = el("div", "c2or-hd");
-    hd.appendChild(el("b", "", "OAuth 回调修复"));
-    var x = el("button", "c2or-x", "\u00d7");
-    hd.appendChild(x);
-    panel.appendChild(hd);
-    panel.appendChild(
-      el(
-        "div",
-        "c2or-tip",
-        "把浏览器里报 ERR_CONNECTION_REFUSED 的那个地址整条粘进来，由服务器本机重放一次。"
-      )
-    );
-    var ta = el("textarea", "c2or-ta");
+  function callout(tone, title, lines) {
+    var box = el("div", "c2-callout");
+    box.setAttribute("data-tone", tone);
+    box.appendChild(el("strong", "", title));
+    (lines || []).forEach(function (line) {
+      if (line) box.appendChild(el("div", "", line));
+    });
+    return box;
+  }
+
+  function snippetLine(data) {
+    return data && data.snippet ? "页面提示：" + data.snippet : "";
+  }
+
+  function openRelayModal() {
+    var shell = window.__c2Shell;
+    if (!shell) return;
+
+    var body = el("div");
+    var steps = el("ol", "c2-steps");
+    steps.innerHTML =
+      "<li>在「渠道管理」里点对应渠道的「+ 新建账号」，在弹出的官方页面完成登录。</li>" +
+      "<li>登录后浏览器会跳到 <code>http://127.0.0.1:端口/…</code> 并提示无法访问 —— 这是正常的：" +
+      "那个端口开在服务器上，不在你的电脑上。</li>" +
+      "<li>把地址栏里的<strong>完整地址</strong>复制下来粘到这里，点「重放」，由服务器在本机替你访问一次。</li>";
+    body.appendChild(steps);
+
+    var field = el("div", "c2-field");
+    var label = el("label", "c2-label", "回调地址");
+    label.setAttribute("for", "c2or-url");
+    var ta = el("textarea", "c2-textarea");
+    ta.id = "c2or-url";
+    ta.spellcheck = false;
+    ta.setAttribute("autocomplete", "off");
     ta.placeholder = "http://127.0.0.1:41451/auth/callback?code=...&state=...";
-    panel.appendChild(ta);
-    var row = el("div", "c2or-row");
-    var runBtn = el("button", "c2or-btn", "重放");
-    var pasteBtn = el("button", "c2or-btn plain", "从剪贴板粘贴");
-    row.appendChild(runBtn);
-    row.appendChild(pasteBtn);
-    panel.appendChild(row);
-    var out = el("div", "c2or-out");
-    panel.appendChild(out);
+    var check = el("p", "c2-hint");
+    check.setAttribute("aria-live", "polite");
+    field.appendChild(label);
+    field.appendChild(ta);
+    field.appendChild(check);
+    body.appendChild(field);
 
-    panel.style.display = "none";
-    document.body.appendChild(fab);
-    document.body.appendChild(panel);
+    var out = el("div");
+    out.setAttribute("aria-live", "polite");
+    body.appendChild(out);
 
-    fab.addEventListener("click", function () {
-      panel.style.display = panel.style.display === "none" ? "block" : "none";
-      if (panel.style.display === "block") {
-        try { ta.focus(); } catch (e) {}
+    var pasteBtn = el("button", "c2-btn", "从剪贴板粘贴");
+    pasteBtn.type = "button";
+    var runBtn = el("button", "c2-btn c2-btn--primary", "重放");
+    runBtn.type = "button";
+    runBtn.disabled = true;
+
+    var busy = false;
+
+    function refreshCheck() {
+      var info = inspect(ta.value);
+      ta.removeAttribute("aria-invalid");
+      check.style.color = "";
+      if (info.state === "empty") {
+        check.textContent = "粘贴后会先在这里检查一遍格式。";
+      } else if (info.state === "bad") {
+        ta.setAttribute("aria-invalid", "true");
+        check.style.color = "var(--c2-err)";
+        check.textContent = info.reason;
+      } else {
+        check.textContent = "识别到：端口 " + info.port + " · 路径 " + info.path +
+          (info.hasCode ? " · 带授权码" : " · 未带 code 参数（个别渠道的回调本来就没有）");
+      }
+      runBtn.disabled = busy || info.state !== "ok";
+      return info;
+    }
+
+    ta.addEventListener("input", function () {
+      out.innerHTML = "";
+      refreshCheck();
+    });
+    ta.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !runBtn.disabled) {
+        e.preventDefault();
+        runBtn.click();
       }
     });
-    x.addEventListener("click", function () { panel.style.display = "none"; });
 
     pasteBtn.addEventListener("click", function () {
       if (!navigator.clipboard || !navigator.clipboard.readText) {
-        out.className = "c2or-out c2or-bad";
-        out.textContent = "当前浏览器不允许读剪贴板，请手动 Ctrl+V 粘贴。";
+        out.innerHTML = "";
+        out.appendChild(callout("warn", "浏览器不允许读剪贴板", ["请点进输入框后按 Ctrl+V 粘贴。"]));
+        ta.focus();
         return;
       }
       navigator.clipboard.readText().then(function (text) {
         ta.value = String(text || "").trim();
+        out.innerHTML = "";
+        refreshCheck();
+        ta.focus();
       }).catch(function () {
-        out.className = "c2or-out c2or-bad";
-        out.textContent = "读剪贴板被拒绝，请手动 Ctrl+V 粘贴。";
+        out.innerHTML = "";
+        out.appendChild(callout("warn", "读剪贴板被拒绝", ["请点进输入框后按 Ctrl+V 粘贴。"]));
+        ta.focus();
       });
     });
 
     runBtn.addEventListener("click", function () {
-      var value = String(ta.value || "").trim();
-      if (value === "") {
-        out.className = "c2or-out c2or-bad";
-        out.textContent = "先把回调地址粘进来。";
-        return;
-      }
+      var info = refreshCheck();
+      if (info.state !== "ok") return;
+      busy = true;
       runBtn.disabled = true;
-      out.className = "c2or-out c2or-dim";
-      out.textContent = "正在由服务器本机重放…";
+      runBtn.textContent = "重放中…";
+      out.innerHTML = "";
+      out.appendChild(callout("info", "正在由服务器本机重放…", []));
       fetch("/admin/oauth-relay/replay", {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ url: value })
+        body: JSON.stringify({ url: info.url }),
       }).then(function (res) {
-        return res.json().then(function (data) { return { status: res.status, data: data }; });
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          return { status: res.status, data: data || {} };
+        });
       }).then(function (result) {
-        var data = result.data || {};
+        var data = result.data;
+        out.innerHTML = "";
         if (result.status === 200 && data.ok) {
-          out.className = "c2or-out c2or-ok";
-          out.textContent = "重放成功（HTTP " + data.status + "，端口 " + data.port + "）。请回到面板点「重新读取」或等待轮询自动结束。"
-            + (data.snippet ? "\n\n页面提示：" + data.snippet : "");
+          ta.value = "";
+          refreshCheck();
+          out.appendChild(callout("ok", "登录回调已送达（HTTP " + data.status + "，端口 " + data.port + "）", [
+            "回到「渠道管理」，对应渠道的账号列表会自动出现新账号；没出现就点该渠道的刷新按钮。",
+            "输入框里的授权码已清空。",
+            snippetLine(data),
+          ]));
         } else if (result.status === 200) {
-          out.className = "c2or-out c2or-bad";
-          out.textContent = "重放已发出但上游返回 HTTP " + data.status + "（多半是 code 无效/已用过）。"
-            + (data.snippet ? "\n\n页面提示：" + data.snippet : "");
+          out.appendChild(callout("warn", "回调已送到，但登录服务没接受（HTTP " + data.status + "）", [
+            "授权码通常只能用一次、几分钟内就过期。回到对应渠道重新点「+ 新建账号」登录，拿到新地址再来。",
+            snippetLine(data),
+          ]));
+        } else if (result.status === 502) {
+          out.appendChild(callout("err", "服务器上的登录监听已经关闭", [
+            data.error || "回到对应渠道重新点「+ 新建账号」，再用新跳出来的地址重试。",
+          ]));
         } else {
-          out.className = "c2or-out c2or-bad";
-          out.textContent = (data.error || "重放失败") + (data.target ? "\n\n目标：" + data.target : "");
+          out.appendChild(callout("err", "重放失败", [
+            data.error || "HTTP " + result.status,
+            data.target ? "目标：" + data.target : "",
+          ]));
         }
       }).catch(function (error) {
-        out.className = "c2or-out c2or-bad";
-        out.textContent = "请求失败：" + String(error && error.message ? error.message : error);
+        out.innerHTML = "";
+        out.appendChild(callout("err", "请求没有发出去", [String(error && error.message ? error.message : error)]));
       }).then(function () {
-        runBtn.disabled = false;
+        busy = false;
+        runBtn.textContent = "重放";
+        refreshCheck();
       });
+    });
+
+    refreshCheck();
+    shell.openModal({
+      title: "OAuth 回调修复",
+      subtitle: "远程部署时，第三方登录跳回 127.0.0.1 打不开？把那个地址交给服务器重放",
+      body: body,
+      footer: [pasteBtn, runBtn],
+      initialFocus: "#c2or-url",
     });
   }
 
   function boot() {
     try {
       startObserver();
-      buildPanel();
     } catch (e) {
-      console.error("[oauth-relay] 面板初始化失败", e);
+      console.error("[oauth-relay] 地址改写初始化失败", e);
+    }
+    if (window.__c2Shell) {
+      window.__c2Shell.registerAction({
+        id: "oauth-relay",
+        label: "回调修复",
+        icon: "↺",
+        title: "远程部署时，第三方登录跳回 127.0.0.1 打不开？把那个地址粘进来，由服务器在本机重放",
+        onClick: openRelayModal,
+      });
+    } else {
+      console.error("[oauth-relay] 外壳 admin-shell.js 未加载，回调修复入口无处挂载");
     }
   }
+  window.__c2OpenOAuthRelay = openRelayModal;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

@@ -529,6 +529,8 @@ export const UI_SRC = String.raw`
   let overlay = null;
   // 上一次成功的快照：再次打开弹窗时先画它（不必等一次网络往返）。
   let lastSnapshot = null;
+  const openChans = new Set();
+  let visible = false;
 
   /* ── 工具 ─────────────────────────────────────────────────────────── */
 
@@ -568,13 +570,21 @@ export const UI_SRC = String.raw`
     const st = document.createElement("style");
     st.id = "c2d-style";
     st.textContent = [
-      /* ⚠️ 这里不要再写 overflow/max-height：外层的 .dim-jh-modalBody 本身就是唯一的滚动容器
-         （上游 CSS 646 行 flex:1 1 auto + overflow-y:auto）。两处都滚就会出现两条并排竖滚动条 ——
-         2026-11-02 用户实测报「总览有两个侧边滚动条」。 */
-      ".c2d-body{display:flex;flex-direction:column;gap:18px}",
-      ".c2d-section{margin:0}",
-      ".c2d-sectionTitle{font-size:13px;font-weight:600;line-height:19.5px;margin:0 0 6px;color:var(--dsw-alias-label-primary,#1f2329)}",
-      ".c2d-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}",
+      ".c2d-body{display:flex;flex-direction:column;gap:16px}",
+      ".c2d-section{margin:0;min-width:0;padding:14px 16px 16px;border:1px solid var(--c2-border,#e5e6eb);border-radius:var(--c2-radius,10px);background:var(--c2-surface,#fff);box-shadow:var(--c2-shadow,none)}",
+      ".c2d-sectionTitle{font-size:14px;font-weight:650;line-height:20px;margin:0 0 10px;color:var(--dsw-alias-label-primary,#1f2329)}",
+      ".c2d-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}",
+      ".c2d-cards--6{grid-template-columns:repeat(6,minmax(0,1fr))}",
+      "@media (max-width:1100px){.c2d-cards--6{grid-template-columns:repeat(3,minmax(0,1fr))}}",
+      "@media (max-width:560px){.c2d-cards--6{grid-template-columns:repeat(2,minmax(0,1fr))}}",
+      ".c2d-tblWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}",
+      ".c2d-tblWrap>.c2d-tbl{min-width:640px}",
+      "details.c2d-chan>summary{list-style:none;cursor:pointer}",
+      "details.c2d-chan>summary::-webkit-details-marker{display:none}",
+      "details.c2d-chan>summary .c2d-chanHead::before{content:'';flex:none;width:6px;height:6px;margin:0 3px 0 1px;border-right:1.5px solid var(--c2-text-3,#8f959e);border-bottom:1.5px solid var(--c2-text-3,#8f959e);transform:rotate(-45deg);transition:transform .15s ease}",
+      "details.c2d-chan[open]>summary .c2d-chanHead::before{transform:rotate(45deg)}",
+      "details.c2d-chan>summary:focus-visible{outline:2px solid color-mix(in srgb,var(--c2-brand,#1677ff) 45%,transparent);outline-offset:2px;border-radius:6px}",
+      ".c2d-chanBody{margin-top:9px}",
       ".c2d-card{border:1px solid var(--dsw-alias-border-default,#e5e5e5);border-radius:8px;padding:10px 12px;background:var(--dsw-alias-bg-layer-3,#fff)}",
       ".c2d-card .k{font-size:11.5px;line-height:17px;color:var(--dsw-alias-label-tertiary,#8f959e)}",
       ".c2d-card .v{font-size:20px;font-weight:600;line-height:1.25;margin-top:2px;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary,#1f2329)}",
@@ -627,6 +637,7 @@ export const UI_SRC = String.raw`
       ".c2d-accs{display:flex;flex-wrap:wrap;gap:6px;margin:3px 0 7px}",
       ".c2d-accItem{font-size:11px;padding:1px 7px;border-radius:10px;background:var(--dsw-alias-bg-layer-2,#f4f5f7);color:var(--dsw-alias-label-secondary,#5f6672)}",
       "@media (max-width:900px){.c2d-two{grid-template-columns:1fr}}",
+      "@media (max-width:720px){.c2d-section{padding:12px}.c2d-card .v{font-size:18px}.c2d-chanSum{margin-left:0;flex-basis:100%}}",
     ].join("");
     document.head.appendChild(st);
   }
@@ -644,7 +655,8 @@ export const UI_SRC = String.raw`
     '<div class="c2d-section"><div class="c2d-sectionTitle">' + esc(title) + "</div>" + body + "</div>";
 
   function cards(list) {
-    return '<div class="c2d-cards">' + list.join("") + "</div>";
+    const cls = list.filter(Boolean).length === 6 ? "c2d-cards c2d-cards--6" : "c2d-cards";
+    return '<div class="' + cls + '">' + list.join("") + "</div>";
   }
 
   function renderGateway(d) {
@@ -769,10 +781,10 @@ export const UI_SRC = String.raw`
     }).join("");
 
     const cached = d.balancesCachedAt ? " · " + ago(new Date(d.balancesCachedAt).toISOString()) : "";
-    return '<table class="c2d-tbl"><thead><tr>' +
+    return '<div class="c2d-tblWrap"><table class="c2d-tbl"><thead><tr>' +
       "<th>渠道</th><th>账号</th><th>状态</th><th>凭据有效期</th><th>限流</th>" +
       '<th class="num">余额合计</th><th>积分包（缓存 5 分钟' + esc(cached) + "）</th>" +
-      "</tr></thead><tbody>" + rows + "</tbody></table>";
+      "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
   function renderModels(d) {
@@ -935,7 +947,8 @@ export const UI_SRC = String.raw`
       });
       const pct = agg.total > 0 ? (agg.used / agg.total) * 100 : 0;
       const tone = pct >= 90 ? "bad" : pct >= 60 ? "warn" : "brand";
-      let html = '<div class="c2d-chan">' +
+      let html = '<details class="c2d-chan" data-prov="' + esc(prov) + '"' + (openChans.has(prov) ? " open" : "") + ">" +
+        "<summary>" +
         '<div class="c2d-chanHead">' + providerHeadTag(prov) +
         '<span class="c2d-unit">' + esc(units.join(" · ")) + "</span>" +
         '<span class="c2d-chanSum">收入 ' + fmtAmt(agg.total) +
@@ -944,8 +957,9 @@ export const UI_SRC = String.raw`
           " · 使用率 " + pct.toFixed(1) + "%" +
           " · " + String(list.length) + " 个包 / " + String(accMap.size) + " 个账号</span>" +
         "</div>" +
-        '<div class="c2d-bar" style="margin:0 0 7px"><i class="' + tone + '" style="width:' +
-          Math.min(100, pct).toFixed(1) + '%"></i></div>';
+        '<div class="c2d-bar" style="margin:0"><i class="' + tone + '" style="width:' +
+          Math.min(100, pct).toFixed(1) + '%"></i></div>' +
+        '</summary><div class="c2d-chanBody">';
       if (accMap.size > 1) {
         html += '<div class="c2d-accs">' + Array.from(accMap.values()).map(function (a) {
           return '<span class="c2d-accItem">' + esc(a.nickname || a.accountId) +
@@ -953,7 +967,7 @@ export const UI_SRC = String.raw`
             " 个包</span>";
         }).join("") + "</div>";
       }
-      html += '<table class="c2d-tbl"><thead><tr>' +
+      html += '<div class="c2d-tblWrap"><table class="c2d-tbl"><thead><tr>' +
         "<th>包名</th><th>账号</th>" +
         '<th class="num">总量</th><th class="num">已用</th><th class="num">剩余</th>' +
         "<th>使用率</th><th>到期</th>" +
@@ -975,7 +989,7 @@ export const UI_SRC = String.raw`
             '<td class="c2d-muted">' + endText + "</td>" +
             "</tr>";
         }).join("") +
-        "</tbody></table></div>";
+        "</tbody></table></div></div></details>";
       return html;
     }).join("");
 
@@ -983,7 +997,7 @@ export const UI_SRC = String.raw`
     const urgent = cr.expiry.d7.concat(cr.expiry.d30).slice(0, 12);
     const urgentTable = urgent.length
       ? '<div class="c2d-sub2">即将到期（30 天内，且仍有余额）</div>' +
-        '<table class="c2d-tbl"><thead><tr>' +
+        '<div class="c2d-tblWrap"><table class="c2d-tbl"><thead><tr>' +
         "<th>剩余</th><th>包名</th><th>渠道 / 账号</th><th>到期</th><th>还剩</th>" +
         "</tr></thead><tbody>" +
         urgent.map(function (p) {
@@ -997,11 +1011,11 @@ export const UI_SRC = String.raw`
             "<td>" + when(p.endAt) + "</td>" +
             '<td><span class="c2d-dot ' + tone + '"></span>' + (dl !== null ? dl + " 天" : "—") + "</td>" +
             "</tr>";
-        }).join("") + "</tbody></table>"
+        }).join("") + "</tbody></table></div>"
       : '<div class="c2d-muted" style="font-size:11.5px">30 天内没有到期且仍有余额的积分包。</div>';
 
     return head +
-      '<div class="c2d-sub2">按渠道明细（账本级：收入 = 包的总额度，支出 = 已消耗，结余 = 剩余；共 ' +
+      '<div class="c2d-sub2">按渠道明细（点开看每个积分包；收入 = 包的总额度，支出 = 已消耗，结余 = 剩余；共 ' +
         String(chanMap.size) + " 个渠道 / " + String(cr.packages.length) + " 个积分包）</div>" +
       chanBlocks + urgentTable;
   }
@@ -1034,63 +1048,62 @@ export const UI_SRC = String.raw`
       rows + "</tbody></table>";
   }
 
-  /* ── 弹窗骨架（复用原生 .dim-jh-modal*） ──────────────────────────── */
 
   function build() {
-    const ov = document.createElement("div");
-    ov.className = "dim-jh-modalOverlay";
-    ov.setAttribute("data-c2d", "1");
-    ov.innerHTML =
-      '<div role="dialog" aria-modal="true" aria-label="总览" class="dim-jh-modal dim-jh-modal--ledger">' +
-      '<div class="dim-jh-modalHead">' +
-      '<div class="dim-jh-modalTitle"><strong>总览</strong>' +
-      '<span class="dim-jh-modalSubtitle" id="c2d-sub">加载中…</span></div>' +
-      '<div class="dim-jh-modelPanelActions">' +
-      '<button class="dim-jh-btn" id="c2d-refresh" title="重新读取全部数据（余额会绕过 5 分钟缓存）。">刷新</button>' +
-      '<button class="dim-jh-btn" data-kind="primary" id="c2d-close">完成</button>' +
+    const page = document.createElement("div");
+    page.className = "c2-page";
+    page.setAttribute("data-c2d", "1");
+    page.innerHTML =
+      '<div class="c2-pageHead">' +
+      "<div>" +
+      '<h1 class="c2-pageTitle">总览</h1>' +
+      '<p class="c2-pageSub" id="c2d-sub">加载中…</p>' +
+      "</div>" +
+      '<div class="c2-pageActions">' +
+      '<button type="button" class="c2-btn" id="c2d-refresh" title="重新读取全部数据（余额会绕过 5 分钟缓存）。">刷新</button>' +
       "</div></div>" +
-      '<p class="dim-jh-modalHint">网关运行状态、今日用量、近 14 日趋势、渠道账号与余额、积分收支、模型分布、自动签到。' +
-      "余额最多缓存 5 分钟；数据全部读本机文件，不向上游发请求。</p>" +
-      '<div class="dim-jh-modalBody"><div class="c2d-body" id="c2d-body"></div></div>' +
-      "</div>";
+      '<div class="c2d-body" id="c2d-body"><div class="c2d-empty">加载中…</div></div>';
 
-    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
-    ov.querySelector("#c2d-close").addEventListener("click", close);
-    ov.querySelector("#c2d-refresh").addEventListener("click", function () {
-      const b = ov.querySelector("#c2d-refresh");
+    page.querySelector("#c2d-refresh").addEventListener("click", function () {
+      const b = page.querySelector("#c2d-refresh");
       b.disabled = true;
       load(true).finally(function () { b.disabled = false; });
     });
-    return ov;
+    page.addEventListener("toggle", function (e) {
+      const el = e.target;
+      if (!el || !el.matches || !el.matches("details.c2d-chan")) return;
+      const prov = el.getAttribute("data-prov");
+      if (el.open) openChans.add(prov);
+      else openChans.delete(prov);
+    }, true);
+    return page;
   }
 
-  function close() {
-    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    overlay = null;
-    stopTimer();
-    document.removeEventListener("keydown", onKey);
-  }
-
-  function onKey(e) { if (e.key === "Escape") close(); }
-
-  function open() {
+  function mount(container) {
     ensureStyle();
-    if (overlay) return;
     overlay = build();
-    document.body.appendChild(overlay);
-    document.addEventListener("keydown", onKey);
+    container.appendChild(overlay);
     // 上次的快照先画出来（毫秒级），随后 load 再更新。
     // 用户报「总览点开很慢」：冷启动首个 dashboard/api 要 0.64s，
     // 首次打开逃不掉，但再次打开不该再等一次。
     if (lastSnapshot) paint(lastSnapshot);
+  }
+
+  function onShow() {
+    visible = true;
     load(false);
     startTimer();
+  }
+
+  function onHide() {
+    visible = false;
+    stopTimer();
   }
 
   function startTimer() {
     stopTimer();
     timer = setInterval(function () {
-      if (document.visibilityState === "visible" && overlay) load(false);
+      if (document.visibilityState === "visible" && overlay && visible) load(false);
     }, REFRESH_MS);
   }
 
@@ -1142,41 +1155,15 @@ export const UI_SRC = String.raw`
     renderTrend("c2d-trend-tok", "c2d-axis-tok", days,
       function (x) { return (x.inTokens || 0) + (x.outTokens || 0); }, fmtTokens);
 
-    if (sub) sub.textContent = "快照 " + ago(d.generatedAt) + " · 每 30 秒自动刷新";
+    if (sub) {
+      sub.textContent = "快照 " + ago(d.generatedAt) + " · 每 30 秒自动刷新 · 余额最多缓存 5 分钟，数据全部读本机文件";
+    }
   }
 
-  /* ── 把「总览」按钮插进原生 header ───────────────────────────────── */
-
-  function mountButton() {
-    if (document.querySelector("[data-c2d-btn]")) return true;
-    const actions = document.querySelector(".dim-jh-headerActions");
-    const host = actions || document.querySelector(".dim-jh-header") || document.querySelector("header");
-    if (!host) return false;
-    const btn = document.createElement("button");
-    btn.className = "dim-jh-btn";
-    btn.setAttribute("data-c2d-btn", "1");
-    btn.title = "总览：网关状态、今日用量、近 14 日趋势、渠道余额、积分收支、模型分布、自动签到。";
-    btn.textContent = "总览";
-    btn.addEventListener("click", open);
-    // 「总览」排在原生按钮最前面（用户要求：放在「供应商」之前）。
-    host.insertBefore(btn, host.firstChild);
-    return true;
-  }
-
-  // 原生后台是单页应用，切渠道会重渲染 header —— 用常驻 MutationObserver 保证按钮不丢。
-  let raf = 0;
-  const obs = new MutationObserver(function () {
-    if (raf) return;
-    raf = requestAnimationFrame(function () {
-      raf = 0;
-      mountButton();
-    });
-  });
-  if (!mountButton()) {
-    obs.observe(document.documentElement, { childList: true, subtree: true });
-    const t0 = setInterval(function () { if (mountButton()) { clearInterval(t0); } }, 500);
+  if (window.__c2Shell) {
+    window.__c2Shell.registerView("overview", { mount: mount, onShow: onShow, onHide: onHide });
   } else {
-    obs.observe(document.documentElement, { childList: true, subtree: true });
+    console.error("[dashboard-ui] 外壳 admin-shell.js 未加载，总览无处挂载");
   }
 })();
 `

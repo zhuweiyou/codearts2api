@@ -61,7 +61,7 @@ export function renderLoginPage(options = {}) {
         padding: 24px;
         font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
         background: #f5f6f8;
-        color: #1f2328;
+        color: #1f2329;
       }
       .card {
         width: 100%;
@@ -71,31 +71,32 @@ export function renderLoginPage(options = {}) {
         background: #fff;
         box-shadow: 0 8px 32px rgb(15 23 42 / 10%), 0 1px 2px rgb(15 23 42 / 6%);
       }
-      h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
-      .sub { margin: 0 0 20px; color: #656d76; font-size: 13px; }
+      h1 { display: flex; align-items: center; gap: 9px; margin: 0 0 4px; font-size: 18px; font-weight: 650; }
+      .mark { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, #5b6ffb, #1677ff); }
+      .sub { margin: 0 0 20px; color: #8f959e; font-size: 13px; }
       label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; }
       input[type="password"] {
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid #d0d7de;
+        border: 1px solid #e5e6eb;
         border-radius: 8px;
         font: inherit;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       }
-      input[type="password"]:focus { outline: 2px solid #0969da; outline-offset: -1px; border-color: #0969da; }
+      input[type="password"]:focus { outline: none; border-color: #1677ff; box-shadow: 0 0 0 3px rgb(22 119 255 / 16%); }
       button {
         width: 100%;
         margin-top: 16px;
         padding: 10px 12px;
         border: 0;
         border-radius: 8px;
-        background: #1f6feb;
+        background: #1677ff;
         color: #fff;
         font: inherit;
         font-weight: 600;
         cursor: pointer;
       }
-      button:hover { background: #1a5fd0; }
+      button:hover { background: #0f5fce; }
       .error {
         margin: 0 0 16px;
         padding: 10px 12px;
@@ -116,18 +117,21 @@ export function renderLoginPage(options = {}) {
         word-break: break-all;
       }
       @media (prefers-color-scheme: dark) {
-        body { background: #0d1117; color: #e6edf3; }
-        .card { background: #161b22; box-shadow: 0 8px 32px rgb(0 0 0 / 40%); }
-        .sub, .hint { color: #8b949e; }
-        input[type="password"] { background: #0d1117; border-color: #30363d; color: #e6edf3; }
-        code { background: #21262d; }
+        body { background: #15171b; color: #e6e8eb; }
+        .card { background: #23272d; box-shadow: 0 8px 32px rgb(0 0 0 / 40%); }
+        .sub, .hint { color: #8b929d; }
+        input[type="password"] { background: #1a1d22; border-color: #33373e; color: #e6e8eb; }
+        input[type="password"]:focus { border-color: #4b8dff; box-shadow: 0 0 0 3px rgb(75 141 255 / 20%); }
+        button { background: #4b8dff; }
+        button:hover { background: #3b7cf0; }
+        code { background: #2b3037; }
         .error { background: #3d1214; border-color: #f8514966; color: #ffa198; }
       }
     </style>
   </head>
   <body>
     <main class="card">
-      <h1>codearts2api</h1>
+      <h1><span class="mark" aria-hidden="true"></span>codearts2api</h1>
       <p class="sub">管理后台需要访问密钥</p>
       ${error === null ? "" : `<p class="error">${escapeHtml(error)}</p>`}
       <form method="post" action="/admin/login">
