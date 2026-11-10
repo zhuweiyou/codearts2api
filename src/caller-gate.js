@@ -506,7 +506,7 @@ export function createCallerGate(options = {}) {
     // ⚠️ 这里读的是 `inspect()` 刚刚刷新的缓存，不再发一次 I/O：
     //    tapStream 是同步的（要求它返回可 pipe 的流），而读盘已经全部异步化。
     if (cached === null) return source
-    const startedAt = Date.now()
+    const startedAt = Number.isFinite(ctx.startedAt) ? ctx.startedAt : Date.now()
     const isStream = Boolean(ctx.stream)
     let status = ctx.status ?? 200
     let usage = null

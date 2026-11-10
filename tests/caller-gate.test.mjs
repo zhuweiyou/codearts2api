@@ -247,3 +247,35 @@ test("用量日志目录只有真实放行的请求才会被创建", async () =>
   assert.equal(line.model, "codearts/gpt-4")
   assert.equal(line.status, 200)
 })
+
+test("耗时从请求进入时算起，而不是从响应开始回传时算起", async () => {
+  const gate = createCallerGate({ home: makeHome() })
+  const ok = await gate.inspect(fakeRequest(FULL_KEY, '{"model":"codearts/gpt-4"}'), CHAT, "POST")
+  assert.equal(ok.ok, true)
+
+  const body = '{"id":"x","usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}'
+  const tapped = gate.tapStream(Readable.from([Buffer.from(body)]), {
+    status: 200,
+    callerId: "k-full",
+    model: "codearts/gpt-4",
+    path: "/v1/chat/completions",
+    stream: false,
+    startedAt: Date.now() - 5000,
+  })
+  const chunks = []
+  for await (const chunk of tapped) chunks.push(chunk)
+  assert.equal(Buffer.concat(chunks).toString("utf8"), body)
+
+  let line = null
+  const deadline = Date.now() + 2000
+  while (!line && Date.now() < deadline) {
+    const files = existsSync(gate.logDir) ? readdirSync(gate.logDir) : []
+    const text = files.length ? readFileSync(join(gate.logDir, files[0]), "utf8").trim() : ""
+    if (text) line = JSON.parse(text.split("\n").pop())
+    else await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  assert.ok(line, "应写出一条用量记录")
+  assert.ok(line.ms >= 5000 && line.ms < 60000, `耗时应包含响应前的等待，实际 ${line.ms} ms`)
+  assert.equal(line.in_tokens, 3)
+  assert.equal(line.out_tokens, 4)
+})

@@ -290,3 +290,187 @@ test("admin.html：外壳脚本在 <head>，三个装载脚本仍在 <body> 末�
     assert.ok(body.includes(`src="${src}"`), `${src} 应在 body 里`)
   }
 })
+
+function recRow(over = {}) {
+  return {
+    ts: new Date().toISOString(),
+    caller: "k_a",
+    name: "DSH 桌面",
+    model: "aggregate/doubao-2-0-mini",
+    status: 200,
+    stream: false,
+    ms: 2400,
+    in_tokens: 1398,
+    out_tokens: 511,
+    ...over,
+  }
+}
+
+async function openRecords(db, options = {}) {
+  const calls = { records: 0 }
+  const window = await makePage({
+    hash: "#callers",
+    before(w) {
+      w.__c2RecAutoMs = 40
+      if (options.paused) w.localStorage.setItem("c2-rec-auto", "0")
+    },
+  })
+  window.fetch = async (url, init) => {
+    if (String(url) !== "/admin/callers/api") {
+      return { ok: true, status: 200, json: async () => ({ adminAuth: true }) }
+    }
+    const body = JSON.parse(init.body)
+    if (body.action === "records") {
+      calls.records += 1
+      const rows = db.rows.slice().sort((a, b) => String(b.ts).localeCompare(String(a.ts)))
+      const byModel = {}
+      for (const x of rows) {
+        const m = (byModel[x.model] ??= {
+          model: x.model,
+          calls: 0,
+          errors: 0,
+          inTokens: 0,
+          outTokens: 0,
+          byCaller: {},
+        })
+        m.calls += 1
+        if (x.status >= 400) m.errors += 1
+        m.byCaller[x.caller] = (m.byCaller[x.caller] ?? 0) + 1
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          days: ["2026-11-10"],
+          total: rows.length,
+          shown: rows.length,
+          rows,
+          byModel: Object.values(byModel),
+          availableDays: ["2026-11-10"],
+        }),
+      }
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        groups: [],
+        keys: [{ id: "k_a", name: "DSH 桌面", group: "full", enabled: true }],
+        usage: { day: "2026-11-10", rows: [] },
+        storePath: "",
+      }),
+    }
+  }
+  window.eval(CALLERS_UI)
+  window.__c2Shell.go("callers")
+  const { document } = window
+  await until(() => document.querySelector('[data-tab="records"]'))
+  document.querySelector('[data-tab="records"]').click()
+  await until(() => document.querySelector('[data-rec-pane="detail"] tbody'))
+  return { window, document, calls }
+}
+
+test("调用记录：逐条明细按天分组，显示调用方名字、失败原因、输入 / 输出与方式", async () => {
+  const db = {
+    rows: [
+      recRow({ ts: new Date(Date.now() - 3000).toISOString() }),
+      recRow({ ts: new Date(Date.now() - 2000).toISOString(), status: 502, out_tokens: 0, ms: 30000 }),
+      recRow({ ts: new Date(Date.now() - 1000).toISOString(), stream: true, model: "qoder/claude-sonnet" }),
+    ],
+  }
+  const { document } = await openRecords(db)
+  const pane = document.querySelector('[data-rec-pane="detail"]')
+  const heads = [...pane.querySelectorAll("th")].map((th) => th.textContent)
+  assert.deepEqual(heads, ["时间", "调用方", "模型", "结果", "耗时", "输入", "输出", "方式"])
+  assert.match(pane.querySelector(".c2m-recday").textContent, /^今天 · /)
+  const rows = [...pane.querySelectorAll("tr.c2m-recrow")]
+  assert.equal(rows.length, 3)
+  assert.equal(rows[0].querySelector(".c2m-recway").textContent, "流式")
+  assert.equal(rows[2].querySelector(".c2m-recway").textContent, "一次性")
+  assert.equal(rows[2].querySelector(".c2m-recwho").textContent, "DSH 桌面")
+  assert.equal(rows[2].querySelector(".c2m-recsub").textContent, "k_a")
+  assert.equal(rows[2].querySelector(".c2m-recname").textContent, "doubao-2-0-mini")
+  assert.equal(rows[2].querySelector(".c2m-recprov").textContent, "aggregate")
+  assert.equal(rows[2].querySelector(".c-in").textContent, "1,398")
+  assert.equal(rows[2].querySelector(".c-ms .c2m-recms").firstChild.textContent, "2.4 s")
+  assert.ok(rows[1].classList.contains("bad"))
+  assert.match(rows[1].querySelector(".c-res").textContent, /502.*上游出错/)
+  assert.equal(rows[1].querySelector(".c-out").textContent, "—")
+  assert.match(document.querySelector('[data-rec-title="detail"]').textContent, /失败 1/)
+  const chip = document.querySelector('[data-rec-pane="model"] .c2m-mwho')
+  assert.equal(chip.firstChild.textContent, "DSH 桌面", "谁在调应显示 Key 的名字而不是 id")
+  assert.equal(chip.title, "DSH 桌面 · k_a", "名字可能被截断，悬停应能看到完整名字与 id")
+})
+
+test("调用记录：自动刷新只插入新行，已有行保持原 DOM 节点；没有新数据时不动 DOM", async () => {
+  const db = { rows: [recRow({ ts: new Date(Date.now() - 5000).toISOString() })] }
+  const { document, calls } = await openRecords(db)
+  const pane = document.querySelector('[data-rec-pane="detail"]')
+  const oldRow = pane.querySelector("tr.c2m-recrow")
+  const modelRow = () =>
+    [...document.querySelectorAll('[data-rec-pane="model"] tbody tr')].find(
+      (tr) => tr.getAttribute("data-k") === "m:aggregate/doubao-2-0-mini",
+    )
+  const oldModelRow = modelRow()
+  assert.ok(oldModelRow)
+
+  const quiet = calls.records
+  assert.ok(await until(() => calls.records >= quiet + 2), "应按间隔自动请求")
+  assert.equal(pane.querySelector("tr.c2m-recrow"), oldRow, "没有新数据时不应重建行")
+  assert.equal(pane.querySelectorAll(".c2m-recnew").length, 0)
+  assert.equal(modelRow(), oldModelRow, "没有新数据时汇总行也不应重建")
+
+  db.rows.push(recRow({ ts: new Date().toISOString(), model: "qoder/claude-sonnet", stream: true }))
+  assert.ok(await until(() => pane.querySelectorAll("tr.c2m-recrow").length === 2), "新记录应自动出现")
+  const rows = [...pane.querySelectorAll("tr.c2m-recrow")]
+  assert.ok(rows[0].classList.contains("fresh"), "新记录应高亮")
+  assert.equal(rows[0].querySelector(".c2m-recnew").textContent, "新")
+  assert.equal(rows[1], oldRow, "原有的行应原样保留（同一个 DOM 节点）")
+  assert.equal(modelRow(), oldModelRow, "汇总里数字没变的行应保留原 DOM 节点")
+  assert.equal(document.querySelectorAll('[data-rec-pane="model"] tbody tr').length, 2)
+  assert.match(document.querySelector('[data-rec-title="detail"]').textContent, /共 2 条/)
+})
+
+test("调用记录：改了筛选未查询、手动暂停、切走页面时都停止自动刷新", async () => {
+  const db = { rows: [recRow()] }
+  const { window, document, calls } = await openRecords(db)
+  const text = () => document.querySelector("[data-rec-autotext]").textContent
+
+  const select = document.querySelector('[data-role="status"]')
+  select.value = "error"
+  select.dispatchEvent(new window.Event("change", { bubbles: true }))
+  assert.match(text(), /筛选已改动/)
+  let n = calls.records
+  await tick(200)
+  assert.equal(calls.records, n, "筛选改动后、点「查询」前不应自动刷新")
+
+  select.value = ""
+  select.dispatchEvent(new window.Event("change", { bubbles: true }))
+  assert.ok(await until(() => calls.records > n), "改回原筛选后应恢复刷新")
+
+  document.querySelector('[data-act="rec-auto"]').click()
+  assert.match(text(), /已暂停/)
+  assert.equal(window.localStorage.getItem("c2-rec-auto"), "0")
+  n = calls.records
+  await tick(200)
+  assert.equal(calls.records, n, "暂停后不应再请求")
+
+  document.querySelector('[data-act="rec-auto"]').click()
+  assert.ok(await until(() => calls.records > n), "继续后应立即恢复刷新")
+  assert.equal(window.localStorage.getItem("c2-rec-auto"), null)
+
+  window.__c2Shell.go("overview")
+  await tick(20)
+  n = calls.records
+  await tick(200)
+  assert.equal(calls.records, n, "切到其它页面后不应再请求")
+})
+
+test("调用记录：暂停状态记在浏览器里，下次打开保持暂停", async () => {
+  const { document, calls } = await openRecords({ rows: [recRow()] }, { paused: true })
+  assert.match(document.querySelector("[data-rec-autotext]").textContent, /已暂停/)
+  assert.equal(document.querySelector('[data-act="rec-auto"]').textContent, "继续")
+  const n = calls.records
+  await tick(200)
+  assert.equal(calls.records, n)
+})

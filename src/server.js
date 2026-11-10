@@ -433,6 +433,7 @@ export async function createHttpServer(host, options = {}) {
    * 请求体直接用 node 的 req 流式透传（不缓冲）；响应体流式回写以保住 SSE。
    */
   async function proxyToGateway(request, response, url) {
+    const startedAt = Date.now()
     const target = await resolveGatewayTarget()
     const headers = new Headers()
     for (const [key, value] of Object.entries(request.headers)) {
@@ -530,6 +531,7 @@ export async function createHttpServer(host, options = {}) {
           callerGroup: gateEntry?.group,
           model: gateModel,
           path: url.pathname,
+          startedAt,
           stream: String(upstream.headers.get("content-type") ?? "").includes("event-stream"),
         })
       : stream
