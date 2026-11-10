@@ -389,7 +389,8 @@ test("调用记录：逐条明细按天分组，显示调用方名字、失败�
   assert.equal(rows[2].querySelector(".c2m-recway").textContent, "一次性")
   assert.equal(rows[2].querySelector(".c2m-recwho").textContent, "DSH 桌面")
   assert.equal(rows[2].querySelector(".c2m-recsub").textContent, "k_a")
-  assert.equal(rows[2].querySelector(".c2m-recprov").textContent.trim(), "aggregate /")
+  assert.equal(rows[2].querySelector(".c2m-recname").textContent, "doubao-2-0-mini")
+  assert.equal(rows[2].querySelector(".c2m-recprov").textContent, "aggregate")
   assert.equal(rows[2].querySelector(".c-in").textContent, "1,398")
   assert.equal(rows[2].querySelector(".c-ms .c2m-recms").firstChild.textContent, "2.4 s")
   assert.ok(rows[1].classList.contains("bad"))
@@ -398,7 +399,7 @@ test("调用记录：逐条明细按天分组，显示调用方名字、失败�
   assert.match(document.querySelector('[data-rec-title="detail"]').textContent, /失败 1/)
   const chip = document.querySelector('[data-rec-pane="model"] .c2m-mwho')
   assert.equal(chip.firstChild.textContent, "DSH 桌面", "谁在调应显示 Key 的名字而不是 id")
-  assert.equal(chip.title, "k_a")
+  assert.equal(chip.title, "DSH 桌面 · k_a", "名字可能被截断，悬停应能看到完整名字与 id")
 })
 
 test("调用记录：自动刷新只插入新行，已有行保持原 DOM 节点；没有新数据时不动 DOM", async () => {

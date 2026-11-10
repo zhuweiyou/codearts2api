@@ -162,6 +162,10 @@ body {
   gap: 20px;
 }
 
+:root[data-c2-view="callers"] {
+  --c2-content-max: 1680px;
+}
+
 :root[data-c2-view="channels"] .c2-topbar {
   padding-right: 0;
 }

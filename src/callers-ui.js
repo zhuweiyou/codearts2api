@@ -248,7 +248,7 @@ export const UI_SRC = String.raw`
       /* 固定列宽的表：溢出省略，避免长模型名把操作列挤成两行 */
       ".c2m-scope .c2d-tbl-fixed{table-layout:fixed}",
       ".c2m-scope .c2m-tblWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--c2-border-soft);border-radius:8px}",
-      "@media (max-width:720px){.c2m-scope .c2m-tblWrap>.c2d-tbl{min-width:680px}.c2m-scope .c2m-filters{padding:10px}.c2m-scope .c2m-field{flex:1 1 140px}.c2m-scope .c2m-ddbtn{min-width:0;max-width:none;width:100%}.c2m-scope .c2m-tabs{gap:18px}}",
+      "@media (max-width:720px){.c2m-scope .c2m-tblWrap>.c2d-tbl{min-width:680px}.c2m-scope .c2m-filters{padding:10px}.c2m-scope .c2m-field{flex:1 1 140px}.c2m-scope .c2m-ddbtn{min-width:0;max-width:none;width:100%}.c2m-scope .c2m-field-days{flex:1 1 100%}.c2m-scope .c2m-dd{display:block;width:100%}.c2m-scope .c2m-dd .c2m-ddbtn{min-width:0;max-width:none;width:100%}.c2m-scope .c2m-dd .c2m-ddpanel{position:static;width:100%;box-sizing:border-box;margin-top:6px;box-shadow:none}.c2m-scope .c2m-tabs{gap:18px}}",
       ".c2m-scope .c2d-tbl-fixed td,.c2m-scope .c2d-tbl-fixed th{overflow:hidden;text-overflow:ellipsis}",
       /* ── 区块 / 空态 / 次要文字（原先靠看板注入，弹窗单独打开时就缺失）── */
       ".c2m-scope .c2d-section{margin-bottom:4px}",
@@ -322,14 +322,14 @@ export const UI_SRC = String.raw`
       /* 左右分栏：汇总在左、明细在右，各自独立滚动。
          为什么不用上下堆叠：弹窗 max-height 有限，上下两块各带滚动条会叠出
          「弹窗自己滚 + 表格自己滚」的双层滚动，实测滚动区互相打架。 */
-      ".c2m-scope .c2m-split{display:grid;grid-template-columns:minmax(0,0.92fr) minmax(0,1.48fr);gap:12px;align-items:start}",
+      ".c2m-scope .c2m-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;align-items:start}",
       ".c2m-scope .c2m-pane{min-width:0}",
       ".c2m-scope .c2m-pane-scroll{max-height:calc(100vh - 330px);min-height:240px;overflow:auto;border:1px solid var(--c2-border-soft);border-radius:8px}",
       ".c2m-scope .c2m-pane-scroll .c2d-tbl th{position:sticky;top:0;z-index:1}",
       /* 表头不许折行：左栏窄，宽度一旦不够，浏览器就把「次数」拆成两行。 */
       ".c2m-scope .c2m-pane .c2d-tbl th{white-space:nowrap}",
       ".c2m-scope .c2m-pane .c2d-tbl th.num,.c2m-scope .c2m-pane .c2d-tbl td.num{white-space:nowrap;text-align:right}",
-      "@media (max-width:1280px){.c2m-scope .c2m-split{grid-template-columns:minmax(0,1fr)}}",
+      "@media (max-width:1500px){.c2m-scope .c2m-split{grid-template-columns:minmax(0,1fr)}}",
       ".c2m-scope .c2m-auto{margin-left:auto;align-self:center;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--c2-text-3)}",
       ".c2m-scope .c2m-autodot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--c2-text-3)}",
       ".c2m-scope .c2m-auto[data-mode='on'] .c2m-autodot{background:var(--c2-ok);box-shadow:0 0 0 3px var(--c2-ok-soft)}",
@@ -343,10 +343,23 @@ export const UI_SRC = String.raw`
       ".c2m-scope .c2m-rectbl tbody tr.c2m-recday:hover>td{background:var(--c2-surface-2)}",
       ".c2m-scope .c2m-rectime{font-family:var(--c2-mono);font-size:12px;color:var(--c2-text-3);white-space:nowrap}",
       ".c2m-scope .c2m-recnew{display:inline-block;margin-left:6px;padding:0 5px;border-radius:8px;font-size:10px;line-height:16px;color:var(--c2-brand);background:var(--c2-brand-soft);vertical-align:1px}",
-      ".c2m-scope .c2m-recwho{display:block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--c2-text)}",
+      ".c2m-scope .c2m-recwho{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--c2-text)}",
       ".c2m-scope .c2m-recsub{display:block;font-family:var(--c2-mono);font-size:11px;line-height:15px;color:var(--c2-text-3);white-space:nowrap}",
-      ".c2m-scope .c2m-recmodel{display:block;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--c2-mono);font-size:12px;color:var(--c2-text)}",
-      ".c2m-scope .c2m-recprov{color:var(--c2-text-3)}",
+      ".c2m-scope .c2m-recmodel{display:block;min-width:0;max-width:100%}",
+      ".c2m-scope .c2m-recname{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--c2-mono);font-size:12px;color:var(--c2-text)}",
+      ".c2m-scope .c2m-recprov{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--c2-mono);font-size:11px;line-height:15px;color:var(--c2-text-3)}",
+      ".c2m-scope .c2m-rectbl,.c2m-scope .c2m-modeltbl{table-layout:fixed;width:100%}",
+      ".c2m-scope .c2m-rectbl td,.c2m-scope .c2m-modeltbl td{overflow:hidden}",
+      ".c2m-scope .c2m-rectbl th.c-time{width:70px}",
+      ".c2m-scope .c2m-rectbl th.c-who{width:15%}",
+      ".c2m-scope .c2m-rectbl th.c-res{width:112px}",
+      ".c2m-scope .c2m-rectbl th.c-ms{width:84px}",
+      ".c2m-scope .c2m-rectbl th.c-in,.c2m-scope .c2m-rectbl th.c-out{width:66px}",
+      ".c2m-scope .c2m-rectbl th.c-way{width:60px}",
+      ".c2m-scope .c2m-modeltbl th.m-calls{width:52px}",
+      ".c2m-scope .c2m-modeltbl th.m-tok{width:100px}",
+      ".c2m-scope .c2m-modeltbl th.m-avg{width:76px}",
+      ".c2m-scope .c2m-modeltbl th.m-who{width:24%}",
       ".c2m-scope .c2m-recok{color:var(--c2-ok);white-space:nowrap}",
       ".c2m-scope .c2m-recbad{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}",
       ".c2m-scope .c2m-recwhy{color:var(--c2-err);font-size:12px;max-width:84px;overflow:hidden;text-overflow:ellipsis}",
@@ -361,18 +374,17 @@ export const UI_SRC = String.raw`
       ".c2m-scope .c2m-recway.stream{color:var(--c2-brand);border-color:color-mix(in srgb,var(--c2-brand) 30%,var(--c2-border));background:var(--c2-brand-soft)}",
       ".c2m-scope .c2m-modeltbl th,.c2m-scope .c2m-modeltbl td{padding:8px;vertical-align:middle}",
       ".c2m-scope .c2m-modeltbl th{font-size:12px}",
-      ".c2m-scope .c2m-modeltbl .c2m-recmodel{max-width:150px}",
       ".c2m-scope .c2m-mcalls{display:block;font-size:14px;font-weight:600;color:var(--c2-text);font-variant-numeric:tabular-nums}",
       ".c2m-scope .c2m-merr{display:block;font-size:11px;color:var(--c2-err);white-space:nowrap}",
       ".c2m-scope .c2m-mtok{display:block;font-family:var(--c2-mono);font-size:12px;line-height:18px;white-space:nowrap}",
       ".c2m-scope .c2m-mtok>span{margin-right:6px;font-family:inherit;font-size:11px;color:var(--c2-text-3)}",
-      ".c2m-scope .c2m-mwhos{display:flex;flex-wrap:wrap;gap:4px}",
-      ".c2m-scope .c2m-mwho{display:inline-flex;align-items:center;gap:4px;max-width:84px;padding:0 6px;border-radius:4px;font-size:11px;line-height:18px;color:var(--c2-text-2);border:1px solid var(--c2-border-soft);background:var(--c2-surface-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".c2m-scope .c2m-mwhos{display:flex;flex-wrap:nowrap;gap:4px;overflow:hidden}",
+      ".c2m-scope .c2m-mwho{display:inline-flex;align-items:center;gap:4px;flex:0 1 auto;min-width:0;max-width:100%;padding:0 6px;border-radius:4px;font-size:11px;line-height:18px;color:var(--c2-text-2);border:1px solid var(--c2-border-soft);background:var(--c2-surface-2);white-space:nowrap}",
+      ".c2m-scope .c2m-mwho>.n{min-width:0;overflow:hidden;text-overflow:ellipsis}",
       ".c2m-scope .c2m-mwho>b{font-weight:600;color:var(--c2-text-3);font-variant-numeric:tabular-nums}",
-      ".c2m-scope .c2m-mwho.more{color:var(--c2-text-3)}",
+      ".c2m-scope .c2m-mwho.more{flex:0 0 auto;color:var(--c2-text-3)}",
       ".c2m-scope .c2m-mwho.wide{display:none}",
-      "@media (max-width:1280px){.c2m-scope .c2m-mwho.wide{display:inline-flex}.c2m-scope .c2m-mwho.narrow{display:none}}",
-      "@media (max-width:1280px){.c2m-scope .c2m-modeltbl .c2m-recmodel{max-width:280px}.c2m-scope .c2m-mwho{max-width:160px}}",
+      "@media (max-width:1500px){.c2m-scope .c2m-mwho.wide{display:inline-flex}.c2m-scope .c2m-mwho.narrow{display:none}}",
       ".c2m-scope .c2m-mmore>td{font-size:11.5px;color:var(--c2-text-3);text-align:center}",
       "@keyframes c2mRecFresh{from{background:var(--c2-brand-soft)}to{background:transparent}}",
       ".c2m-scope .c2m-recrow.fresh>td{animation:c2mRecFresh 4s ease-out}",
@@ -707,8 +719,8 @@ export const UI_SRC = String.raw`
         .sort(function (a, b) { return m.byCaller[b] - m.byCaller[a]; });
       var label = function (c) { return callerName(c) + " ×" + m.byCaller[c]; };
       var chips = who.slice(0, 3).map(function (c, i) {
-        return '<span class="c2m-mwho' + (i > 0 ? " wide" : "") + '" title="' + esc(c) + '">' +
-          esc(callerName(c)) + "<b>" + fmt(m.byCaller[c]) + "</b></span>";
+        return '<span class="c2m-mwho' + (i > 0 ? " wide" : "") + '" title="' + esc(callerName(c) + " · " + c) + '">' +
+          '<span class="n">' + esc(callerName(c)) + "</span><b>" + fmt(m.byCaller[c]) + "</b></span>";
       }).join("") +
         (who.length > 1
           ? '<span class="c2m-mwho more narrow" title="' + esc(who.slice(1).map(label).join("、")) + '">+' +
@@ -722,7 +734,8 @@ export const UI_SRC = String.raw`
          故 in / out 合成一列「token in·out」，错误数挂到次数列后面。 */
       var cells =
         '<td><span class="c2m-recmodel" title="' + esc(model) + '">' +
-        (prov ? '<span class="c2m-recprov">' + esc(prov) + " / </span>" : "") + esc(short) + "</span></td>" +
+        '<span class="c2m-recname">' + esc(short) + "</span>" +
+        (prov ? '<span class="c2m-recprov">' + esc(prov) + "</span>" : "") + "</span></td>" +
         '<td class="num" data-l="调用"><span class="c2m-mcalls">' + fmt(calls) + "</span>" +
         (m.errors > 0 ? '<span class="c2m-merr">失败 ' + fmt(m.errors) + "</span>" : "") + "</td>" +
         '<td class="num"><span class="c2m-mtok"><span>输入</span>' + esc(fmtTokens(m.inTokens)) + "</span>" +
@@ -745,8 +758,8 @@ export const UI_SRC = String.raw`
   function modelHtml(r) {
     var body = modelRows(r);
     if (!body) return '<div class="c2d-empty">暂无数据</div>';
-    return '<table class="c2d-tbl c2m-modeltbl"><thead><tr><th>模型</th><th class="num">调用</th>' +
-      '<th class="num">token</th><th class="num">平均耗时</th><th>谁在调</th></tr></thead>' +
+    return '<table class="c2d-tbl c2m-modeltbl"><thead><tr><th class="m-model">模型</th><th class="num m-calls">调用</th>' +
+      '<th class="num m-tok">token</th><th class="num m-avg">平均耗时</th><th class="m-who">谁在调</th></tr></thead>' +
       "<tbody>" + body + "</tbody></table>";
   }
 
@@ -777,7 +790,8 @@ export const UI_SRC = String.raw`
       '<td class="c-who"><span class="c2m-recwho" title="' + esc(who) + '">' + esc(who) + "</span>" +
       (whoSub ? '<span class="c2m-recsub">' + esc(whoSub) + "</span>" : "") + "</td>" +
       '<td class="c-model"><span class="c2m-recmodel" title="' + esc(model) + '">' +
-      (prov ? '<span class="c2m-recprov">' + esc(prov) + " / </span>" : "") + esc(short) + "</span></td>" +
+      '<span class="c2m-recname">' + esc(short) + "</span>" +
+        (prov ? '<span class="c2m-recprov">' + esc(prov) + "</span>" : "") + "</span></td>" +
       '<td class="c-res">' + result + "</td>" +
       '<td class="c-ms num" data-l="耗时"><span class="c2m-recms">' + esc(fmtMs(x.ms)) +
       (hasMs ? '<span class="c2m-recbar' + barCls + '"><i style="width:' + pct + '%"></i></span>' : "") + "</span></td>" +
@@ -813,8 +827,9 @@ export const UI_SRC = String.raw`
   function detailHtml(r) {
     var body = detailRows(r);
     if (!body) return '<div class="c2d-empty">所选日期内没有调用记录</div>';
-    return '<table class="c2d-tbl c2m-rectbl"><thead><tr><th>时间</th><th>调用方</th><th>模型</th><th>结果</th>' +
-      '<th class="num">耗时</th><th class="num">输入</th><th class="num">输出</th><th>方式</th></tr></thead>' +
+    return '<table class="c2d-tbl c2m-rectbl"><thead><tr><th class="c-time">时间</th><th class="c-who">调用方</th>' +
+      '<th class="c-model">模型</th><th class="c-res">结果</th><th class="num c-ms">耗时</th>' +
+      '<th class="num c-in">输入</th><th class="num c-out">输出</th><th class="c-way">方式</th></tr></thead>' +
       "<tbody>" + body + "</tbody></table>";
   }
 
