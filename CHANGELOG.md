@@ -7,6 +7,24 @@
 ---
 
 <details open>
+<summary><b>2026-11-10 · 上游升级 <code>1d12f80</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `9c04c56d4beea6822214952b9cda642c0835db47` 更新到 `1d12f80e14bde6c73e86aa7f5eef6257d6fe0d0b`。
+
+### 上游改动
+
+- fix(marvis): 审计收尾（续期终态 / 有效期兜底 / 模型 id 归一 / 接线改行为级 / PII）
+- feat(marvis): 接入腾讯 Marvis provider（QQ / 微信 OAuth + auto 槽位 + 钱包额度）
+- fix(qoder): 企业资源包的三个边界（cap 兜底 / 到期未知 / available）
+- test(jet-hub): 补齐「严格手动顺序」的四层回归守卫（审计返工）
+- fix(qoder): 企业账号（userType=enterprise）额度在 orgResourcePackage，补解析
+- feat(jet-hub): 新增「严格手动顺序」开关，修「拖拽排序时灵时不灵」
+
+</details>
+
+<details>
 <summary><b>2026-11-10 · 管理界面改版：顶栏外壳 + 总览首页 + 深色主题 + 回调修复重做</b></summary>
 
 ## 外壳与导航
