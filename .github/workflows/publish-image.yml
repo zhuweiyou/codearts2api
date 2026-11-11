@@ -29,15 +29,37 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  publish:
+  # ── 每个架构在自己的原生硬件上并行构建 ──
+  # 不用 QEMU 跨架构模拟：amd64 跑在 ubuntu-24.04，arm64 跑在 ubuntu-24.04-arm
+  # （GitHub 官方 ARM64 托管 runner）。原生构建比 QEMU 快得多，也避免模拟环境下
+  # 原生二进制（如 sharp）行为异常。
+  #
+  # 两个架构都「按 digest 推送」（push-by-digest）：各自只把一个平台镜像推到
+  # GHCR，并把得到的 sha256 digest 作为 artifact 传出去，由下面的 merge job
+  # 汇总成一个多架构 manifest list。这样最终 tag 才会同时指向 amd64 与 arm64。
+  build:
     if: >-
       github.event_name != 'push' || github.ref_type == 'tag' ||
       github.ref_name == github.event.repository.default_branch || inputs.ref != ''
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
       contents: read
       packages: write
+    # 把实际检出的 commit 传给 merge job —— workflow_call 时 github.sha 是「调用方」
+    # 的 SHA，未必等于 inputs.ref 指定的升级提交，故必须由 checkout 后的 git 结果为准。
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -49,9 +71,7 @@ jobs:
         id: source
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
+      # 原生 runner 不需要 QEMU；buildx 只用来支持 push-by-digest 与 imagetools。
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -78,13 +98,83 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Build and push image
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # PR 只构建验证 Dockerfile，不推送；默认分支 / tag / workflow_call 按 digest 推送。
+          outputs: ${{ github.event_name != 'pull_request' && format('type=image,name={0}/{1},push-by-digest=true,name-canonical=true,push=true', env.REGISTRY, env.IMAGE_NAME) || '' }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── 合并清单：把两个平台镜像拼成一个多架构 manifest list ──
+  # 这一步只操作 registry 上的 digest（imagetools create），不做任何重新构建，
+  # 因此只需一个普通 runner。
+  merge:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=latest,enable=${{ inputs.publish_latest || (github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=sha-${{ needs.build.outputs.sha }}
+            type=ref,event=pr
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect "$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
