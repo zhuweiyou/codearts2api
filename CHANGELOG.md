@@ -7,6 +7,22 @@
 ---
 
 <details open>
+<summary><b>2026-11-11 · 上游升级 <code>5e75512</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `1d12f80e14bde6c73e86aa7f5eef6257d6fe0d0b` 更新到 `5e75512428bccbae51e12951696d15510f0dbd9f`。
+
+### 上游改动
+
+- chore(deps): 适配 dsh 0.2.2-rc.1（peer/devDeps 枚举并集 + cordis ~4.1.0）
+- docs: 修正 README「走余额分档 14 家」（PR #183 留下的自相矛盾）
+- docs: 新增 docs/agent-notes/providers-marvis.md（腾讯 Marvis 实测笔记）
+- docs: 补齐 Marvis 及其余 10 家渠道到 README 渠道表（18→29）
+
+</details>
+
+<details>
 <summary><b>2026-11-10 · 调用记录改版：逐条明细 / 按模型汇总重排 + 自动刷新 + 耗时计时修正</b></summary>
 
 ## 逐条明细
