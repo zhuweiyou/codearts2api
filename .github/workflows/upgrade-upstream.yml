@@ -49,9 +49,11 @@ jobs:
       #    类型引用路径里带 `node_modules/.bin/...` 会被 TS 判为「不可移植」：
       #      error TS2742: ... cannot be named without a reference to
       #      '.bin/store/v11/tmp/.../node_modules/.pnpm/@deepseek-ai+cosmokit@...'
-      #    ⇒ 上游 prepare 失败。挪到 runner.temp 下的普通路径即可（与 Docker 里干净
+      #    ⇒ 上游 prepare 失败。挪到 /home/runner 下的普通路径即可（与 Docker 里干净
       #    store 路径一致，Docker 构建已实测通过）。
-      PNPM_CONFIG_STORE_DIR: ${{ runner.temp }}/pnpm-store
+      # ⚠️ 用字面路径：`env` 的 job 级不能引用 `runner.*` 上下文（会解析失败），
+      #    ubuntu-24.04 runner 的 HOME 固定是 /home/runner。
+      PNPM_CONFIG_STORE_DIR: /home/runner/pnpm-store
 
     steps:
       - name: 检出代码
