@@ -40,12 +40,13 @@ docker exec codearts2api cat /data/admin-key
 
 ### 本机直跑
 
-**要求**：Node.js `^22.19.0 || >=24.0.0`（建议 24+）。
+**要求**：Node.js `^22.19.0 || >=24.0.0`（建议 24+），包管理器用 **pnpm 11**
+（`corepack enable` 即可；项目已含 `pnpm-lock.yaml`）。
 
 ```bash
-npm install
-npm run build
-npm start
+pnpm install
+pnpm run build
+pnpm start
 ```
 
 启动后打开 <http://127.0.0.1:8080/admin>。首次启动会在日志里打印一次管理密钥

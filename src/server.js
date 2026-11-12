@@ -761,7 +761,7 @@ export async function createHttpServer(host, options = {}) {
           body = await readFile(target)
         } catch (error) {
           if (error?.code !== "ENOENT") throw error
-          sendAdmin(response, 503, "管理界面尚未构建：请先执行 npm run build", {
+          sendAdmin(response, 503, "管理界面尚未构建：请先执行 pnpm run build", {
             "content-type": "text/plain; charset=utf-8",
           })
           return

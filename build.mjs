@@ -46,7 +46,7 @@ console.log(`[build] 已拷贝上游客户端产物 → public/upstream-jet-hub.
 //
 //    这个 IIFE 只服务 `/admin` 这一个页面，不是被 `import` 的库，**没有需要开发版的
 //    场景**；按环境变量切换只会让「本地产物」与「镜像里的产物」不是同一个东西
-//    （Dockerfile 跑的正是默认档 `npm run build`，于是线上反而拿到开发版）。
+//    （Dockerfile 跑的正是默认档 `pnpm run build`，于是线上反而拿到开发版）。
 //
 //    `define` 与 `minify` 必须**同时**写死为生产：只压缩而不 define 会得到「压缩过的
 //    开发版」，只 define 而不压缩则白白留着未压缩的代码。

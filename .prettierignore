@@ -1,6 +1,6 @@
 # ── 依赖与元数据（不格式化生成物/锁文件）──
 node_modules/
-package-lock.json
+pnpm-lock.yaml
 
 # ── 编译产物：**必须排除** ──
 # 这两个文件由 `npm run build` 从上游拷贝/打包而来（约 1.6MB），

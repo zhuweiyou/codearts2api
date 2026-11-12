@@ -7,6 +7,39 @@
 ---
 
 <details open>
+<summary><b>2026-11-12 · 修复自动升级失败：安装改用 pnpm（上游 lock 与 npm 解析漂移）</b></summary>
+
+## 问题
+
+定时任务「升级上游依赖」（run 43171949923）在「安装依赖」步骤失败（exit 2）。根因是**依赖漂移**，与业务代码无关：
+
+- 上游 `dsh-providers-hub` 是 git 依赖，自身用 `pnpm-lock.yaml` 把 `@deepseek-ai/dsh-llm` 锁在 `0.2.2-rc.1`；
+- npm 不读上游 pnpm-lock，按宽松 peer 范围解析到 registry 上 **`0.2.2-rc.2`**（2026-11-12 09:53 刚发布）；
+- 该版本把失败码枚举从 `QUOTA_EXCEEDED` / `PERMISSION_DENIED` / `QUEUE` 改名成 `QUOTA` / `ACCOUNT_QUOTA` / …，
+  而上游源码仍写旧名 ⇒ `tsc` 报上百条 `TS2345` ⇒ git 依赖 `prepare` 失败 ⇒ `npm install` 退出码 2。
+
+## 修复
+
+安装方式从 npm 切换为 **pnpm**（pnpm 安装 git 依赖时会遵循上游自带的 pnpm-lock）：
+
+- 新增 `pnpm-workspace.yaml`：`allowBuilds` 放行 `dsh-providers-hub` 的 prepare 与 `esbuild` 的 postinstall
+  （git 依赖的 key 用带 commit 的精确 codeload URL，升级脚本会自动改写）；
+- `package.json`：`@deepseek-ai/dsh-*` 整族钉到 `0.2.2-rc.1`（与上游 lock 一致），`cordis` → `4.1.0`，
+  `dsh-providers-hub` → `5581d40`；删除 `package-lock.json`，改用 `pnpm-lock.yaml`；
+- `Dockerfile`：`pnpm install --frozen-lockfile` / `pnpm run build`；
+- `.github/workflows/upgrade-upstream.yml`：安装步骤改 `pnpm install --frozen-lockfile`；
+- `scripts/upgrade-upstream.mjs`：改为 `pnpm install --no-frozen-lockfile`、读 `pnpm-lock.yaml`、
+  同步改写 `pnpm-workspace.yaml` 的 allowBuilds URL、`pnpm test` / `pnpm run lint` / `pnpm exec prettier`；
+- `.prettierignore` 排除 `pnpm-lock.yaml`；`README` / `AGENTS` 同步为 pnpm 命令。
+
+## 验证
+
+- `pnpm install` exit 0；上游 `dsh-providers-hub` 的 `prepare`（tsc）编译通过；
+- `pnpm run build` 通过；`pnpm test` **81/81 通过**；`pnpm run lint`、`pnpm run format:check` 干净。
+
+</details>
+
+<details>
 <summary><b>2026-11-11 · 上游升级 <code>5e75512</code>（自动升级）</b></summary>
 
 ## 上游升级

@@ -10,7 +10,7 @@
 #    26 要到 2026-10-28 才转 Active LTS（EOL 2029-04-30），届时可再升。
 FROM node:24-slim
 
-# git：npm 要从 GitHub 克隆依赖；ca-certificates：TLS 根证书。
+# git：pnpm 要从 GitHub 克隆依赖；ca-certificates：TLS 根证书。
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/*
@@ -27,26 +27,22 @@ RUN apt-get update \
 #    Node 小版本可能不同），构建因此不可复现。这里显式 `prepare --activate`
 #    钉住版本，与开发机一致。
 #
-# ⚠️ 也不在 package.json 里写 `packageManager` 字段：npm 10+ 见到该字段指向
-#    非 npm 的包管理器时会**拒绝执行 `npm install`**（提示本项目配置用 pnpm），
-#    而本项目的安装走的就是 npm。故只在镜像里钉 pnpm。
+# ⚠️ 不在 package.json 里写 `packageManager` 字段：统一在镜像里用 corepack 钉 pnpm 版本，
+#    保证 Docker 构建与 CI / 本地用同一个 pnpm（CI 用 pnpm/action-setup 钉同一版本）。
 RUN corepack enable && corepack prepare pnpm@11.25.0 --activate \
   && pnpm --version
 
 WORKDIR /app
 
 # ── 依赖层：先只拷清单，让这一层能被缓存 ──
-# ⚠️ 这里必须装到 devDependencies（默认行为，**不要**加 `--omit=dev`）：
-#    前端 `public/admin.js` 由 esbuild + react 在镜像构建期产出，
-#    而 `npm run build` 需要 esbuild 的二进制与 react 的源码作为**输入**。
-#    （产出物自带 React 运行时，运行期**不需要** react —— 见 README。）
+# ⚠️ 用 pnpm 安装（不是 npm）：上游 `dsh-providers-hub` 是 git 依赖，它自带
+#    pnpm-lock.yaml 锁定 `@deepseek-ai/dsh-*` 到编译验证过的版本；npm 不读上游
+#    lock，会解析到 registry 上最新版（失败码枚举改名），导致上游 prepare 的 tsc 失败。
+#    `pnpm-workspace.yaml` 的 allowBuilds 放行上游 prepare 与 esbuild 的构建脚本。
 #
-# ⚠️ 显式 `--include=dev` 不是多余的：若构建环境带着 `NODE_ENV=production`
-#    （CI/平台常这么设），npm 会**默认跳过** devDependencies，于是 esbuild 与
-#    react 装不上、`npm run build` 直接失败。显式写出来让这一层对
-#    `NODE_ENV` 免疫（已实测：production 下不加这个参数就装不到 esbuild）。
-#
-# ⚠️ 上游插件同样是运行期依赖，它的 prepare 要跑 tsc。
+# ⚠️ 必须装 devDependencies：前端 `public/admin.js` 由 esbuild + react 在镜像
+#    构建期产出，`pnpm run build` 需要 esbuild 二进制与 react 源码作为输入。
+#    pnpm 默认安装 devDependencies（不加 `--prod`）。
 #
 # 💡 `sharp`（附件服务用来校验/缩放图片）是**原生包**，靠 optionalDependencies
 #    分发平台二进制。lockfile 里已含 linux-x64 / linuxmusl-x64 等全部平台条目，
@@ -54,19 +50,17 @@ WORKDIR /app
 #
 # ⚠️ `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` **不能删**：pnpm 11 有「新包冷却期」
 #    （默认拒绝装上发布不足 24 小时的包），而上游会把它**刚发布**的 DSH 基础包
-#    （`@deepseek-ai/dsh-*`）写进自己的 `pnpm-lock.yaml`，于是 prepare 直接失败：
-#    `The lockfile contains entries that the active policies reject …`。
-#    ⚠️ 只有这个**环境变量**能穿透到 npm 拉起的 pnpm 子进程 —— `.npmrc` 与
-#    `npm_config_*` 均已实测无效。删掉这行，镜像会在上游每次发版后约 24 小时内
-#    构建失败。详见 README「快速开始」的同名提示。
-COPY package.json package-lock.json* ./
-RUN PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 npm install --include=dev --no-audit --no-fund
+#    （`@deepseek-ai/dsh-*`）写进自己的 `pnpm-lock.yaml`，于是 prepare 直接失败。
+#    ⚠️ 只有这个**环境变量**能穿透到 pnpm 的子进程 —— `.npmrc` 与 `npm_config_*`
+#    均已实测无效。删掉这行，镜像会在上游每次发版后约 24 小时内构建失败。
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 pnpm install --frozen-lockfile
 
 # ── 源码与前端构建 ──
 COPY . .
 # public/admin.js 是构建产物，不入库；每次镜像构建都重生成，
 # 保证前端与所锁定的上游 commit 一致。
-RUN npm run build
+RUN pnpm run build
 
 # ── 运行 ──
 # 本程序自己的状态目录（账号池、凭据、网关 API Key、管理密钥都在这下面），

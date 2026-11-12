@@ -5,13 +5,16 @@
 
 ## 快速规则（先看这里）
 
-- **运行环境**：Node.js `^22.19.0 || >=24.0.0`（建议 24+）。
-- **提交前自检**：`npm test`、`npm run lint`、`npm run format:check` 全绿。
+- **运行环境**：Node.js `^22.19.0 || >=24.0.0`（建议 24+）；包管理器用 **pnpm 11**
+  （`corepack enable` 即可，仓库含 `pnpm-lock.yaml`）。⚠️ **不要用 npm 安装**：上游
+  `dsh-providers-hub` 是 git 依赖、自带 pnpm-lock 锁定 `@deepseek-ai/dsh-*`；npm 不读上游
+  lock 会解析到最新版，导致上游 prepare 的 tsc 失败。
+- **提交前自检**：`pnpm test`、`pnpm run lint`、`pnpm run format:check` 全绿。
 - **两个前端产物不入库**：`public/admin.js`、`public/upstream-jet-hub.js` 由
-  `npm run build` 生成，被 `.gitignore` / `.prettierignore` 双重排除 —— **不要手改、不要
+  `pnpm run build` 生成，被 `.gitignore` / `.prettierignore` 双重排除 —— **不要手改、不要
   格式化、不要提交**。
 - 改了 `web/admin.jsx` 或 `public/admin.html` / `public/admin.css` / `public/admin-shell.js`
-  后，记得 `npm run build` 验证能正常打包。
+  后，记得 `pnpm run build` 验证能正常打包。
 - 上游契约（端点路径、RPC 信封、slot 名、inject 列表）集中在 `src/upstream.js` 与
   `src/host.js`，命中漂移时优先改这两处，而不是复制上游逻辑。
 - 未经明确指示，**不要** `git commit` / `git push`。
@@ -22,7 +25,7 @@
 
 本仓库是**薄胶水**：全部实现都是「把上游需要的宿主环境就位」，业务逻辑一行都不复制。
 因此本仓库不含上游源码或其构建产物 —— `public/admin.js` 与 `public/upstream-jet-hub.js`
-均由 `npm run build` 现场生成并被 `.gitignore` 排除，上游只通过 `package.json` 的
+均由 `pnpm run build` 现场生成并被 `.gitignore` 排除，上游只通过 `package.json` 的
 git 依赖引入。
 
 ### 宿主依赖面
@@ -47,7 +50,7 @@ git 依赖引入。
 上游的浏览器产物只 external 了 `react`。本项目用 `admin-boot.js` 先定义
 `window.__ModuleLoader__.load` 截下上游那一行 `{ id, factory }`，再由 `admin.js` 用**桩 ctx**
 调 `apply()` 从 `slots` 里把 `JetHubPage` 捞出来渲染（见 `web/admin.jsx`）。因此**界面随上游走**，
-本仓库不含任何布局代码，上游改版后重新 `npm run build` 即可。
+本仓库不含任何布局代码，上游改版后重新 `pnpm run build` 即可。
 
 - `public/admin.html`：页面外壳（`<head>` 里的 `admin-shell.js`；`<body>` 末尾 3 个核心装载脚本 `admin-boot` / `upstream-jet-hub` / `admin`，外加 4 个视图 UI 脚本 `dashboard-ui` / `callers-ui` / `models-ui` / `oauth-relay-ui`）；
 - `public/admin-shell.js`：顶栏、视图切换（`#overview` / `#channels` / `#callers`）、主题、
@@ -60,7 +63,7 @@ git 依赖引入。
 
 **界面要用 react，为什么它不算运行期依赖？**
 
-因为 `/admin` 是**构建期打包**：`npm run build` 用 esbuild 把 react / react-dom 与页面
+因为 `/admin` 是**构建期打包**：`pnpm run build` 用 esbuild 把 react / react-dom 与页面
 代码一起打进 `public/admin.js`（自带 React 运行时、无外部 `require`）。运行期
 （`node src/index.js`）**不加载 react**，只是把这份静态文件发给浏览器。
 
@@ -69,22 +72,21 @@ git 依赖引入。
 | `@deepseek-ai/cordis`、`dsh-llm`、`dsh-credentials`、`dsh-credentials-local`、`dsh-providers-hub` | `dependencies`    | **服务器进程运行期**真正 `import`     |
 | `@deepseek-ai/dsh-attachment`、`dsh-attachment-local`                                             | `dependencies`    | 图片输入的地基（上游 `ctx.get` 取用） |
 | `@deepseek-ai/dsh-commands`                                                                       | `dependencies`    | **没人 `import`**，纯粹为「钉住版本」 |
-| `esbuild`                                                                                         | `devDependencies` | 只在 `npm run build` 时运行           |
+| `esbuild`                                                                                         | `devDependencies` | 只在 `pnpm run build` 时运行          |
 | `react`、`react-dom`                                                                              | `devDependencies` | 只在构建期作为输入被读取；产物已内联  |
-| `jsdom`                                                                                           | `devDependencies` | 只在 `npm test` 里模拟浏览器 DOM      |
+| `jsdom`                                                                                           | `devDependencies` | 只在 `pnpm test` 里模拟浏览器 DOM     |
 
 > ⚠️ `@deepseek-ai/dsh-commands` 是**故意**列在依赖里的，虽然本项目的 `commands` 服务
-> 只是个空对象（见上表）。它出现在这里只为**挡住 npm 的自动 peer 安装**：
+> 只是个空对象（见上表）。它出现在这里只为**挡住包管理器的自动 peer 安装**：
 > 上游把 `dsh-commands` 列为必需 peer，本仓库不钉它，npm 就会自己装「匹配范围内最新」
 > 的那一版；而 DSH 基础包之间是**精确** peer（`dsh-commands@0.2.1-rc.3` 硬要
-> `dsh-llm@0.2.1-rc.3`）⇒ 新旧混装，`npm install` 直接 ERESOLVE。
+> `dsh-llm@0.2.1-rc.3`）⇒ 新旧混装，`pnpm install` 直接 ERESOLVE。
 >
 > 所以规矩是：**`@deepseek-ai/dsh-*` 必须整族同版本**，凡是上游列为必需 peer 的基础包
 > 都要在 `package.json` 里钉住（升级脚本装完会自检，不一致就红）。
 
-> ⚠️ 注意：`npm run build` **需要** devDependencies。若构建环境设了
-> `NODE_ENV=production`，`npm install` 会默认跳过它们、构建直接失败 —— 故 Dockerfile 里
-> 显式写了 `npm install --include=dev`。
+> ⚠️ 注意：`pnpm run build` **需要** devDependencies。Dockerfile 用
+> `pnpm install --frozen-lockfile`（默认含 devDependencies，不加 `--prod`）。
 
 ## 目录结构
 
@@ -127,20 +129,20 @@ AGENTS.md          本文件（开发 / 部署 / AI 指南）
 ### 环境与命令
 
 ```bash
-npm install          # 从 GitHub 拉取上游并现场编译 lib/
-npm run build        # 生成 public/admin.js 与 public/upstream-jet-hub.js
-npm start            # 默认 http://127.0.0.1:8080/admin
-npm test             # 单元 / 集成测试（node --test）
-npm run lint         # ESLint
-npm run lint:fix     # ESLint 自动修
-npm run format       # Prettier 写入
-npm run format:check # Prettier 只检查（CI 用）
+pnpm install          # 从 GitHub 拉取上游并现场编译 lib/
+pnpm run build        # 生成 public/admin.js 与 public/upstream-jet-hub.js
+pnpm start            # 默认 http://127.0.0.1:8080/admin
+pnpm test             # 单元 / 集成测试（node --test）
+pnpm run lint         # ESLint
+pnpm run lint:fix     # ESLint 自动修
+pnpm run format       # Prettier 写入
+pnpm run format:check # Prettier 只检查（CI 用）
 ```
 
-> ⚠️ **pnpm 已不是必需**：当前锁定的上游 `prepare` 是
-> `tsc && node scripts/copy-assets.mjs && node plugin-src/client/build.mjs`，纯 npm 即可。
-> 只有锁定到**早期 commit**（其 `prepare` 仍是 `pnpm build:all`）时才需要 `pnpm`
-> （`corepack enable` 或 `npm i -g pnpm`）。
+> ⚠️ **必须用 pnpm 安装**：上游 `dsh-providers-hub` 是 git 依赖，其自带 `pnpm-lock.yaml`
+> 锁定 `@deepseek-ai/dsh-*`（尤其 `dsh-llm`）到它编译验证过的版本。npm 不读上游 lock，
+> 会按宽松版本范围解析到 registry 上最新版，常导致上游 `prepare` 的 `tsc` 大面积失败。
+> 详见「升级流程」与 `pnpm-workspace.yaml` 里的 `allowBuilds` 说明。
 
 ### 环境变量
 
@@ -400,7 +402,7 @@ server {
 $env:HTTPS_PROXY = 'http://127.0.0.1:7897'
 $env:HTTP_PROXY = 'http://127.0.0.1:7897'
 $env:NO_PROXY = 'localhost,127.0.0.1,::1'
-npm start
+pnpm start
 ```
 
 ⚠️ **必须真的导出为环境变量**。只打开 Windows 设置里的「使用代理服务器」**对 Node 无效**
@@ -445,14 +447,14 @@ npm start
 
 - **`eslint.config.js` / `.prettierignore` 排除两个编译产物**（`public/admin.js`、
   `public/upstream-jet-hub.js`）：它们不是本仓库代码，不排除会让 lint 从秒级变成分钟级，
-  并让 `npm run format` 把上游代码重排一遍。
+  并让 `pnpm run format` 把上游代码重排一遍。
 - **`.jsx` 显式列进 `files`**：flat config 默认只匹配 `*.js`，不写的话 `web/admin.jsx`
   会被**静默跳过**（不报错也不检查）。
 - **Node 与浏览器端分别配置 globals**：`src/`、`tests/` 用 `globals.node`；
   `web/admin.jsx` 用 `globals.browser`。
 - **`public/admin.html` 不排除** —— 它是手写源码（格式化后 `<script>` 的加载顺序不变，`/admin` 仍正常渲染）。
 
-> ⚠️ 两个产物由 `npm run build` 生成，被 `.gitignore` 与 `.prettierignore` 双重排除。
+> ⚠️ 两个产物由 `pnpm run build` 生成，被 `.gitignore` 与 `.prettierignore` 双重排除。
 > **不要**提交或格式化它们。
 
 ### 测试覆盖
@@ -529,18 +531,18 @@ import * as plugin from "dsh-providers-hub" // src/host.js 唯一的一行
 其余全靠 cordis 的注入机制与 HTTP 转发。因此上游常见的改动类型（新增渠道、修协议、
 改额度逻辑、加模型、改 UI 布局）**都不需要动本仓库**：
 
-| 上游改了什么                      | 我们要改                         | 为什么                                                    |
-| --------------------------------- | -------------------------------- | --------------------------------------------------------- |
-| 新增一个渠道（provider）          | **0 行**                         | 我们不含任何渠道名单，界面与 `provider.status` 都是动态的 |
-| 改某个渠道的协议/登录             | **0 行**                         | 逻辑全在上游                                              |
-| 改界面布局 / 样式                 | **0 行**（只需 `npm run build`） | 界面是上游产物的原样复用                                  |
-| 改网关行为（/v1/\*）              | **0 行**                         | 网关是上游的，我们只转发                                  |
-| 加 RPC 方法                       | **0 行**                         | 我们的转发是通用透传，不枚举方法                          |
-| **改管理端点路径**                | 1 个常量                         | `src/upstream.js`                                         |
-| **改 RPC 信封 / 线协议**          | 1 个函数                         | `src/upstream.js` 的 `rpcEnvelope()`                      |
-| **改客户端 loader 形态**          | 可能 1~2 处                      | `public/admin.html` + `web/admin.jsx`                     |
-| **改 slot 名 `settings.section`** | 1 个常量                         | `src/upstream.js`                                         |
-| **改插件 `inject` 列表**          | `src/host.js` 的 provide         | 少了服务插件会永久 pending                                |
+| 上游改了什么                      | 我们要改                          | 为什么                                                    |
+| --------------------------------- | --------------------------------- | --------------------------------------------------------- |
+| 新增一个渠道（provider）          | **0 行**                          | 我们不含任何渠道名单，界面与 `provider.status` 都是动态的 |
+| 改某个渠道的协议/登录             | **0 行**                          | 逻辑全在上游                                              |
+| 改界面布局 / 样式                 | **0 行**（只需 `pnpm run build`） | 界面是上游产物的原样复用                                  |
+| 改网关行为（/v1/\*）              | **0 行**                          | 网关是上游的，我们只转发                                  |
+| 加 RPC 方法                       | **0 行**                          | 我们的转发是通用透传，不枚举方法                          |
+| **改管理端点路径**                | 1 个常量                          | `src/upstream.js`                                         |
+| **改 RPC 信封 / 线协议**          | 1 个函数                          | `src/upstream.js` 的 `rpcEnvelope()`                      |
+| **改客户端 loader 形态**          | 可能 1~2 处                       | `public/admin.html` + `web/admin.jsx`                     |
+| **改 slot 名 `settings.section`** | 1 个常量                          | `src/upstream.js`                                         |
+| **改插件 `inject` 列表**          | `src/host.js` 的 provide          | 少了服务插件会永久 pending                                |
 
 ### 自动升级（GitHub Actions）
 
@@ -551,7 +553,7 @@ import * as plugin from "dsh-providers-hub" // src/host.js 唯一的一行
 | 定时     | 每天 **北京时间 08:08**（cron 写的是 `8 0 * * *` —— GitHub 用 UTC 且按小时错开）                                |
 | 手动触发 | Actions 页 → 该工作流 → **Run workflow**                                                                        |
 | 提交身份 | `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>`（标准 GitHub Actions 机器人身份） |
-| 产物     | `package.json` / `package-lock.json` 的上游 hash + `CHANGELOG.md` 的一条新记录                                  |
+| 产物     | `package.json` / `pnpm-lock.yaml` 的上游 hash + `CHANGELOG.md` 的一条新记录                                     |
 | 失败     | 步骤非零退出 ⇒ 工作流变红 ⇒ **GitHub 发失败通知邮件**；失败原因还会写进 Actions 的 Summary                      |
 
 > ⚠️ **失败通知要自己开**：GitHub 默认只给「订阅了通知」的人发邮件。若没收到，
@@ -559,7 +561,7 @@ import * as plugin from "dsh-providers-hub" // src/host.js 唯一的一行
 > **Settings → Actions → General → Notifications** 里添加自己的邮箱。
 >
 > 失败时不必担心仓库被改坏 —— 脚本的每一步要么不落地，要么落地了就是对的：
-> 依赖装不上会**回滚** `package.json` 与 `package-lock.json`；测试不过就**不提交**。
+> 依赖装不上会**回滚** `package.json` 与 `pnpm-lock.yaml`；测试不过就**不提交**。
 
 **为什么定时任务不会误伤仓库**：上游没更新时脚本**直接退出**，工作区一个字节都不动，
 推送步骤也会检测到「没有改动」而跳过。
@@ -585,16 +587,16 @@ GitHub Actions 因此会发失败通知邮件。
 （**只防删、不防增**），渠道总数与渠道文案都**不写死**。上游新增渠道时，
 本仓库的测试与文档**零改动**（这正是当初把它们改成单向断言的原因）。
 
-| 脚本步骤                    | 失败时说明                                                                     | 怎么办                                                                                      |
-| --------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `npm install`               | 上游拉取或编译出错                                                             | 看日志（早期 commit 才可能遇到 pnpm 新包冷却期）                                            |
-| `npm install`（ERESOLVE）   | DSH 基础包**新旧混装**：上游放宽了 peer 范围，npm 自动装了「范围内最新」的一版 | 把没钉的基础包补进 `dependencies` 并钉到**与其它基础包同一版本**（见[依赖划分](#依赖划分)） |
-| `DSH 基础包整族同版本` 自检 | 没打架但装了两套（不同版本共存）                                               | 同上；修完 `rm -rf node_modules package-lock.json && npm install`                           |
-| `package-lock.json` 核对    | lock 静默沿用了旧 commit                                                       | 脚本会自动回滚，照错误信息里的命令手工处理                                                  |
-| `npm run build`             | 上游产物形态变了（`./client` 导出路径不同）                                    | 对照[升级时需要改多少代码](#升级时需要改多少代码) 的契约表                                  |
-| `npm test`                  | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                               | 按报错改 `src/upstream.js` 的常量或 `web/admin.jsx` 的 shim                                 |
-| `npm run lint` / `format`   | 本仓库代码风格问题                                                             | `npm run format` 修                                                                         |
-| `git commit`                | 权限或并发冲突                                                                 | 看 Actions 日志                                                                             |
+| 脚本步骤                               | 失败时说明                                                         | 怎么办                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `pnpm install`                         | 上游拉取或编译出错                                                 | 看日志（早期 commit 才可能遇到 pnpm 新包冷却期）                                            |
+| `pnpm install`（ERESOLVE / peer 冲突） | DSH 基础包**新旧混装**：某包没在根依赖钉住，被装成与其它不同的版本 | 把没钉的基础包补进 `dependencies` 并钉到**与其它基础包同一版本**（见[依赖划分](#依赖划分)） |
+| `DSH 基础包整族同版本` 自检            | 装了两套不同版本（版本不一致）                                     | 同上；修完 `rm -rf node_modules pnpm-lock.yaml && pnpm install`                             |
+| `pnpm-lock.yaml` 核对                  | lock 未更新到新 commit                                             | 脚本会自动回滚，重跑 `pnpm install --no-frozen-lockfile`                                    |
+| `pnpm run build`                       | 上游产物形态变了（`./client` 导出路径不同）                        | 对照[升级时需要改多少代码](#升级时需要改多少代码) 的契约表                                  |
+| `pnpm test`                            | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                   | 按报错改 `src/upstream.js` 的常量或 `web/admin.jsx` 的 shim                                 |
+| `pnpm run lint` / `format`             | 本仓库代码风格问题                                                 | `pnpm run format` 修                                                                        |
+| `git commit`                           | 权限或并发冲突                                                     | 看 Actions 日志                                                                             |
 
 **回滚**：自动升级的 commit 是**一个** commit 里包含依赖变更 + CHANGELOG 条目，
 `git revert <那个 commit>` 即可整体回退；也可以照下面的手工流程装回旧 commit。
@@ -618,32 +620,30 @@ git ls-remote https://github.com/iJetLi/dsh-providers-hub.git refs/heads/master
 
 ```bash
 NEW=<第 1 步拿到的 commit>
-npm install "dsh-providers-hub@git+https://github.com/iJetLi/dsh-providers-hub.git#$NEW" \
-  --include=dev --no-audit --no-fund
+# 先把 pnpm-workspace.yaml 里 allowBuilds 的 dsh-providers-hub URL 换成新 commit，
+# 再安装；否则新 commit 的 prepare 会被 pnpm 的构建白名单拦下。
+pnpm add "dsh-providers-hub@github:iJetLi/dsh-providers-hub#$NEW"
 ```
 
-> ⚠️ **必须用上面的写法（带包名与 `@` spec）。** `package-lock.json` 里记着旧 commit 的
-> `resolved`，只改 `package.json` 再 `npm install` 会**静默沿用 lock 里的旧 commit**
-> （只输出 `added 1 package`、不报错），看起来升级了、实际没有。
+> ⚠️ 用 `pnpm add <包名@spec>`（不是 `pnpm install <spec>`，后者不接受包参数）。
+> pnpm 会遵循上游自带的 pnpm-lock 编译其 `prepare`，装回正确的基础包版本。
+> 升级后核对：`grep -c "$NEW" pnpm-lock.yaml`（应 > 0），并确认 `node_modules/dsh-providers-hub/lib` 已生成。
 >
-> 若已发生这种情况，两个文件都改成新 commit 后 `rm -rf node_modules/dsh-providers-hub && npm install`。
-> 升级后务必核对：`node -e "console.log(require('./package-lock.json').packages['node_modules/dsh-providers-hub'].resolved)"`
-
-> ⚠️ 若锁定到**早期 commit**（其 `prepare` 还是 `pnpm build:all`），安装时需要 pnpm
-> 可用（`corepack enable`）。当前版本上游 `prepare` 已不依赖 pnpm，无需此步。
+> ⚠️ pnpm 11 有「新包冷却期」，刚发布的基础包可能被拒；安装前置
+> `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0`（升级脚本与 CI 已自动带上）。
 
 **3. 重建前端产物（必做）** —— 界面的 JS 是上游产物的拷贝，不重建就还是旧界面：
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 **4. 测试与规范**
 
 ```bash
-npm test              # 行为测试
-npm run lint          # 上游若改了产物形态，这里能发现我们的代码跟不上了
-npm run format:check  # 确认代码风格一致
+pnpm test              # 行为测试
+pnpm run lint          # 上游若改了产物形态，这里能发现我们的代码跟不上了
+pnpm run format:check  # 确认代码风格一致
 ```
 
 按失败信息处理：
@@ -669,7 +669,7 @@ npm run format:check  # 确认代码风格一致
 **5. 启动确认契约（关键一步）**
 
 ```bash
-npm start
+pnpm start
 ```
 
 启动日志里必须有这一行：
@@ -687,11 +687,11 @@ source、页头「网关」开关能开关。
 **回滚**
 
 ```bash
-npm install "dsh-providers-hub@git+https://github.com/iJetLi/dsh-providers-hub.git#<旧commit>" --include=dev
-npm run build && npm test
+pnpm add "dsh-providers-hub@github:iJetLi/dsh-providers-hub#<旧commit>"
+pnpm run build && pnpm test
 ```
 
-> 💡 升级只改 `package.json` / `package-lock.json` / `public/*.js`（产物）。
+> 💡 升级只改 `package.json` / `pnpm-lock.yaml` / `public/*.js`（产物）。
 > **账号数据在 `~/.codearts2api`，与升级无关**。想稳妥可以升级前在 `/admin` 里导出一份备份。
 
 查当前锁定版本：

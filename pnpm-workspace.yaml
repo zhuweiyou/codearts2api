@@ -1,0 +1,17 @@
+# pnpm 工作区配置。
+#
+# 本项目改用 pnpm 安装，核心原因：上游 `dsh-providers-hub` 是 git 依赖，其自身用
+# pnpm-lock.yaml 锁定 `@deepseek-ai/dsh-llm` 等基础包到它编译验证过的版本。
+#   - npm 不读上游的 pnpm-lock，会按 package.json 的宽松版本范围解析到 registry 上
+#     最新的基础包（例如 0.2.2-rc.2），其失败码枚举已改名，导致上游 `tsc` prepare 失败；
+#   - pnpm 在安装 git 依赖时会遵循上游自带的 pnpm-lock，装回 0.2.2-rc.1，编译通过。
+packages:
+  - "."
+
+# pnpm 11 默认禁止依赖执行构建脚本。这里放行：
+#   - dsh-providers-hub：上游 git 依赖，prepare 要跑 tsc 等。git 依赖的 key 只认精确
+#     URL（含 commit），升级上游 commit 时由 scripts/upgrade-upstream.mjs 自动改写本行；
+#   - esbuild：postinstall 要落平台二进制。
+allowBuilds:
+  "dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/5581d4084435f6874a2389738fce3211089161c2": true
+  esbuild: true

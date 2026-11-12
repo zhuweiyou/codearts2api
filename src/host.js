@@ -173,7 +173,7 @@ export async function createHost() {
   //    ⚠️ `watch: true` 会在进程里挂一个 chokidar 文件监听。它归**这个**
   //    子 fiber 所有，而 `close()` 里 dispose 的是**插件**的 fiber
   //    —— 两者是兄弟，互不牵连。若不额外处理，监听会活到进程结束，
-  //    表现为 `npm test` 跑完不退出（`node --test` 等所有 handle 释放）。
+  //    表现为 `pnpm test` 跑完不退出（`node --test` 等所有 handle 释放）。
   //    因此 `close()` 走**根 fiber** 的级联 dispose，而不是只 dispose 插件。
   await ctx.plugin(LocalCredentialProvider, {
     path: join(home, CREDENTIALS_FILENAME),
@@ -268,7 +268,7 @@ export async function createHost() {
      * 凭据服务是另一个 `ctx.plugin(...)` 调用装出来的，它有**自己的** fiber，
      * 与插件的 fiber 是兄弟关系 —— dispose 其中一个不会碰到另一个。只
      * dispose 插件的话，凭据服务打开的 chokidar 文件监听会一直活到进程结束：
-     * 表现为 `npm test`/`node --test` 跑完**不退出**，容器里 `SIGTERM` 之后
+     * 表现为 `pnpm test`/`node --test` 跑完**不退出**，容器里 `SIGTERM` 之后
      * 也迟迟不退（只能等强杀兜底）。
      *
      * 根 fiber 的 dispose 会**级联**所有子 fiber，故这里用它。

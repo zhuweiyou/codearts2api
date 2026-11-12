@@ -6,7 +6,7 @@
  * 1. 查上游 `dsh-providers-hub` 的 `master` 最新 commit；
  * 2. **hash 没变就直接跳过**（不装、不构建、不改文件、不提交）—— 这是最重要的一条，
  *    每天定时任务绝大多数时候都会走到这里；
- * 3. 有更新则：改 `package.json` → `npm install` → `npm run build` → 跑测试 →
+ * 3. 有更新则：改 `package.json` → `pnpm install` → `pnpm run build` → 跑测试 →
  *    把上游这一段的 **commit 标题**写进 `CHANGELOG.md` → `git commit`；
  * 4. 任何一步失败都**非零退出**，把日志留在 stderr 里（GitHub Actions 会因此发失败通知）。
  *
@@ -26,7 +26,7 @@
  */
 
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -96,7 +96,7 @@ const noCommit = args.has("--no-commit")
  *
  * ⚠️ 当调用方把 stdout 设成 `"inherit"`（让用户实时看到输出）时，Node **不返回**
  *    任何 stdout（是 `null`）—— 这时不能对它调 `.trim()`，否则会抛
- *    `Cannot read properties of null`。这坑踩过一次：npm install 明明成功了，
+ *    `Cannot read properties of null`。这坑踩过一次：pnpm install 明明成功了，
  *    却因为返回值是 null 而被当成失败。
  */
 function run(command, commandArgs, options = {}) {
@@ -121,6 +121,15 @@ function resolveInvocation(command, commandArgs) {
     if (cli) {
       return [process.execPath, [cli, ...commandArgs]]
     }
+  }
+  // pnpm：CI（Linux）上是原生可执行文件，直接调用。Windows 本地是 `pnpm.cmd`
+  // （corepack shim），Node ≥ 18.20 拒绝直接 spawn `.cmd`（CVE-2024-27980），
+  // 故经 cmd.exe 转一次。经 cmd 时参数简单（install / run / test / exec），无需复杂转义。
+  if (command === "pnpm") {
+    if (process.platform === "win32") {
+      return [process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "pnpm", ...commandArgs]]
+    }
+    return ["pnpm", commandArgs]
   }
   return [command, commandArgs]
 }
@@ -240,7 +249,7 @@ if (!currentHash) {
 }
 log(`当前锁定：${currentHash}`)
 
-// ⚠️ **一致性自检**：package.json 与 package-lock.json 记的 hash 必须一致。
+// ⚠️ **一致性自检**：package.json 与 pnpm-lock.yaml 记的 hash 必须一致。
 //
 //    这是上一轮失败留下的半成品状态会引发的**死锁**：package.json 已经是新 hash
 //    （但 install 没成功），lock 还是旧的 —— 下次跑脚本会看到「package.json 的 hash
@@ -248,15 +257,13 @@ log(`当前锁定：${currentHash}`)
 //
 //    检测到不一致就报出来（并给出修法），而不是闷头跳过。
 {
-  const lockNow = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"))
-  const lockedNow = lockNow.packages?.[`node_modules/${DEP_NAME}`]?.resolved ?? ""
-  const lockedHash = hashOf(lockedNow)
-  if (lockedHash && lockedHash !== currentHash) {
+  const lockText = readFileSync(join(root, "pnpm-lock.yaml"), "utf8")
+  if (!lockText.includes(currentHash)) {
     fail(
-      `package.json 与 package-lock.json 记的上游 commit 不一致：\n` +
-        `  package.json：${currentHash}\n  package-lock：${lockedHash}\n` +
+      `package.json 与 pnpm-lock.yaml 记的上游 commit 不一致：\n` +
+        `  package.json：${currentHash}\n  pnpm-lock：未找到该 commit\n` +
         "这通常是上一次升级中途失败留下的半成品状态。修法：\n" +
-        `  git checkout -- package.json package-lock.json\n` +
+        `  git checkout -- package.json pnpm-lock.yaml pnpm-workspace.yaml\n` +
         `  node scripts/upgrade-upstream.mjs`,
     )
     process.exit(1)
@@ -299,20 +306,33 @@ function pinnedBasePackages() {
 }
 
 /**
- * 扫 `package-lock.json`，收集每个 `@deepseek-ai/dsh-*` 的实际安装版本。
+ * 扫 `node_modules/@deepseek-ai/dsh-*`，收集每个基础包的实际安装版本。
  *
- * 用来兜住「不报错、但装歪了」的情况：npm 偶尔能把版本不同的基础包**都装下来**
+ * 用来兜住「不报错、但装歪了」的情况：pnpm 偶尔能把版本不同的基础包**都装下来**
  * （各自满足各自的 peer），听起来能跑，实际是两套互不相认的实例 ——
  * 典型症状是「服务明明装了、`ctx.get()` 却拿不到」。
+ *
+ * 直接读 node_modules 里每个包的 package.json，比解析 pnpm-lock 的 YAML 结构更稳
+ * （pnpm-lock 的格式随版本演进，node_modules 布局则稳定）。
  */
 function installedBaseVersions() {
-  const lockNow = JSON.parse(readFileSync(lockPath, "utf8"))
   const versions = new Map()
-  for (const [key, entry] of Object.entries(lockNow.packages ?? {})) {
-    const match = /node_modules\/(@deepseek-ai\/dsh-[^/]+)$/.exec(key)
-    if (!match) continue
-    if (!versions.has(match[1])) versions.set(match[1], new Set())
-    versions.get(match[1]).add(entry.version)
+  const scopeDir = join(root, "node_modules", "@deepseek-ai")
+  let names
+  try {
+    names = readdirSync(scopeDir)
+  } catch {
+    return versions
+  }
+  for (const name of names) {
+    if (!name.startsWith("dsh-")) continue
+    try {
+      const pkg = JSON.parse(readFileSync(join(scopeDir, name, "package.json"), "utf8"))
+      if (!versions.has(name)) versions.set(name, new Set())
+      versions.get(name).add(pkg.version)
+    } catch {
+      // 读不到的跳过（未安装或损坏）。
+    }
   }
   return versions
 }
@@ -325,15 +345,18 @@ function installedBaseVersions() {
 //     下次再跑脚本会因为 hash 已经写进去而误判「没有更新」从而跳过 ——
 //     那样这个仓库就再也升不上去了。）
 const packageJsonBackup = readFileSync(packageJsonPath, "utf8")
-const lockPath = join(root, "package-lock.json")
+const lockPath = join(root, "pnpm-lock.yaml")
+const workspaceYamlPath = join(root, "pnpm-workspace.yaml")
 const lockBackup = readFileSync(lockPath, "utf8")
+const workspaceYamlBackup = readFileSync(workspaceYamlPath, "utf8")
 
-/** 把 package.json / package-lock.json 恢复成升级前的样子。 */
+/** 把 package.json / pnpm-lock.yaml / pnpm-workspace.yaml 恢复成升级前的样子。 */
 function restoreManifests() {
   try {
     writeFileSync(packageJsonPath, packageJsonBackup, "utf8")
     writeFileSync(lockPath, lockBackup, "utf8")
-    log("已回滚 package.json / package-lock.json 到升级前状态。")
+    writeFileSync(workspaceYamlPath, workspaceYamlBackup, "utf8")
+    log("已回滚 package.json / pnpm-lock.yaml / pnpm-workspace.yaml 到升级前状态。")
   } catch (error) {
     console.error(`[upgrade] ❌ 回滚失败，请手工检查 ${packageJsonPath} 与 ${lockPath}`)
     console.error(error instanceof Error ? error.message : String(error))
@@ -345,9 +368,23 @@ packageJson.dependencies[DEP_NAME] = newSpec
 writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8")
 log(`已更新 package.json：${newSpec}`)
 
+// pnpm 的 allowBuilds 里 dsh-providers-hub 的 key 是**带 commit 的精确 codeload URL**，
+// 换 commit 后必须同步改写，否则新 commit 的 prepare 会被 pnpm 拒绝执行（默认拦构建脚本）。
+{
+  const workspaceYaml = readFileSync(workspaceYamlPath, "utf8")
+  const updatedWorkspaceYaml = workspaceYaml.replace(
+    /(dsh-providers-hub@https:\/\/codeload\.github\.com\/iJetLi\/dsh-providers-hub\/tar\.gz\/)[0-9a-f]{40}/,
+    `$1${latestHash}`,
+  )
+  if (updatedWorkspaceYaml !== workspaceYaml) {
+    writeFileSync(workspaceYamlPath, updatedWorkspaceYaml, "utf8")
+    log(`已同步 pnpm-workspace.yaml 的 allowBuilds commit → ${latestHash}`)
+  }
+}
+
 try {
-  log("npm install（会 clone 上游并现场编译它的 lib/，可能要几分钟）…")
-  run("npm", ["install", `${DEP_NAME}@${newSpec}`, "--include=dev", "--no-audit", "--no-fund"], {
+  log("pnpm install（会 clone 上游并按上游 pnpm-lock 现场编译 lib/，可能要几分钟）…")
+  run("pnpm", ["install", "--no-frozen-lockfile"], {
     stdio: ["ignore", "inherit", "inherit"],
     // ⚠️ **pnpm 11 的「新包冷却期」必须放行**：它默认拒绝装发布不足 24 小时的包，
     //    而上游会把它**刚发布**的 DSH 基础包（`@deepseek-ai/dsh-*`）写进自己的
@@ -363,7 +400,7 @@ try {
   })
 } catch (error) {
   restoreManifests()
-  fail("npm install 失败（上游仓库拉取或编译出错？）", error)
+  fail("pnpm install 失败（上游仓库拉取或编译出错？）", error)
   // ⚠️ 把「基础包版本打架」这个最常见的原因**当场摊开**，别让人对着 ERESOLVE 的一坨
   //    依赖树猜。判定见上面 BASE_PACKAGE_PREFIX 的注释：上游放宽 peer 范围后，npm
   //    会自动装「范围内最新」的那一版，与本仓库钉住的版本对不上。
@@ -378,19 +415,20 @@ try {
   process.exit(1)
 }
 
-// ⚠️ 必须核对 lock 里的 resolved —— 只改 package.json 再 install 会**静默沿用旧 commit**
-//    （README「升级流程」第 2 步那个坑）。这里当场验，不等到 CI 里才发现。
-const lock = JSON.parse(readFileSync(lockPath, "utf8"))
-const lockedResolved = lock.packages?.[`node_modules/${DEP_NAME}`]?.resolved ?? ""
-if (!lockedResolved.endsWith(latestHash)) {
-  restoreManifests()
-  fail(
-    `package-lock.json 里记的还是旧 commit：\n  期望结尾：${latestHash}\n  实际是：${lockedResolved}\n` +
-      "（lock 静默沿用了旧版本。手工修：把两个文件的 hash 都改成新的，然后 rm -rf node_modules/dsh-providers-hub && npm install）",
-  )
-  process.exit(1)
+// ⚠️ 必须核对 lock 里的 commit —— pnpm install 后 lock 应更新为含新 commit 的
+//    codeload tarball URL。这里当场验，不等到 CI 里才发现。
+{
+  const lockText = readFileSync(lockPath, "utf8")
+  if (!lockText.includes(latestHash)) {
+    restoreManifests()
+    fail(
+      `pnpm-lock.yaml 里没有新 commit：\n  期望包含：${latestHash}\n` +
+        "（lock 没更新。手工修：pnpm install --no-frozen-lockfile 重装）",
+    )
+    process.exit(1)
+  }
+  log("pnpm-lock.yaml 已包含新 commit ✓")
 }
-log("package-lock.json 的 resolved 已核对一致 ✓")
 
 // ⚠️ **基础包整族同版本自检**：装完立刻验，不等到运行时才露馅。
 //
@@ -404,9 +442,9 @@ log("package-lock.json 的 resolved 已核对一致 ✓")
     const detail = [...versions].map(([name, set]) => `  · ${name}：${[...set].join(" / ")}`).join("\n")
     fail(
       `DSH 基础包装成了多个版本（必须整族一致）：\n${detail}\n` +
-        "这通常是「上游把它列为 peer、而本仓库没钉住」的包被 npm 装成了最新版。修法：\n" +
+        "这通常是「上游把它列为 peer、而本仓库没钉住」的包被包管理器装成了最新版。修法：\n" +
         "  · 把上面出现两个版本的那个包补进 package.json，钉到与其它基础包同一个版本；\n" +
-        "  · 然后 rm -rf node_modules package-lock.json && npm install（干净重装再验一次）。",
+        "  · 然后 rm -rf node_modules pnpm-lock.yaml && pnpm install（干净重装再验一次）。",
     )
     process.exit(1)
   }
@@ -415,24 +453,16 @@ log("package-lock.json 的 resolved 已核对一致 ✓")
   }
 }
 
-// ⚠️ npm 11 会把 GitHub 的 git 依赖在 lock 里**规范化成 `git+ssh://git@github.com/…`**，
-//    而手工装的时候用的其实还是原来的 https —— 也就是说这个 ssh 写法纯属「写回去的
-//    格式」，但**下一次干净安装会照着它走 ssh**：CI / Docker 里没有 SSH 私钥，直接
-//    clone 失败。所以每次升级后都把 lock 里的写法改回 https 再提交。
-const lockText = readFileSync(lockPath, "utf8")
-const lockAsHttps = lockText.replaceAll("git+ssh://git@github.com/", "git+https://github.com/")
-if (lockAsHttps !== lockText) {
-  writeFileSync(lockPath, lockAsHttps, "utf8")
-  log("已把 package-lock.json 里的 git+ssh 写法改回 git+https（npm 11 的规范化，CI 无密钥会失败）")
-}
+// 说明：npm 曾把 git 依赖规范化成 `git+ssh://…` 导致 CI 无密钥 clone 失败；pnpm 的
+// pnpm-lock 始终记录 codeload 的 https tarball URL，无此问题，故不再需要改写。
 
 // ── ⑤ 重建前端产物 ──
 
 try {
-  log("npm run build …")
-  run("npm", ["run", "build"], { stdio: ["ignore", "inherit", "inherit"] })
+  log("pnpm run build …")
+  run("pnpm", ["run", "build"], { stdio: ["ignore", "inherit", "inherit"] })
 } catch (error) {
-  fail("npm run build 失败（上游产物形态变了？）", error)
+  fail("pnpm run build 失败（上游产物形态变了？）", error)
   process.exit(1)
 }
 
@@ -443,8 +473,8 @@ try {
 //    的排版差异会把每次自动升级都卡红。第 ⑦ 步仍会对刚生成的 CHANGELOG
 //    单独 `prettier --write`，但不做全仓校验。
 for (const [label, command, commandArgs] of [
-  ["npm test", "npm", ["test"]],
-  ["npm run lint", "npm", ["run", "lint"]],
+  ["pnpm test", "pnpm", ["test"]],
+  ["pnpm run lint", "pnpm", ["run", "lint"]],
 ]) {
   try {
     log(`${label} …`)
@@ -563,11 +593,11 @@ writeFileSync(changelogPath, `${head}${entry}${tail}`, "utf8")
 log("已写入 CHANGELOG.md")
 
 // ⚠️ 自动格式化刚写进去的 CHANGELOG —— 否则它的格式（行宽、列表缩进）多半与
-//    Prettier 的约定不一致，下次 `npm run format:check` 就会红。
+//    Prettier 的约定不一致，下次 `pnpm run format:check` 就会红。
 //    只格式化这一个文件，不碰仓库里其它文件（那会把「本来没动过」的文件也重写）。
 try {
   log("格式化 CHANGELOG.md …")
-  run("npx", ["prettier", "--write", "CHANGELOG.md"], { stdio: ["ignore", "inherit", "inherit"] })
+  run("pnpm", ["exec", "prettier", "--write", "CHANGELOG.md"], { stdio: ["ignore", "inherit", "inherit"] })
 } catch (error) {
   fail("格式化 CHANGELOG.md 失败", error)
   process.exit(1)
@@ -581,7 +611,9 @@ if (noCommit) {
 }
 
 try {
-  run("git", ["add", "package.json", "package-lock.json", "CHANGELOG.md"], { stdio: ["ignore", "inherit", "inherit"] })
+  run("git", ["add", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "CHANGELOG.md"], {
+    stdio: ["ignore", "inherit", "inherit"],
+  })
   const message = [
     `chore: 升级上游到 ${latestHash.slice(0, 7)}（自动升级）`,
     "",

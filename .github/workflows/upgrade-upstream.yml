@@ -38,7 +38,7 @@ jobs:
     #    上游 prepare 阶段失败（`The lockfile contains entries that the active
     #    policies reject …`）。上游每次发版后约 24 小时内都会这样。
     #
-    #    必须是 **job 级**：脚本内部也会调 `npm install`（升级时重装依赖），
+    #    必须是 **job 级**：脚本内部也会调 `pnpm install`（升级时重装依赖），
     #    step 级的 env 传不进去。只有这个**环境变量**能穿透到 npm 拉起的 pnpm
     #    子进程（`.npmrc` 与 `npm_config_*` 均无效）。
     env:
@@ -67,8 +67,10 @@ jobs:
 
       - name: 安装依赖
         # `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` 在上面的 **job 级 env** 里设置
-        # （它也要覆盖脚本内部的那次 `npm install`，所以不能只设在本步）。
-        run: npm install --include=dev --no-audit --no-fund
+        # （它也要覆盖脚本内部的那次 `pnpm install`，所以不能只设在本步）。
+        # ⚠️ 用 pnpm 安装：上游 git 依赖自带 pnpm-lock，pnpm 会遵循它装对基础包版本；
+        #    npm 不读上游 lock，会解析到最新版导致上游 prepare 的 tsc 失败。
+        run: pnpm install --frozen-lockfile
 
       - name: 运行上游升级脚本
         id: upgrade
