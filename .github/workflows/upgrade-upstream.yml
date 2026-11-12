@@ -39,10 +39,19 @@ jobs:
     #    policies reject …`）。上游每次发版后约 24 小时内都会这样。
     #
     #    必须是 **job 级**：脚本内部也会调 `pnpm install`（升级时重装依赖），
-    #    step 级的 env 传不进去。只有这个**环境变量**能穿透到 npm 拉起的 pnpm
-    #    子进程（`.npmrc` 与 `npm_config_*` 均无效）。
+    #    step 级的 env 传不进去。只有这个**环境变量**能穿透到 pnpm 拉起的子进程
+    #    （`.npmrc` 与 `npm_config_*` 均无效）。
     env:
       PNPM_CONFIG_MINIMUM_RELEASE_AGE: "0"
+      # ⚠️ **必须把 pnpm 的 store 指到普通目录**：pnpm/action-setup 默认把 PNPM_HOME
+      #    设成 `<...>/node_modules/.bin`，pnpm 的 store 随之落在 `node_modules/.bin/store`。
+      #    上游 `dsh-providers-hub` 的 prepare 在临时目录里跑 `tsc` 生成 `.d.ts` 时，
+      #    类型引用路径里带 `node_modules/.bin/...` 会被 TS 判为「不可移植」：
+      #      error TS2742: ... cannot be named without a reference to
+      #      '.bin/store/v11/tmp/.../node_modules/.pnpm/@deepseek-ai+cosmokit@...'
+      #    ⇒ 上游 prepare 失败。挪到 runner.temp 下的普通路径即可（与 Docker 里干净
+      #    store 路径一致，Docker 构建已实测通过）。
+      PNPM_CONFIG_STORE_DIR: ${{ runner.temp }}/pnpm-store
 
     steps:
       - name: 检出代码
