@@ -7,6 +7,52 @@
 ---
 
 <details open>
+<summary><b>2026-11-13 · 上游升级 <code>9076cd2</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `5581d4084435f6874a2389738fce3211089161c2` 更新到 `9076cd2faa46ff21a93b24cd7575fc484218bcdc`。
+
+### 上游改动
+
+- fix(jet-hub): 统计带三类假读数 + 豆包登录失败路径与余额短路（PR #29 审计返工）
+- fix(qoder): 排队提示帧改成合法 StreamChunk 成员 + fast 日志前置 + 切片收敛守卫（PR #63 审计返工）
+- fix(trae): 补 trae 接线的行为级守卫与归一化/回环加固（PR #58 审计返工）
+- fix(codearts): 补两条接线层守卫与三处解析/超时加固（PR #57 审计返工）
+- fix(codearts): 取号恒传空 modelId，回退 PR #59 引入的模型级过滤
+- fix(accounts): 起点不可用时循环到下一可用 + 三个渠道接通 sessionId + 选号链路行为级守卫（PR #59 审计返工）
+- fix(jet-hub): 语义色文字对比度回到裸字面量（PR #54 正向审计 P1）
+- fix(jet-hub): 网关三个 RPC 都回传 publicUrl（PR #54 审计 P1）
+- fix(jet-hub): 补两处假绿守卫（回退值快照 + buildRailSections 行为级）（PR #54 审计返工）
+- fix(modelscope): 请求体补 stream_options.include_usage（PR #61 审计返工）
+- fix(codearts): 补 root 不拼接与两处假绿守卫（PR #64 审计返工）
+- fix(jet-hub): 为「Token 用量」标签页补三处接缝守卫与类型/注释（PR #65 审计返工）
+- fix(jet-hub): 修复模型同步的静默删除，并为网关目录补缓存
+- feat(jet-hub): 网关模型目录一键同步到 pi / ZCode
+- feat(jet-hub): 右侧栏新增「Token 用量」标签页
+- refactor(jet-hub): TokenLedgerPanel 支持内嵌渲染（新增 chrome 参数）
+- test(codearts): 身份用例样本缩短到 &lt;16 字符（避开 repo-pii-guard 的「字段名+高熵」判据）
+- feat(client): 积分列表对齐「轮换起点」—— 位次编号 + 同格式命名 + 轮换顺序展示
+- feat(accounts): 会话级「轮换起点」—— 指定从哪个账号开始轮换
+- feat(codearts): 账号卡片显示真实 IAM 用户名（取自 refresh_token 的 user_profile）
+- feat(qoder): visible 档补「排队提示帧」，把排队状态报给下游
+- feat(qoder): 排队等待三档（wait/visible/fast）+ 排队日志
+- fix(modelscope): 流式请求带 stream_options.include_usage，补回用量统计
+- feat(trae): 支持「手动填写回调链接」登录（手机/另一台电脑完成授权）
+- chore: 移除 PR 描述文档（改用 PR 正文）
+- feat(codearts): 新增「手动填写回调链接」登录（手机/另一台电脑完成授权）
+- feat(jet-hub): 语义色走主题变量、网关支持对外地址、「聚合」在导航置顶
+- refactor(chatglm)!: 移除智谱清言网页端渠道，升版 0.2.1-rc.3
+- test(chatglm): 声明序断言跟上 magicrewintl —— 上游 PR #177 加国际站后 aggregate 前一席易位
+- chore(gitignore): ignore .rea-web/ reverse-engineering workspace
+- chore: resolve merge with upstream/master — union doubao/chatglm providers
+- test(jet-hub): 补全局统计带 9 条行为级守卫（4 组变异实测有牙）
+- feat(jet-hub): 全局统计带改为总积分/剩余积分/账号数量三格
+- feat(jet-hub): 页头下方新增全局统计带（账号/供应商/到期计数）
+
+</details>
+
+<details>
 <summary><b>2026-11-12 · 修复自动升级失败：安装改用 pnpm（上游 lock 与 npm 解析漂移）</b></summary>
 
 ## 问题
