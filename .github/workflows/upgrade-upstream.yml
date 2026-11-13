@@ -1,4 +1,4 @@
-name: 升级上游依赖
+name: Upgrade upstream dependencies
 
 # ── 触发时机 ──
 #
@@ -56,7 +56,7 @@ jobs:
       PNPM_CONFIG_STORE_DIR: /home/runner/pnpm-store
 
     steps:
-      - name: 检出代码
+      - name: Checkout
         # ⚠️ **v7**：v5 起改用 Node 24 runtime，v4 还挂在已被弃用的 Node 20 上，
         #    runner 会持续刷 deprecation 警告（不会失败，但很吵）。
         uses: actions/checkout@v7
@@ -67,7 +67,7 @@ jobs:
           # （这是 checkout 的默认行为，这里写出来是为了让人一眼看到推送凭据从哪来。）
           persist-credentials: true
 
-      - name: 安装 pnpm
+      - name: Setup pnpm
         # 上游的 `prepare` 脚本要跑 `pnpm build:all`，没有 pnpm 会装不上。
         #
         # ⚠️ **v6**：同样已切到 Node 24 runtime。v6 支持 pnpm v12，但仍可用 `version`
@@ -76,20 +76,20 @@ jobs:
         with:
           version: 11
 
-      - name: 安装依赖
+      - name: Install dependencies
         # `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` 在上面的 **job 级 env** 里设置
         # （它也要覆盖脚本内部的那次 `pnpm install`，所以不能只设在本步）。
         # ⚠️ 用 pnpm 安装：上游 git 依赖自带 pnpm-lock，pnpm 会遵循它装对基础包版本；
         #    npm 不读上游 lock，会解析到最新版导致上游 prepare 的 tsc 失败。
         run: pnpm install --frozen-lockfile
 
-      - name: 运行上游升级脚本
+      - name: Run upstream upgrade script
         id: upgrade
         # ⚠️ 脚本失败会**非零退出** ⇒ 这一步红 ⇒ workflow 失败 ⇒ 触发失败通知（邮件）。
         #    **不要**写 `|| true`，否则失败会被吞掉，你收不到邮件。
         run: node scripts/upgrade-upstream.mjs
 
-      - name: 推送改动
+      - name: Push changes
         id: push
         # ⚠️ **判据是「本地 HEAD 是否领先远程」，不是「工作区有没有改动」。**
         #
@@ -124,7 +124,7 @@ jobs:
           echo "ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      - name: 汇总失败原因
+      - name: Summarize failure
         # 失败时把要点写进 Actions 的 Summary 页面，邮件里也能看到摘要。
         if: failure()
         run: |
