@@ -368,19 +368,26 @@ packageJson.dependencies[DEP_NAME] = newSpec
 writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8")
 log(`已更新 package.json：${newSpec}`)
 
-// pnpm 的 allowBuilds 里 dsh-providers-hub 的 key 是**带 commit 的精确 codeload URL**，
-// 换 commit 后必须同步改写，否则新 commit 的 prepare 会被 pnpm 拒绝执行（默认拦构建脚本）。
-{
-  const workspaceYaml = readFileSync(workspaceYamlPath, "utf8")
-  const updatedWorkspaceYaml = workspaceYaml.replace(
-    /(dsh-providers-hub@https:\/\/codeload\.github\.com\/iJetLi\/dsh-providers-hub\/tar\.gz\/)[0-9a-f]{40}/,
-    `$1${latestHash}`,
-  )
-  if (updatedWorkspaceYaml !== workspaceYaml) {
-    writeFileSync(workspaceYamlPath, updatedWorkspaceYaml, "utf8")
-    log(`已同步 pnpm-workspace.yaml 的 allowBuilds commit → ${latestHash}`)
-  }
+// pnpm 的 allowBuilds 只认**带 commit 的精确 codeload URL**（按包名或 `@*` 都会被拒）。
+// 升级时锁定 commit 会从旧变新：若只写新 commit，pnpm 在「旧 → 新」过渡中仍会把旧条目
+// 判成「未允许构建」，报 ERR_PNPM_IGNORED_BUILDS。因此**过渡期同时允许旧 + 新两个 commit**，
+// 安装成功后再收敛为只保留新 commit（见下面 lock 核对之后的 writeAllowBuilds([latestHash])）。
+function writeAllowBuilds(hashes) {
+  const text = readFileSync(workspaceYamlPath, "utf8")
+  const block = [
+    "allowBuilds:",
+    ...[...new Set(hashes)].map(
+      (h) => `  'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/${h}': true`,
+    ),
+    "  esbuild: true",
+  ].join("\n")
+  const re = /^allowBuilds:\n(?:[ \t]+.*\n?)*/m
+  const next = re.test(text) ? text.replace(re, `${block}\n`) : `${text}${text.endsWith("\n") ? "" : "\n"}${block}\n`
+  writeFileSync(workspaceYamlPath, next, "utf8")
 }
+
+writeAllowBuilds([currentHash, latestHash])
+log(`已写 pnpm-workspace.yaml 的 allowBuilds（过渡：${currentHash.slice(0, 7)} + ${latestHash.slice(0, 7)}）`)
 
 try {
   log("pnpm install（会 clone 上游并按上游 pnpm-lock 现场编译 lib/，可能要几分钟）…")
@@ -429,6 +436,10 @@ try {
   }
   log("pnpm-lock.yaml 已包含新 commit ✓")
 }
+
+// 安装已成功：把 allowBuilds 从「旧+新」收敛为只保留新 commit，避免条目累积。
+writeAllowBuilds([latestHash])
+log(`已把 pnpm-workspace.yaml 的 allowBuilds 收敛为 ${latestHash.slice(0, 7)}`)
 
 // ⚠️ **基础包整族同版本自检**：装完立刻验，不等到运行时才露馅。
 //
