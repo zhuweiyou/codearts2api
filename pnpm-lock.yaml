@@ -30,8 +30,8 @@ importers:
         specifier: 0.2.2-rc.1
         version: 0.2.2-rc.1(@deepseek-ai/cordis@4.1.0)
       dsh-providers-hub:
-        specifier: git+https://github.com/iJetLi/dsh-providers-hub.git#9076cd2faa46ff21a93b24cd7575fc484218bcdc
-        version: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9076cd2faa46ff21a93b24cd7575fc484218bcdc(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0)
+        specifier: git+https://github.com/iJetLi/dsh-providers-hub.git#2cae3ac57fe9fb651be017c92af27cb196ea56e5
+        version: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/2cae3ac57fe9fb651be017c92af27cb196ea56e5(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0)
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -794,8 +794,8 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
-  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9076cd2faa46ff21a93b24cd7575fc484218bcdc:
-    resolution: {gitHosted: true, integrity: sha512-1fyFF5pdqQDkVIc6HL4FK6aFLY2P4LI3v0d4PObwGM+YwaYS5vG5TGu6NRYdTz1TYEYdtWQbQCQnMH9uepe9dA==, tarball: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9076cd2faa46ff21a93b24cd7575fc484218bcdc}
+  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/2cae3ac57fe9fb651be017c92af27cb196ea56e5:
+    resolution: {gitHosted: true, integrity: sha512-cL82Th8Ere3s605kT7KvKjO8xVr0F+QgIxEst925hgNfz9Qu1yHBw3H0N5G3UZVerUHpfR+qgsj1thE6XhEQgQ==, tarball: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/2cae3ac57fe9fb651be017c92af27cb196ea56e5}
     version: 0.2.1-rc.3
     engines: {node: ^22.19.0 || >=24.0.0}
     peerDependencies:
@@ -1696,7 +1696,7 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9076cd2faa46ff21a93b24cd7575fc484218bcdc(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0):
+  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/2cae3ac57fe9fb651be017c92af27cb196ea56e5(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0):
     dependencies:
       '@deepseek-ai/cordis': 4.1.0
       '@deepseek-ai/cosmokit': 1.9.0

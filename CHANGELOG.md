@@ -7,6 +7,38 @@
 ---
 
 <details open>
+<summary><b>2026-11-14 · 上游升级 <code>2cae3ac</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `9076cd2faa46ff21a93b24cd7575fc484218bcdc` 更新到 `2cae3ac57fe9fb651be017c92af27cb196ea56e5`。
+
+### 上游改动
+
+- fix(qoder): 网页会话 Cookie 脱敏 + 逐笔到期四处加固（PR #74 双审计返工）
+- fix(aggregate): auto 配额按 limit 收缩 + 口径注释更正（PR #72 双审计返工）
+- fix(aggregate): auto 名额第一轮每个渠道最多 2 个，避免被一家占满
+- docs(qoder): 记录资源包逐笔到期的两个来源与边界
+- feat(jet-hub): 积分卡片「长期」带最早到期日，套餐临期注明刷新日
+- feat(qoder): 资源包逐笔到期——网页会话明细 + 领取记录推算
+- test(aggregate): 锁住直连 fast 档的日志文案（PR #72 正向审计 P2-②）
+- fix(aggregate): 单候选不挂聚合标记，别把可恢复的排队翻成硬失败（PR #72 审计返工）
+- fix(codearts): 聚合调用时排队即失败，交由聚合切换下一个候选
+- fix(aggregate): 聚合调用 qoder 遇到排队即切换下一个候选，直连仍按排队档位处理
+- fix(doubao): 点击三态补遮挡/有限数判据，合成事件顺序改成「真跑一遍」（Gitee IKV5HC 审计返工）
+- fix(doubao): 提示文案分平台 + Windows 专属候选按平台门控（Gitee IKV5HC 返工）
+- fix(doubao): 浏览器探测接上跨平台发现，修复 macOS/Linux 上必然「未找到可执行文件」（Gitee IKV5HC）
+- feat(jet-hub): 设置页标注「需福利包」模型，把 002002009.404 的因果讲清楚（Gitee IKJOF7）
+- fix(token-ledger): 视觉契约与账号名守卫补强（PR #69 审计返工）
+- fix(reasoning-default): 形状防御 + RPC 契约守卫 + accio 标题降档（PR #70 审计返工）
+- feat(jet-hub): Token 用量面板按账号归档 + 显示真实账号名 + 重做信息层级
+- feat(jet-hub): 选完模型后默认取该模型支持的最强思考档（可在设置里关闭）
+- merge: 合入 PR #8（login.submitCallback）+ 审计返工
+- merge: cherry-pick PR #8 (login.submitCallback) 并改造为复用既有粘贴框
+
+</details>
+
+<details>
 <summary><b>2026-11-13 · 上游升级 <code>9076cd2</code>（自动升级）</b></summary>
 
 ## 上游升级
