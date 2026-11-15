@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
@@ -7,7 +9,7 @@ import { fileURLToPath } from "node:url"
 import { JSDOM } from "jsdom"
 
 import { UI_SRC as CALLERS_UI } from "../src/callers-ui.js"
-import { UI_SRC as DASHBOARD_UI } from "../src/dashboard-admin.js"
+import { createDashboard, UI_SRC as DASHBOARD_UI } from "../src/dashboard-admin.js"
 import { UI_SRC as RELAY_UI } from "../src/oauth-relay.js"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
@@ -473,4 +475,139 @@ test("调用记录：暂停状态记在浏览器里，下次打开保持暂停",
   const n = calls.records
   await tick(200)
   assert.equal(calls.records, n)
+})
+
+test("总览：魔搭显示日奖励批次到期，聚合余额不参与到期分档", async (t) => {
+  const expiry = Date.parse("2031-11-16T03:23:00Z")
+  const dataDir = await mkdtemp(join(tmpdir(), "c2a-dashboard-modelscope-"))
+  t.after(() => rm(dataDir, { recursive: true, force: true }))
+  await mkdir(join(dataDir, "jet-hub"))
+  const account = (provider, id) => ({ id, accountId: id, provider, nickname: id, enabled: true })
+  const accounts = [
+    account("modelscope", "日奖励已知"),
+    account("modelscope", "日奖励未知"),
+    account("buddy", "对照账号"),
+  ]
+  await writeFile(join(dataDir, "jet-hub", "state.json"), JSON.stringify({ accounts }))
+
+  const rpc = async (method, { provider }) => {
+    if (method !== "credits.balances") return {}
+    return {
+      accounts: accounts
+        .filter((entry) => entry.provider === provider)
+        .map((entry) => ({
+          accountId: entry.accountId,
+          nickname: entry.nickname,
+          balance: {
+            packages: [{ name: "余额", total: 250, remaining: 250, unit: "credit" }],
+            dailyGrantExpiresAt: entry.id === "日奖励已知" ? expiry : undefined,
+          },
+        })),
+    }
+  }
+  const data = await createDashboard({ dataDir, rpc }).snapshot()
+  const { d7, d30, later, never, expired } = data.credits.expiry
+  assert.deepEqual([...d7, ...d30, ...later, ...never, ...expired], [])
+  const grantRow = data.credits.packages.find((row) => row.nickname === "日奖励已知")
+  assert.equal(grantRow.dailyGrantExpiresAt, expiry)
+  assert.equal(grantRow.endAt, null)
+
+  const window = await makePage()
+  window.fetch = async () => ({ ok: true, status: 200, json: async () => data })
+  window.eval(DASHBOARD_UI)
+  const expiryText = (provider) =>
+    [...window.document.querySelectorAll('details[data-prov="' + provider + '"] tbody tr')].map((row) =>
+      row.lastElementChild.textContent.trim(),
+    )
+  await until(() => expiryText("modelscope").length === 2)
+  assert.deepEqual(expiryText("modelscope").sort(), ["到期时间未知", "日奖励批次 11月16日 11:23 到期"].sort())
+  assert.deepEqual(expiryText("buddy"), ["到期时间未知"])
+})
+
+test("总览：区分到期未知、周期重置、部分临期、失效余额和凭据有效期", async (t) => {
+  const dataDir = await mkdtemp(join(tmpdir(), "c2a-dashboard-expiry-"))
+  t.after(() => rm(dataDir, { recursive: true, force: true }))
+  await mkdir(join(dataDir, "jet-hub"))
+
+  const future = new Date(Date.now() + 86400_000).toISOString()
+  const past = new Date(Date.now() - 86400_000).toISOString()
+  const pkg = (name, fields) => ({ name, total: 100, used: 0, remaining: 100, unit: "credit", ...fields })
+  const packages = {
+    qoder: [pkg("个人资源包", { expiryUnknown: true })],
+    marvis: [pkg("每日额度", { expiryUnknown: true })],
+    gemini: [pkg("5 小时窗口", { cycleEndTime: future })],
+    accio: [pkg("每日积分", { cycleEndTime: past })],
+    monkeycode: [pkg("每日积分", { expiryNote: "每日刷新（平台未提供具体时刻）" })],
+    codearts: [pkg("赠送积分", { expiringRemaining: 25 }), pkg("基础积分", { deductionEndTime: Date.parse(future) })],
+    buddy: [pkg("无日期的失效包", { active: false }), pkg("已过期的包", { expiredTime: past })],
+    workbuddy: [pkg("国际版失效包", { active: false })],
+    zcode: [pkg("待生效的包", { active: false, remaining: 0, cycleEndTime: future, expiredTime: future })],
+    loomy: [pkg("永久积分")],
+  }
+  const accounts = Object.keys(packages).map((provider) => ({
+    id: provider,
+    provider,
+    nickname: provider + " 账号",
+    refreshable: provider === "gemini",
+    ...(provider === "buddy" ? { expiresAt: future } : {}),
+  }))
+  await writeFile(join(dataDir, "jet-hub", "state.json"), JSON.stringify({ accounts }))
+  const rpc = async (method, { provider }) => {
+    if (method !== "credits.balances") return {}
+    return {
+      accounts: [{ accountId: provider, nickname: provider + " 账号", balance: { packages: packages[provider] } }],
+    }
+  }
+
+  const data = await createDashboard({ dataDir, rpc }).snapshot()
+  const { d7, d30, never, expired, undatedExpiring } = data.credits.expiry
+  assert.deepEqual(
+    d7.map((row) => row.name),
+    ["基础积分"],
+  )
+  assert.deepEqual(d30, [])
+  assert.deepEqual(
+    never.map((row) => row.provider),
+    ["loomy"],
+  )
+  assert.deepEqual(
+    undatedExpiring.map((row) => [row.name, row.expiringRemaining]),
+    [["赠送积分", 25]],
+  )
+  assert.equal(data.credits.expiry.expiredRemaining, 300)
+  assert.deepEqual(expired.map((row) => row.provider).sort(), ["buddy", "buddy", "workbuddy"])
+  assert.equal(data.credits.providers.find((row) => row.provider === "buddy").remaining, 0)
+  assert.equal(data.credits.units[0].remaining, 800)
+
+  const window = await makePage()
+  window.fetch = async () => ({ ok: true, status: 200, json: async () => data })
+  window.eval(DASHBOARD_UI)
+  const { document } = window
+  const channel = (provider) => document.querySelector('details[data-prov="' + provider + '"]')
+  const timing = (provider) =>
+    [...channel(provider).querySelectorAll("tbody tr")].map((row) => row.lastElementChild.textContent.trim())
+  assert.ok(await until(() => channel("gemini")))
+  assert.deepEqual(timing("qoder"), ["到期时间未知"])
+  assert.deepEqual(timing("marvis"), ["到期时间未知"])
+  assert.match(timing("gemini")[0], /^重置时间 \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
+  assert.match(timing("accio")[0], /^重置时间 .+（待更新）$/)
+  assert.deepEqual(timing("monkeycode"), ["每日刷新（平台未提供具体时刻）"])
+  assert.ok(timing("codearts").includes("25 即将到期（日期未知）"))
+  assert.ok(timing("buddy").includes("已失效（日期未知）"))
+  assert.ok(timing("buddy").some((label) => label.endsWith("（已过期）")))
+  assert.deepEqual(timing("zcode"), ["当前不可用"])
+  assert.deepEqual(timing("loomy"), ["无期限"])
+  assert.match(channel("buddy").querySelector("summary").textContent, /可用结余 0/)
+
+  const alertRows = [...document.querySelectorAll(".c2d-sub2 + .c2d-tblWrap tbody tr")]
+  const undatedRow = alertRows.find((row) => row.textContent.includes("赠送积分"))
+  assert.equal(undatedRow?.cells[0].textContent, "25 credit")
+  assert.equal(undatedRow?.cells[3].textContent, "日期未知")
+  const accountRows = [...document.querySelectorAll(".c2d-tblWrap > table tbody tr")].filter((row) =>
+    row.closest("table").tHead?.textContent.includes("凭据有效期"),
+  )
+  const credentialExpiry = (id) => accountRows.find((row) => row.cells[1].textContent === id + " 账号").cells[3]
+  assert.equal(credentialExpiry("gemini").textContent, "到期时间未知（可续期）")
+  assert.equal(credentialExpiry("qoder").textContent, "到期时间未知")
+  assert.match(credentialExpiry("buddy").textContent, /^(\d+) 小时$/)
 })
