@@ -18,6 +18,8 @@ export const UI_PATH = "/admin/dashboard-ui.js"
 
 /** 余额缓存时长：5 分钟，避免多个浏览器窗口同时打上游。 */
 const BALANCE_TTL_MS = 5 * 60 * 1000
+const PERMANENT_BALANCE_PROVIDERS = new Set(["cline", "codely"])
+const PERMANENT_PACKAGE_PROVIDERS = new Set(["loomy", "magicrew", "magicrewintl"])
 
 /**
  * 读一个 JSON 文件；不存在或坏掉都返回 `undefined`（看板不该因为少一个文件 500）。
@@ -65,10 +67,8 @@ function errorText(error) {
 }
 
 function normalizeExpiry(v) {
-  if (v === undefined || v === null || v === "" || v === 0) return undefined
-  if (typeof v === "number") return v < 1e12 ? v * 1000 : v
-  const t = Date.parse(v)
-  return Number.isNaN(t) ? undefined : t
+  const t = typeof v === "number" ? (v < 1e12 ? v * 1000 : v) : Date.parse(v)
+  return t > 0 && t <= 8.64e15 ? t : undefined
 }
 
 /**
@@ -285,7 +285,7 @@ export function createDashboard(deps) {
     const packages = []
     const byUnit = new Map()
     const byProvider = new Map()
-    const buckets = { d7: [], d30: [], later: [], never: [], expired: [] }
+    const buckets = { d7: [], d30: [], later: [], never: [], expired: [], undatedExpiring: [] }
     const now = Date.now()
 
     for (const [provider, pack] of Object.entries(balanceMap || {})) {
@@ -300,6 +300,28 @@ export function createDashboard(deps) {
           // used 缺省时按 total - remaining 反推（qodercn 的「套餐额度」就是这种形态）
           const used = p.used === undefined || p.used === null ? Math.max(0, total - remaining) : num(p.used)
           const unit = String(p.unit || "credit")
+          // 扣费截止和额度重置是独立的时间。兼容只上报 expiredTime 的渠道。
+          const deductionEnd = num(p.deductionEndTime)
+          const reportedEnd = deductionEnd > 0 && deductionEnd <= 8.64e15 ? deductionEnd : Date.parse(p.expiredTime)
+          const endAt = Number.isFinite(reportedEnd) ? reportedEnd : null
+          const resetAt = provider === "gemini" || provider === "accio" ? Date.parse(p.cycleEndTime) : NaN
+          // CodeBuddy 的失效状态有时只有标记，没有时间。其他渠道的 inactive 也可能是待生效。
+          const buddyPackage = provider === "buddy" || provider === "workbuddy"
+          const expired = (endAt !== null && endAt <= now) || (buddyPackage && p.active === false)
+          const active = p.active !== false && !expired
+          const expiringRemaining =
+            endAt === null && active ? Math.max(0, Math.min(remaining, num(p.expiringRemaining))) : 0
+          const expiryNote = typeof p.expiryNote === "string" ? p.expiryNote.trim() : ""
+          // 余额型渠道保留既有口径。有定时批次的渠道只匹配明确标注的长期余额。
+          const permanent =
+            !p.deductionEndTime &&
+            !p.expiredTime &&
+            !p.cycleEndTime &&
+            !expiryNote &&
+            expiringRemaining === 0 &&
+            p.expiryUnknown !== true &&
+            (PERMANENT_BALANCE_PROVIDERS.has(provider) ||
+              (PERMANENT_PACKAGE_PROVIDERS.has(provider) && (p.name === "永久积分" || p.name === "长期积分")))
           const row = {
             provider,
             accountId: acc.accountId,
@@ -309,29 +331,28 @@ export function createDashboard(deps) {
             total,
             used,
             remaining,
-            active: p.active !== false,
+            active,
+            expired,
             pct: total > 0 ? (used / total) * 100 : 0,
-            // 到期时刻：优先 deductionEndTime（各渠道统一的「何时作废」语义），
-            // 其次解析 expiredTime（codearts 系只给 ISO 串）。
-            // ⚠️ 无到期时间必须是 null 而不是 NaN：NaN 经 JSON 序列化成 null，
-            //    前端再 Number.isNaN(null) 为 false，会渲染成 1970-01-01（实测踩过）。
-            //    这里统一成 null，前端用 endAt === null 判「永久/无期限」。
-            endAt:
-              typeof p.deductionEndTime === "number" && p.deductionEndTime > 0
-                ? p.deductionEndTime
-                : p.expiredTime
-                  ? Number.isNaN(Date.parse(p.expiredTime))
-                    ? null
-                    : Date.parse(p.expiredTime)
-                  : null,
+            endAt,
+            resetAt: Number.isFinite(resetAt) ? resetAt : null,
             expiredTime: p.expiredTime || "",
+            expiryNote,
+            permanent,
+            expiringRemaining,
+            // 魔搭返回整笔余额，日奖励的到期时间只用于该行的说明。
+            ...(provider === "modelscope" && Number.isFinite(bal.dailyGrantExpiresAt) && bal.dailyGrantExpiresAt > 0
+              ? { dailyGrantExpiresAt: bal.dailyGrantExpiresAt }
+              : {}),
           }
           packages.push(row)
 
           const u = byUnit.get(unit) || { unit, total: 0, used: 0, remaining: 0, packs: 0 }
-          u.total += total
-          u.used += used
-          u.remaining += remaining
+          if (active) {
+            u.total += total
+            u.used += used
+            u.remaining += remaining
+          }
           u.packs += 1
           byUnit.set(unit, u)
 
@@ -345,20 +366,25 @@ export function createDashboard(deps) {
             packs: 0,
             accounts: new Set(),
           }
-          pv.total += total
-          pv.used += used
-          pv.remaining += remaining
+          if (active) {
+            pv.total += total
+            pv.used += used
+            pv.remaining += remaining
+          }
           pv.packs += 1
           if (acc.accountId) pv.accounts.add(acc.accountId)
           byProvider.set(pk, pv)
 
-          // 到期分档只看还有余额的包（空包过期与否都不影响可用性）
+          // 已失效的账面余额单列。临期预警只统计仍可用的余额。
           if (remaining <= 0) continue
-          if (row.endAt === null) buckets.never.push(row)
-          else {
-            const left = row.endAt - now
-            if (left <= 0) buckets.expired.push(row)
-            else if (left <= 7 * 86400_000) buckets.d7.push(row)
+          if (expired) buckets.expired.push(row)
+          if (!active) continue
+          if (endAt === null) {
+            if (expiringRemaining > 0) buckets.undatedExpiring.push(row)
+            else if (permanent) buckets.never.push(row)
+          } else {
+            const left = endAt - now
+            if (left <= 7 * 86400_000) buckets.d7.push(row)
             else if (left <= 30 * 86400_000) buckets.d30.push(row)
             else buckets.later.push(row)
           }
@@ -381,6 +407,7 @@ export function createDashboard(deps) {
         later: sortByRemaining(buckets.later),
         never: sortByRemaining(buckets.never),
         expired: sortByRemaining(buckets.expired),
+        undatedExpiring: buckets.undatedExpiring.sort((a, b) => b.expiringRemaining - a.expiringRemaining),
         d7Remaining: sumRemaining(buckets.d7),
         // ⚠️ 必须用 concat：数组之间用 + 会变成字符串拼接，sumRemaining 里 list.reduce 直接抛
         //    TypeError: list.reduce is not a function
@@ -742,6 +769,9 @@ export const UI_SRC = String.raw`
         balCell = '<span class="c2d-muted">无积分包</span>';
       } else {
         balCell = pkgs.slice(0, 4).map(function (p) {
+          if (p.active === false) {
+            return '<div class="c2d-pkgName">' + esc(p.name) + ' <span class="c2d-muted">当前不可用</span></div>';
+          }
           const pct = p.total > 0 ? (p.remaining / p.total) * 100 : 0;
           const tone = pct > 30 ? "" : pct > 10 ? "warn" : "bad";
           return '<div class="c2d-pkg">' +
@@ -753,7 +783,7 @@ export const UI_SRC = String.raw`
 
       let expCell;
       if (a.expiresAt === undefined) {
-        expCell = '<span class="c2d-muted">长期 / 静态</span>';
+        expCell = '<span class="c2d-muted">到期时间未知' + (a.refreshable ? '（可续期）' : '') + '</span>';
       } else {
         /* tone 用毫秒差判断，不用取整后的天数：否则「还剩 2 小时」会被算成
            0 天而落进最紧急的红档，与还剩 23 小时显示同色，看不出轻重。 */
@@ -904,7 +934,7 @@ export const UI_SRC = String.raw`
     /* ① 按单位汇总卡：不能把 credits / credit / token / 通道 相加 */
     const unitCards = cr.units.map(function (u) {
       const pctUsed = u.total > 0 ? (u.used / u.total) * 100 : 0;
-      return card("剩余 · " + u.unit, fmtAmt(u.remaining), "", 
+      return card("可用结余 · " + u.unit, fmtAmt(u.remaining), "",
         "已用 " + fmtAmt(u.used) + " / 总量 " + fmtAmt(u.total) +
         " · 使用率 " + pctUsed.toFixed(1) + "% · " + u.packs + " 个包",
         pctUsed >= 90 ? "bad" : pctUsed >= 60 ? "warn" : "ok");
@@ -912,21 +942,29 @@ export const UI_SRC = String.raw`
 
     const warn7 = cr.expiry.d7.length;
     const warn30 = cr.expiry.d30.length;
+    const undated = cr.expiry.undatedExpiring || [];
     const stale = cr.expiry.expired.length;
     const warnCard = card("7 天内到期", String(warn7), "个包",
-      warn7 ? "其中剩余量见下方预警" : "暂无临近到期", warn7 ? "bad" : "ok");
+      warn7 ? "其中剩余量见下方预警" : "暂无已知在 7 天内到期的包", warn7 ? "bad" : "ok");
     const laterCard = card("8–30 天内到期", String(warn30), "个包",
       "合计 " + String(warn7 + warn30) + " 个包在 30 天内到期", warn30 ? "warn" : "");
-    const staleCard = stale
-      ? card("已过期未清零", String(stale), "个包", "剩余额度已不可用", "bad") : "";
-
-    const head = cards(unitCards.concat([warnCard, laterCard]).concat(staleCard ? [staleCard] : []));
+    const alerts = [warnCard, laterCard];
+    if (undated.length) {
+      alerts.push(card("即将到期（日期未知）", String(undated.length), "个包", "临期额度见渠道明细", "warn"));
+    }
+    if (stale) {
+      alerts.push(card("已失效仍有账面余额", String(stale), "个包", "相关额度已从可用结余扣除", "bad"));
+    }
+    const head = cards(unitCards.concat(alerts));
 
     /* ② 按渠道明细：一个渠道一块，头部是中文名 + logo + 该渠道收支合计，下面挂它自己的每个积分包 */
     const chanMap = new Map();
     cr.packages.forEach(function (p) {
       if (!chanMap.has(p.provider)) chanMap.set(p.provider, []);
       chanMap.get(p.provider).push(p);
+    });
+    const grantTime = new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
     });
     const chanBlocks = Array.from(chanMap.keys()).sort().map(function (prov) {
       const list = chanMap.get(prov).slice().sort(function (a, b) {
@@ -937,12 +975,15 @@ export const UI_SRC = String.raw`
       const units = [];
       const accMap = new Map();
       list.forEach(function (p) {
-        agg.total += p.total; agg.used += p.used; agg.remaining += p.remaining;
         if (units.indexOf(p.unit) < 0) units.push(p.unit);
         const ak = p.accountId || "?";
         const a = accMap.get(ak) ||
           { accountId: ak, nickname: p.nickname, total: 0, used: 0, remaining: 0, packs: 0 };
-        a.total += p.total; a.used += p.used; a.remaining += p.remaining; a.packs += 1;
+        if (p.active !== false) {
+          agg.total += p.total; agg.used += p.used; agg.remaining += p.remaining;
+          a.total += p.total; a.used += p.used; a.remaining += p.remaining;
+        }
+        a.packs += 1;
         accMap.set(ak, a);
       });
       const pct = agg.total > 0 ? (agg.used / agg.total) * 100 : 0;
@@ -953,7 +994,7 @@ export const UI_SRC = String.raw`
         '<span class="c2d-unit">' + esc(units.join(" · ")) + "</span>" +
         '<span class="c2d-chanSum">收入 ' + fmtAmt(agg.total) +
           " · 支出 " + fmtAmt(agg.used) +
-          " · 结余 " + fmtAmt(agg.remaining) +
+          " · 可用结余 " + fmtAmt(agg.remaining) +
           " · 使用率 " + pct.toFixed(1) + "%" +
           " · " + String(list.length) + " 个包 / " + String(accMap.size) + " 个账号</span>" +
         "</div>" +
@@ -963,21 +1004,35 @@ export const UI_SRC = String.raw`
       if (accMap.size > 1) {
         html += '<div class="c2d-accs">' + Array.from(accMap.values()).map(function (a) {
           return '<span class="c2d-accItem">' + esc(a.nickname || a.accountId) +
-            " · 结余 " + fmtAmt(a.remaining) + " / " + fmtAmt(a.total) + " · " + String(a.packs) +
+            " · 可用结余 " + fmtAmt(a.remaining) + " / " + fmtAmt(a.total) + " · " + String(a.packs) +
             " 个包</span>";
         }).join("") + "</div>";
       }
       html += '<div class="c2d-tblWrap"><table class="c2d-tbl"><thead><tr>' +
         "<th>包名</th><th>账号</th>" +
         '<th class="num">总量</th><th class="num">已用</th><th class="num">剩余</th>' +
-        "<th>使用率</th><th>到期</th>" +
+        "<th>使用率</th><th>到期 / 重置</th>" +
         "</tr></thead><tbody>" +
         list.map(function (p) {
           const up = p.total > 0 ? (p.used / p.total) * 100 : 0;
           const t = up >= 90 ? "bad" : up >= 60 ? "warn" : "";
           const dl = leftDays(p.endAt);
-          const endText = p.endAt === null ? "无期限"
-            : when(p.endAt) + (dl !== null && dl >= 0 ? "（" + dl + " 天）" : "（已过期）");
+          const timing = [];
+          if (p.expired || (dl !== null && dl < 0)) {
+            timing.push(dl !== null && dl < 0 ? when(p.endAt) + "（已过期）" : "已失效（日期未知）");
+          } else if (p.active === false) {
+            timing.push("当前不可用");
+          } else {
+            if (dl !== null) timing.push(when(p.endAt) + "（" + dl + " 天）");
+            else if (p.expiringRemaining > 0) timing.push(fmtAmt(p.expiringRemaining) + " 即将到期（日期未知）");
+            else if (p.dailyGrantExpiresAt > Date.now()) {
+              timing.push("日奖励批次 " + grantTime.format(p.dailyGrantExpiresAt) + " 到期");
+            } else if (p.expiryNote) timing.push(p.expiryNote);
+            else if (p.permanent) timing.push("无期限");
+            if (p.resetAt != null) {
+              timing.push("重置时间 " + when(p.resetAt) + (p.resetAt <= Date.now() ? "（待更新）" : ""));
+            }
+          }
           return "<tr>" +
             "<td>" + esc(p.name) + "</td>" +
             '<td class="c2d-muted">' + esc(p.nickname || p.accountId || "") + "</td>" +
@@ -986,36 +1041,37 @@ export const UI_SRC = String.raw`
             '<td class="num">' + fmtAmt(p.remaining) + "</td>" +
             '<td style="width:13%"><div class="c2d-bar" style="margin:0"><i class="' + t +
               '" style="width:' + Math.min(100, up).toFixed(1) + '%"></i></div></td>' +
-            '<td class="c2d-muted">' + endText + "</td>" +
+            '<td class="c2d-muted">' + esc(timing.join(" · ") || "到期时间未知") + "</td>" +
             "</tr>";
         }).join("") +
         "</tbody></table></div></div></details>";
       return html;
     }).join("");
 
-    /* ③ 到期预警：只列还有余额且即将到期的包 */
-    const urgent = cr.expiry.d7.concat(cr.expiry.d30).slice(0, 12);
+    /* ③ 到期预警：包含渠道明确标为临期但缺少到期时刻的额度。 */
+    const urgent = cr.expiry.d7.concat(cr.expiry.d30, undated).slice(0, 12);
     const urgentTable = urgent.length
-      ? '<div class="c2d-sub2">即将到期（30 天内，且仍有余额）</div>' +
+      ? '<div class="c2d-sub2">即将到期（30 天内或日期未知）</div>' +
         '<div class="c2d-tblWrap"><table class="c2d-tbl"><thead><tr>' +
-        "<th>剩余</th><th>包名</th><th>渠道 / 账号</th><th>到期</th><th>还剩</th>" +
+        "<th>临期额度</th><th>包名</th><th>渠道 / 账号</th><th>到期</th><th>还剩</th>" +
         "</tr></thead><tbody>" +
         urgent.map(function (p) {
           const dl = leftDays(p.endAt);
+          const amount = dl === null ? p.expiringRemaining : p.remaining;
           const tone = dl !== null && dl <= 7 ? "bad" : "warn";
           return "<tr>" +
-            '<td class="num">' + fmtAmt(p.remaining) + ' <span class="c2d-unit">' + esc(p.unit) + "</span></td>" +
+            '<td class="num">' + fmtAmt(amount) + ' <span class="c2d-unit">' + esc(p.unit) + "</span></td>" +
             "<td>" + esc(p.name) + "</td>" +
             "<td><span class=\"c2d-chanCell\">" + providerHeadTag(p.provider) +
               ' <span class="c2d-muted">' + esc(p.nickname || p.accountId || "") + "</span></span></td>" +
-            "<td>" + when(p.endAt) + "</td>" +
+            "<td>" + (dl === null ? "日期未知" : when(p.endAt)) + "</td>" +
             '<td><span class="c2d-dot ' + tone + '"></span>' + (dl !== null ? dl + " 天" : "—") + "</td>" +
             "</tr>";
         }).join("") + "</tbody></table></div>"
-      : '<div class="c2d-muted" style="font-size:11.5px">30 天内没有到期且仍有余额的积分包。</div>';
+      : '<div class="c2d-muted" style="font-size:11.5px">暂无可确认的临期额度。</div>';
 
     return head +
-      '<div class="c2d-sub2">按渠道明细（点开看每个积分包；收入 = 包的总额度，支出 = 已消耗，结余 = 剩余；共 ' +
+      '<div class="c2d-sub2">按渠道明细（收入、支出和可用结余仅统计当前可用的包；共 ' +
         String(chanMap.size) + " 个渠道 / " + String(cr.packages.length) + " 个积分包）</div>" +
       chanBlocks + urgentTable;
   }
