@@ -7,6 +7,37 @@
 ---
 
 <details open>
+<summary><b>2026-11-15 · 上游升级 <code>be25b5f</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `2cae3ac57fe9fb651be017c92af27cb196ea56e5` 更新到 `be25b5ffb75f0f4348362389bcc0b673955f6115`。
+
+### 上游改动
+
+- fix(modelscope): 未来日期不得冒充今天 + 失败文案指向登录态 + rule_key 白名单 + 负金额（PR #83 双审计返工）
+- fix(modelscope): 认证双头 + totalKnown + 未识别规则点名 + 接线守卫（PR #83 正向审计返工）
+- fix: 移除误提交的 watcher 隔离工作区（嵌入 git 仓库）+ 加 .gitignore
+- docs: 同步 `channel` 的首个生产读取点 + 删一条恒真断言（PR #81 正向审计 P2）
+- fix(doubao): 「没有模型」的渠道也能关闭 + 删夹带 + 4 条守卫（PR #81 审计返工）
+- test(modelscope): 明确构造模拟访问令牌
+- feat(modelscope): 支持每日魔粒领取和到期展示
+- fix(doubao): 供应商开关关不掉 —— 无模型腿的渠道不再被拒绝（真机两轮）
+- fix(qoder): 重复释放不得清掉新持有者的名额（PR #80 双审计返工）
+- fix(qoder): 防止旧请求重复释放并发名额
+- fix(qoder): 已输出的流不得换号重放 + Retry-After: 0 不得忙重试（PR #79 对抗审计返工）
+- fix(qoder): 排队等待期让出并发名额 + 补齐三层守卫（PR #79 双审计返工）
+- feat(qoder): 默认开启单账号限流并支持面板设置
+- fix(qoder): 限制单账号并发并完善排队诊断
+- fix(raccoon): 扫码登录改用 IAM 服务端签发的二维码（Gitee IKVA90）
+- fix(raccoon): 扫码登录改用 IAM 服务端签发的二维码（Gitee IKVA90）
+- fix(accio): 网关 HTML 拒绝页的判据统一与覆盖补齐（PR #76 双审计返工）
+- fix(accio): stop on HTML gateway denials
+- feat(marvis): 目录上行槽位切到 deepseek-v4-pro-external
+
+</details>
+
+<details>
 <summary><b>2026-11-14 · 上游升级 <code>2cae3ac</code>（自动升级）</b></summary>
 
 ## 上游升级
