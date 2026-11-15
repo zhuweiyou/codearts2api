@@ -935,10 +935,44 @@ async function saveKey() {
 }
 
 function copySec() {
-  const text = document.getElementById('sec').textContent;
-  navigator.clipboard.writeText(text).then(
-    () => { document.querySelector('#card .row .primary').textContent = '已复制'; },
-    () => { alert('复制失败，请手动选中'); });
+  const el = document.getElementById('sec');
+  const text = el.textContent;
+  const done = () => {
+    const b = document.querySelector('#card .row .primary');
+    if (b) b.textContent = '已复制';
+  };
+  /* navigator.clipboard 只在安全上下文（https / localhost）存在；NAS 上多是
+     http://ip:port 打开，那里它是 undefined，旧代码会抛 TypeError 且无人接 reject，
+     表现就是「点复制没反应」。这里补 execCommand 兜底 + 手动全选兜底。 */
+  const fallback = () => {
+    let ta = null;
+    try {
+      ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:1px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
+      if (ok) return done();
+    } catch (e) { /* 继续走手动兜底 */ } finally {
+      if (ta && ta.parentNode) ta.parentNode.removeChild(ta);
+    }
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { /* 忽略 */ }
+    alert('浏览器不允许自动复制，已帮你选中这串 Key，请按 Ctrl+C 手动复制');
+  };
+  if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, fallback);
+  } else {
+    fallback();
+  }
 }
 
 function editKey(id) {

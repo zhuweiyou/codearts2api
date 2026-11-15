@@ -423,13 +423,28 @@ export const UI_SRC = String.raw`
     return "可用";
   }
 
+  /* ⚠️ 视图状态的键**必须是 provider id 字符串**。
+     2026-11-16 修：原实现直接拿 provider 当键，而 renderSection / renderRows
+     传进来的是 {id,label} 对象 —— view[对象] 会被隐式转成字符串
+     "[object Object]"。于是「input 事件把搜索词写进 view[providerId].q」和
+     「渲染时读 view["[object Object]"].q」根本不是同一个格子，q 永远是空串，
+     敲什么都在筛全部 → 用户报的「筛选模型输入后无法筛选」。
+     这里统一归一化成 id，调用方传对象或字符串都对。 */
+  function providerKey(provider) {
+    if (provider === null || provider === undefined) return "";
+    if (typeof provider === "string") return provider;
+    var id = provider.id;
+    return id === null || id === undefined ? "" : String(id);
+  }
+
   /* 默认视图必须是「全部」：设成「可用」会把正在限流的模型直接筛掉，
      用户展开后只看到一片绿，会以为「全部可用」——正是 2026-11-02 用户报的
      「qodercn 7 个模型限流，但是下拉箭头展开以后全部显示可用」。
      默认全量 + 行内限流徽章，才看得见问题。 */
   function filterOf(provider) {
-    if (view[provider] === undefined) view[provider] = { q: "", filter: "all" };
-    return view[provider];
+    var id = providerKey(provider);
+    if (view[id] === undefined) view[id] = { q: "", filter: "all" };
+    return view[id];
   }
 
   function visibleModels(provider, data) {
@@ -511,7 +526,7 @@ export const UI_SRC = String.raw`
       + "<h3 class=\"c2x-title\">" + headline + "</h3>"
       + '<span class="c2x-sub">' + esc(sub) + "</span>"
       + '<div class="c2x-tools">'
-      + '<input type="text" data-c2x-q placeholder="筛选模型…" value="' + esc(v.q) + '">'
+      + '<input type="text" data-c2x-q autocomplete="off" spellcheck="false" placeholder="筛选模型…" value="' + esc(v.q) + '">'
       + tabs
       + '<button type="button" class="c2x-icon" data-c2x-refresh title="刷新">&#8635;</button>'
       + '<button type="button" class="c2x-icon" data-c2x-fold title="' + (open ? "折叠" : "展开") + '">' + (open ? "&#9650;" : "&#9660;") + "</button>"
@@ -546,13 +561,27 @@ export const UI_SRC = String.raw`
     }
 
     /* 只在内容真的变了才写 DOM。否则 MutationObserver 会被自己的写入再触发，
-       形成无限循环（第一版踩过）。 */
+       形成无限循环（第一版踩过）。
+
+       ⚠️ key 里**不放搜索词 q**（2026-11-16 改）。搜索词只影响滚动区的行，
+       由 input 事件单独重画。放进 key 的后果是每敲一个字整块重建一次 ——
+       <input> 被换成新节点、焦点直接丢掉，用户只能输进第一个字符，
+       观感就是「输入了但没反应」。 */
+    var v = filterOf(provider);
     var key = provider.id + "\u0001" + (data === undefined ? "loading" : JSON.stringify(data.counts || {}))
-      + "\u0001" + JSON.stringify(filterOf(provider)) + "\u0001" + (open ? "1" : "0")
+      + "\u0001" + v.filter + "\u0001" + (open ? "1" : "0")
       + "\u0001" + Object.keys(busyModel).join(",");
     if (existing !== null && existing.getAttribute("data-c2x-key") === key) {
       return;
     }
+
+    /* 重建会换掉 <input>。若用户正在搜索框里输入（定时刷新、切页签、开关
+       模型都会触发重建），把焦点与光标位置搬过去，别打断输入。 */
+    var active = document.activeElement;
+    var keepFocus = existing !== null && active !== null && typeof active.getAttribute === "function"
+      && active.getAttribute("data-c2x-q") !== null && existing.contains(active);
+    var caretFrom = keepFocus ? active.selectionStart : null;
+    var caretTo = keepFocus ? active.selectionEnd : null;
 
     if (existing !== null) {
       existing.remove();
@@ -562,6 +591,20 @@ export const UI_SRC = String.raw`
     var section = wrap.firstElementChild;
     section.setAttribute("data-c2x-key", key);
     main.insertBefore(section, main.firstChild);
+
+    if (keepFocus) {
+      var next = section.querySelector("[data-c2x-q]");
+      if (next !== null) {
+        next.focus();
+        if (caretFrom !== null && caretFrom !== undefined) {
+          try {
+            next.setSelectionRange(caretFrom, caretTo === null || caretTo === undefined ? caretFrom : caretTo);
+          } catch (error) {
+            /* 某些浏览器在 type=text 上会拒绝，忽略即可 */
+          }
+        }
+      }
+    }
   }
 
   function ensureData(providerId) {

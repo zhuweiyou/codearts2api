@@ -7,6 +7,41 @@
 ---
 
 <details open>
+<summary><b>2026-11-16 · 修复模型筛选失效、弹窗误触关闭与复制 Key 无反应</b></summary>
+
+## 修复
+
+### 渠道管理：「筛选模型」输入后不生效（`src/models-admin.js`）
+
+`filterOf(provider)` 直接拿 provider **对象**当键，`view[对象]` 被隐式转成字符串 `"[object Object]"`。于是 input 事件把搜索词写进 `view["codearts"].q`，渲染时却读 `view["[object Object]"].q` —— 两边不是同一个格子，`q` 恒为空串，敲什么都筛全量；「可用 / 限流 / 已关闭 / 全部」页签同因失效。
+
+- 新增 `providerKey()`，把对象 / 字符串统一归一化成 provider id。
+- `mount()` 的 DOM 重建 key 里剔除搜索词：原先每敲一个字就整块重建，`<input>` 被换成新节点、焦点丢失，只能输进第一个字符。
+- 重建时把焦点与光标位置搬到新输入框 —— 定时刷新、切页签、开关模型都不再打断输入。
+
+### 调用方：表单弹窗点外面就关，容易误触（`src/callers-ui.js`）
+
+`formModal` 里 `if (e.target === wrap) done()` 把整块全屏遮罩都当成关闭区，新建分组 / 新建 Key 时点一下空白就把已填内容全丢掉。
+
+- 默认**点遮罩不关**，只认「取消 / 确定 / Esc」；底部加 `Esc 或「取消」关闭` 提示。
+- 需要旧行为时设 `window.__c2FormBackdropClose = true`；即便打开，也只认「mousedown 与 click 都落在遮罩上」的干净点击 —— 在输入框里拖选文字、拖到弹窗外松手不会再误关。
+- Esc 在捕获阶段拦截，不会连带关掉底下的面板。
+
+### 调用方：Key 建好后「复制」没反应（`src/callers-ui.js`、`src/caller-admin.js`）
+
+`navigator.clipboard` 只在**安全上下文**（https / localhost / 127.0.0.1）存在。NAS 上普遍用 `http://ip:端口` 打开，那里它是 `undefined`，`.writeText()` 抛 `TypeError` 且 Promise 的 reject 没人接 —— 表现就是「点了没反应」。
+
+- 三级兜底：异步 Clipboard API → 隐藏 textarea + `execCommand('copy')`（http 下可用）→ 全选明文并提示按 `Ctrl+C`，绝不静默失败。
+- 明文区加 `user-select: all`，点一下即全选；明文窗口的 Esc 被拦下并提示先复制，避免手快关掉永久丢失 Key。
+- 旧独立页 `/admin/callers` 的 `copySec()` 同样补上兜底。
+
+### 测试
+
+新增 `tests/models-ui.test.mjs`（筛选生效且不丢焦点 / 页签与搜索词叠加 / 切换供应商互不串味），`tests/admin-shell.test.mjs` 增 5 条（遮罩不关、开关后只认干净点击、execCommand 兜底、安全上下文优先异步 API、失败时全选提示且 Esc 不关明文窗口）。
+
+</details>
+
+<details>
 <summary><b>2026-11-15 · 上游升级 <code>f6fb8df</code>（自动升级）</b></summary>
 
 ## 上游升级
