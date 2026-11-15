@@ -7,6 +7,19 @@
 ---
 
 <details open>
+<summary><b>2026-11-15 · 上游升级 <code>f6fb8df</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `be25b5ffb75f0f4348362389bcc0b673955f6115` 更新到 `f6fb8dfe61a0be6deebc8b0388dff504b7242a38`。
+
+### 上游改动
+
+- fix(jet-hub): provider.status 的 disabled 不再跟着意图报满 + provider 白名单校验（Issue #84）
+
+</details>
+
+<details>
 <summary><b>2026-11-15 · 上游升级 <code>be25b5f</code>（自动升级）</b></summary>
 
 ## 上游升级
