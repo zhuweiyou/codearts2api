@@ -539,10 +539,18 @@ test("总览：区分到期未知、周期重置、部分临期、失效余额�
     accio: [pkg("每日积分", { cycleEndTime: past })],
     monkeycode: [pkg("每日积分", { expiryNote: "每日刷新（平台未提供具体时刻）" })],
     codearts: [pkg("赠送积分", { expiringRemaining: 25 }), pkg("基础积分", { deductionEndTime: Date.parse(future) })],
-    buddy: [pkg("无日期的失效包", { active: false }), pkg("已过期的包", { expiredTime: past })],
+    buddy: [
+      pkg("无日期的失效包", { total: 140, used: 40, active: false }),
+      pkg("已过期的包", { expiredTime: past }),
+      pkg("有效积分", { used: 30, remaining: 70 }),
+    ],
     workbuddy: [pkg("国际版失效包", { active: false })],
     zcode: [pkg("待生效的包", { active: false, remaining: 0, cycleEndTime: future, expiredTime: future })],
     loomy: [pkg("永久积分")],
+    cline: [pkg("Cline 账户余额", { unit: "USD" })],
+    codely: [pkg("赠送积分"), pkg("到期未上报", { total: 0, remaining: 0, expiryUnknown: true })],
+    magicrew: [pkg("永久积分"), pkg("限时积分", { deductionEndTime: Date.parse(future) }), pkg("限时积分（日期缺失）")],
+    magicrewintl: [pkg("长期积分")],
   }
   const accounts = Object.keys(packages).map((provider) => ({
     id: provider,
@@ -561,23 +569,19 @@ test("总览：区分到期未知、周期重置、部分临期、失效余额�
 
   const data = await createDashboard({ dataDir, rpc }).snapshot()
   const { d7, d30, never, expired, undatedExpiring } = data.credits.expiry
-  assert.deepEqual(
-    d7.map((row) => row.name),
-    ["基础积分"],
-  )
+  assert.deepEqual(d7.map((row) => row.name).sort(), ["基础积分", "限时积分"])
   assert.deepEqual(d30, [])
-  assert.deepEqual(
-    never.map((row) => row.provider),
-    ["loomy"],
-  )
+  assert.deepEqual(never.map((row) => row.provider).sort(), ["cline", "codely", "loomy", "magicrew", "magicrewintl"])
   assert.deepEqual(
     undatedExpiring.map((row) => [row.name, row.expiringRemaining]),
     [["赠送积分", 25]],
   )
   assert.equal(data.credits.expiry.expiredRemaining, 300)
   assert.deepEqual(expired.map((row) => row.provider).sort(), ["buddy", "buddy", "workbuddy"])
-  assert.equal(data.credits.providers.find((row) => row.provider === "buddy").remaining, 0)
-  assert.equal(data.credits.units[0].remaining, 800)
+  const buddy = data.credits.providers.find((row) => row.provider === "buddy")
+  assert.deepEqual([buddy.total, buddy.used, buddy.remaining], [100, 30, 70])
+  const credit = data.credits.units.find((row) => row.unit === "credit")
+  assert.deepEqual([credit.total, credit.used, credit.remaining], [1400, 30, 1370])
 
   const window = await makePage()
   window.fetch = async () => ({ ok: true, status: 200, json: async () => data })
@@ -597,7 +601,15 @@ test("总览：区分到期未知、周期重置、部分临期、失效余额�
   assert.ok(timing("buddy").some((label) => label.endsWith("（已过期）")))
   assert.deepEqual(timing("zcode"), ["当前不可用"])
   assert.deepEqual(timing("loomy"), ["无期限"])
-  assert.match(channel("buddy").querySelector("summary").textContent, /可用结余 0/)
+  assert.deepEqual(timing("cline"), ["无期限"])
+  assert.deepEqual(timing("codely"), ["无期限", "到期时间未知"])
+  assert.deepEqual(timing("magicrewintl"), ["无期限"])
+  assert.ok(timing("magicrew").includes("无期限"))
+  assert.ok(timing("magicrew").includes("到期时间未知"))
+  assert.match(
+    channel("buddy").querySelector("summary").textContent,
+    /收入 100 · 支出 30 · 可用结余 70 · 使用率 30\.0%/,
+  )
 
   const alertRows = [...document.querySelectorAll(".c2d-sub2 + .c2d-tblWrap tbody tr")]
   const undatedRow = alertRows.find((row) => row.textContent.includes("赠送积分"))

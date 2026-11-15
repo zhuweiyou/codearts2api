@@ -18,6 +18,8 @@ export const UI_PATH = "/admin/dashboard-ui.js"
 
 /** 余额缓存时长：5 分钟，避免多个浏览器窗口同时打上游。 */
 const BALANCE_TTL_MS = 5 * 60 * 1000
+const PERMANENT_BALANCE_PROVIDERS = new Set(["cline", "codely"])
+const PERMANENT_PACKAGE_PROVIDERS = new Set(["loomy", "magicrew", "magicrewintl"])
 
 /**
  * 读一个 JSON 文件；不存在或坏掉都返回 `undefined`（看板不该因为少一个文件 500）。
@@ -307,9 +309,19 @@ export function createDashboard(deps) {
           const buddyPackage = provider === "buddy" || provider === "workbuddy"
           const expired = (endAt !== null && endAt <= now) || (buddyPackage && p.active === false)
           const active = p.active !== false && !expired
-          const permanent = provider === "loomy" && p.name === "永久积分" && p.expiryUnknown !== true
           const expiringRemaining =
             endAt === null && active ? Math.max(0, Math.min(remaining, num(p.expiringRemaining))) : 0
+          const expiryNote = typeof p.expiryNote === "string" ? p.expiryNote.trim() : ""
+          // 余额型渠道保留既有口径。有定时批次的渠道只匹配明确标注的长期余额。
+          const permanent =
+            !p.deductionEndTime &&
+            !p.expiredTime &&
+            !p.cycleEndTime &&
+            !expiryNote &&
+            expiringRemaining === 0 &&
+            p.expiryUnknown !== true &&
+            (PERMANENT_BALANCE_PROVIDERS.has(provider) ||
+              (PERMANENT_PACKAGE_PROVIDERS.has(provider) && (p.name === "永久积分" || p.name === "长期积分")))
           const row = {
             provider,
             accountId: acc.accountId,
@@ -325,7 +337,7 @@ export function createDashboard(deps) {
             endAt,
             resetAt: Number.isFinite(resetAt) ? resetAt : null,
             expiredTime: p.expiredTime || "",
-            expiryNote: typeof p.expiryNote === "string" ? p.expiryNote.trim() : "",
+            expiryNote,
             permanent,
             expiringRemaining,
             // 魔搭返回整笔余额，日奖励的到期时间只用于该行的说明。
@@ -336,9 +348,11 @@ export function createDashboard(deps) {
           packages.push(row)
 
           const u = byUnit.get(unit) || { unit, total: 0, used: 0, remaining: 0, packs: 0 }
-          u.total += total
-          u.used += used
-          u.remaining += active ? remaining : 0
+          if (active) {
+            u.total += total
+            u.used += used
+            u.remaining += remaining
+          }
           u.packs += 1
           byUnit.set(unit, u)
 
@@ -352,9 +366,11 @@ export function createDashboard(deps) {
             packs: 0,
             accounts: new Set(),
           }
-          pv.total += total
-          pv.used += used
-          pv.remaining += active ? remaining : 0
+          if (active) {
+            pv.total += total
+            pv.used += used
+            pv.remaining += remaining
+          }
           pv.packs += 1
           if (acc.accountId) pv.accounts.add(acc.accountId)
           byProvider.set(pk, pv)
@@ -959,13 +975,15 @@ export const UI_SRC = String.raw`
       const units = [];
       const accMap = new Map();
       list.forEach(function (p) {
-        const available = p.active === false ? 0 : p.remaining;
-        agg.total += p.total; agg.used += p.used; agg.remaining += available;
         if (units.indexOf(p.unit) < 0) units.push(p.unit);
         const ak = p.accountId || "?";
         const a = accMap.get(ak) ||
           { accountId: ak, nickname: p.nickname, total: 0, used: 0, remaining: 0, packs: 0 };
-        a.total += p.total; a.used += p.used; a.remaining += available; a.packs += 1;
+        if (p.active !== false) {
+          agg.total += p.total; agg.used += p.used; agg.remaining += p.remaining;
+          a.total += p.total; a.used += p.used; a.remaining += p.remaining;
+        }
+        a.packs += 1;
         accMap.set(ak, a);
       });
       const pct = agg.total > 0 ? (agg.used / agg.total) * 100 : 0;
@@ -1053,7 +1071,7 @@ export const UI_SRC = String.raw`
       : '<div class="c2d-muted" style="font-size:11.5px">暂无可确认的临期额度。</div>';
 
     return head +
-      '<div class="c2d-sub2">按渠道明细（点开看每个积分包；收入 = 包的总额度，支出 = 已消耗，可用结余 = 仍可用的额度；共 ' +
+      '<div class="c2d-sub2">按渠道明细（收入、支出和可用结余仅统计当前可用的包；共 ' +
         String(chanMap.size) + " 个渠道 / " + String(cr.packages.length) + " 个积分包）</div>" +
       chanBlocks + urgentTable;
   }
