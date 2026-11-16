@@ -9,7 +9,7 @@ import { createServer } from "node:http"
 import express from "express"
 
 import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./admin-auth.ts"
-import { createCallerAdmin } from "./caller-admin.ts"
+import { API_PATH as CALLER_API_PATH, createCallerAdmin } from "./caller-admin.ts"
 import { createDashboardAdmin } from "./dashboard-admin.ts"
 import { createAdminLoginRoutes } from "./http/admin-login.ts"
 import { readBody } from "./http/body.ts"
@@ -199,8 +199,15 @@ export async function createHttpServer(host, options = {}) {
     next()
   })
 
-  // 管理端 handler（内部按 pathname 自行判定命中）
-  app.use(mount(callerAdmin))
+  // 调用方管理：只路由 API（/admin/callers/api）。页面由前端 SPA 提供，
+  // 避免 caller-admin 里的旧独立页（PAGE_PATH=/admin/callers）抢先响应 SPA 路由。
+  app.use(
+    a(async (req, res, next) => {
+      if (urlOf(req).pathname !== CALLER_API_PATH) return next()
+      const handled = await callerAdmin.handle(req, res, urlOf(req))
+      if (!handled) next()
+    }),
+  )
   app.use(mount(dashboardAdmin))
   app.use(mount(modelsAdmin))
   app.use(mount(oauthRelay))

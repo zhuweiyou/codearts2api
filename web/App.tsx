@@ -8,6 +8,7 @@ import routes from "~react-pages"
 
 import { useAdminAuthVisible } from "./hooks/useAdminAuthVisible"
 import { useMeasureGutter } from "./hooks/useMeasureGutter"
+import { OAuthRelayFix } from "./components/OAuthRelayFix"
 import { THEMES, useThemeStore } from "./store/theme"
 
 type ViewId = "overview" | "channels" | "callers"
@@ -85,6 +86,7 @@ export default function App() {
             ))}
           </nav>
           <div className="c2a-actions" id="c2a-actions">
+            <OAuthRelayFix />
             <span ref={themeWrapRef} className="c2a-inline-flex">
               <button
                 type="button"

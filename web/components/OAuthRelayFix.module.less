@@ -1,0 +1,33 @@
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--c2a-border);
+  border-radius: 8px;
+  background: var(--c2a-surface-2);
+  color: var(--c2a-text);
+  font:
+    13px/1.5 ui-monospace,
+    monospace;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--c2a-brand);
+  outline-offset: 1px;
+}
+
+.ok,
+.err {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ok {
+  color: var(--c2a-ok);
+}
+
+.err {
+  color: var(--c2a-err);
+}
