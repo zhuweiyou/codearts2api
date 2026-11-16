@@ -19,7 +19,7 @@ import { createGatewayProxy, providerIds, readGatewayState } from "./http/gatewa
 import { needsAdminAuth, respondUnauthorized, send, sendAdmin, sendAdminJson } from "./http/security.ts"
 import { createModelsController } from "./modules/models/models.controller.ts"
 import { createModelsService } from "./modules/models/models.service.ts"
-import { createOAuthRelay } from "./oauth-relay.ts"
+import { createOAuthRelay } from "./modules/oauth-relay/oauth-relay.controller.ts"
 import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./core/upstream.ts"
 
 // 兼容旧引用。

@@ -19,7 +19,7 @@
 import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
 import { startTestApp } from "./helpers"
-import { parseLoopbackUrl, loopbackOf } from "../src/oauth-relay.ts"
+import { parseLoopbackUrl, loopbackOf } from "../src/modules/oauth-relay/oauth-relay.service.ts"
 
 const BROWSER_ACCEPT = { accept: "text/html,application/xhtml+xml" }
 

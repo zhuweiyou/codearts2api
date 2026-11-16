@@ -21,7 +21,9 @@
 
 import { Readable } from "node:stream"
 
-import { SESSION_COOKIE } from "./modules/auth/auth.service.ts"
+import { MIN_PORT, MAX_PORT, parseLoopbackUrl, loopbackOf } from "./oauth-relay.service.ts"
+
+import { SESSION_COOKIE } from "../auth/auth.service.ts"
 
 export const RELAY_PREFIX = "/relay/"
 export const REPLAY_PATH = "/admin/oauth-relay/replay"
@@ -39,38 +41,10 @@ const HOP_BY_HOP = new Set([
 ])
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "HEAD"])
-const HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"])
-const MIN_PORT = 1024
-const MAX_PORT = 65535
 const REPLAY_BODY_LIMIT = 8 * 1024
 const REPLAY_TIMEOUT_MS = 30_000
 const PROXY_TIMEOUT_MS = 120_000
 const HTML_LIMIT = 2 * 1024 * 1024
-
-// 解析 "http://127.0.0.1:41451/auth/callback?code=..&state=.."
-// 也接受裸的 "127.0.0.1:41451/auth/callback"（用户从地址栏复制时常常丢掉协议头）
-export function parseLoopbackUrl(raw) {
-  if (typeof raw !== "string") return null
-  const text = raw.trim()
-  if (text === "") return null
-  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `http://${text}`
-  let url
-  try {
-    url = new URL(candidate)
-  } catch {
-    return null
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null
-  if (!HOSTS.has(url.hostname)) return null
-  const port = Number(url.port)
-  if (!Number.isInteger(port) || port < MIN_PORT || port > MAX_PORT) return null
-  return { host: url.hostname, port, path: url.pathname || "/", search: url.search || "", href: url.href }
-}
-
-// 把浏览器地址栏里那个 https://api.321ds.cn/relay/<port>/... 还原成 loopback 地址
-export function loopbackOf(parsed) {
-  return `http://${parsed.host}:${parsed.port}${parsed.path}${parsed.search}`
-}
 
 // 页面里的根相对路径补丁。fetcht/XHR 的 '/astudio/gee-captcha' 在浏览器里解析成
 // https://<域名>/astudio/gee-captcha，不会自动带上 /relay/<port> 前缀，必须运行时补。
