@@ -7,7 +7,7 @@ import { Cards } from "./Cards"
 import { ProviderHead } from "./ProviderHead"
 import { Section } from "./Section"
 import { fmt, fmtAmt, fmtTokens, leftDays } from "./format"
-import styles from "./Overview.module.less"
+import styles from "./sections.module.less"
 
 /* ── 网关状态 ─────────────────────────────────────────────────── */
 

@@ -11,7 +11,7 @@ import {
   TrendSection,
   UsageSection,
 } from "./sections"
-import styles from "./Overview.module.less"
+import styles from "./index.module.less"
 
 /* ── 主组件 ───────────────────────────────────────────────────── */
 

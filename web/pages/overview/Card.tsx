@@ -1,6 +1,6 @@
 import clsx from "clsx"
 
-import styles from "./Overview.module.less"
+import styles from "./Card.module.less"
 
 export function Card({
   k: label,

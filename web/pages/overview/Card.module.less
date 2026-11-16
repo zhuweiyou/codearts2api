@@ -1,0 +1,49 @@
+/* 指标卡（Card.tsx）。 */
+.card {
+  border: 1px solid var(--dsw-alias-border-default, #e5e5e5);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--dsw-alias-bg-layer-3, #fff);
+}
+.card .k {
+  font-size: 11.5px;
+  line-height: 17px;
+  color: var(--dsw-alias-label-tertiary, #8f959e);
+}
+.card .v {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-primary, #1f2329);
+}
+.card .v .u {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary, #8f959e);
+  margin-left: 3px;
+}
+.card .f {
+  font-size: 11px;
+  line-height: 16px;
+  margin-top: 3px;
+  color: var(--dsw-alias-label-tertiary, #8f959e);
+}
+.card.ok .v {
+  color: var(--dsw-alias-state-success-primary, #15803d);
+}
+.card.warn .v {
+  color: var(--dsw-alias-state-warn-primary, #b45309);
+}
+.card.bad .v {
+  color: var(--dsw-alias-state-error-primary, #d93025);
+}
+.card.brand .v {
+  color: var(--dsw-alias-brand-primary, #1677ff);
+}
+@media (max-width: 720px) {
+  .card .v {
+    font-size: 18px;
+  }
+}
