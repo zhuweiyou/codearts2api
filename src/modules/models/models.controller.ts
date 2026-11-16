@@ -7,7 +7,7 @@ import type { ModelsService } from "./models.service.ts"
 
 export function createModelsController({ service }: { service: ModelsService }) {
   const router = express.Router()
-  router.use(express.json({ limit: "1mb" }))
+  router.use(express.json({ limit: "1mb", type: () => true }))
 
   router.get("/status", async (request, response) => {
     const providers = String(request.query.providers ?? "")

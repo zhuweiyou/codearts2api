@@ -6,7 +6,7 @@ import type { CallersService } from "./callers.service.ts"
 
 export function createCallersController({ service }: { service: CallersService }) {
   const router = express.Router()
-  router.use(express.json({ limit: "1mb" }))
+  router.use(express.json({ limit: "1mb", type: () => true }))
 
   router.get("/state", async (request, response) => {
     const rawDay = typeof request.query.day === "string" ? request.query.day : ""
