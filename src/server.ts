@@ -9,6 +9,7 @@ import { createServer } from "node:http"
 import express from "express"
 
 import { LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
+import { clientIp } from "./core/request.ts"
 import { createErrorHandler } from "./http/error.ts"
 import { createCallersController } from "./modules/callers/callers.controller.ts"
 import { createCallersService } from "./modules/callers/callers.service.ts"
@@ -124,6 +125,7 @@ export async function createHttpServer(host, options: any = {}) {
 
   const app = express()
   app.disable("x-powered-by")
+  app.set("case sensitive routing", true)
 
   const urlOf = (req) => new URL(req.originalUrl ?? req.url ?? "/", `http://${req.headers.host ?? "127.0.0.1"}`)
   const a = (fn) => (req, res, next) => {
@@ -185,6 +187,17 @@ export async function createHttpServer(host, options: any = {}) {
   app.use((req, res, next) => {
     const url = urlOf(req)
     if (adminKeyEnabled() && needsAdminAuth(url.pathname) && !isAdminAuthorized(req, adminKey)) {
+      // 对「带 Bearer 猜管理密钥」的请求也计入限速，防止绕过 /admin/login 的限速
+      const authorization = String(req.headers.authorization ?? "")
+      if (authorization.startsWith("Bearer ")) {
+        const ip = clientIp(req)
+        throttle.fail(ip)
+        const limited = throttle.check(ip)
+        if (limited !== null) {
+          sendAdminJson(res, 429, { error: `尝试过于频繁，请 ${limited.retryAfter} 秒后再试。` })
+          return
+        }
+      }
       respondUnauthorized(req, res, url)
       return
     }

@@ -249,6 +249,9 @@ export class LoginThrottle {
 
   /** 取某个 IP 的计数（顺手清掉过期窗口，避免 Map 无限膨胀）。 */
   entry(ip, now) {
+    if (this.entries.size > 1000) {
+      for (const [key, value] of this.entries) if (now >= value.resetAt) this.entries.delete(key)
+    }
     const found = this.entries.get(ip)
     if (found === undefined || now >= found.resetAt) {
       const fresh = { count: 0, resetAt: now + this.windowMs }

@@ -8,7 +8,12 @@ export function parseCookies(header: any): Record<string, string> {
     if (index < 0) continue
     const name = part.slice(0, index).trim()
     if (name === "") continue
-    out[name] = decodeURIComponent(part.slice(index + 1).trim())
+    const rawValue = part.slice(index + 1).trim()
+    try {
+      out[name] = decodeURIComponent(rawValue)
+    } catch {
+      out[name] = rawValue
+    }
   }
   return out
 }

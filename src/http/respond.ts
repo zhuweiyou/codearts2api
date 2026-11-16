@@ -1,14 +1,9 @@
-/** 统一的 JSON 响应与请求体读取（控制器共用）。 */
+/** 统一的 JSON 响应与请求体读取（控制器共用）。响应统一带安全头。 */
 import { AppError } from "../core/errors.ts"
+import { sendAdminJson } from "./security.ts"
 
 export function sendJson(response: any, status: number, payload: any) {
-  const body = Buffer.from(JSON.stringify(payload), "utf8")
-  response.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
-    "content-length": String(body.length),
-    "cache-control": "no-store",
-  })
-  response.end(body)
+  sendAdminJson(response, status, payload)
 }
 
 export async function readJsonBody(request: any, limit = 1 << 20): Promise<any> {

@@ -8,7 +8,8 @@ export function createCallersController({ service }: { service: CallersService }
   const router = express.Router()
 
   router.get("/state", async (request, response) => {
-    const day = typeof request.query.day === "string" ? request.query.day : undefined
+    const rawDay = typeof request.query.day === "string" ? request.query.day : ""
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined
     sendJson(response, 200, await service.state(day))
   })
 

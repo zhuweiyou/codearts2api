@@ -9,6 +9,7 @@ const here = fileURLToPath(new URL(".", import.meta.url))
 /** 仓库根 dist/（src 下与 dist-server 下相对层级一致：../../../dist）。 */
 const DIST_DIR = join(here, "..", "..", "..", "dist")
 const ASSET_PREFIX = "/admin/assets/"
+const API_PATH = /^\/(?:api(?:\/|$)|relay(?:\/|$)|admin\/(?:[^/]+\/)*api(?:\/|$)|admin\/oauth-relay(?:\/|$))/
 
 /**
  * 尝试用 dist 响应前端请求；命中返回 true，否则 false。
@@ -17,6 +18,8 @@ const ASSET_PREFIX = "/admin/assets/"
  */
 export async function serveFrontend(request, response, path) {
   if (request.method !== "GET" && request.method !== "HEAD") return false
+  // API 路径绝不回退到 SPA HTML（未知接口应 404 JSON，而不是 200 页面）
+  if (API_PATH.test(path)) return false
 
   if (path.startsWith(ASSET_PREFIX)) {
     const name = path.slice(ASSET_PREFIX.length)
