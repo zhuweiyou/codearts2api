@@ -11,7 +11,7 @@ import express from "express"
 import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
 import { API_PATH as CALLER_API_PATH, createCallersController } from "./modules/callers/callers.controller.ts"
 import { createCallersService } from "./modules/callers/callers.service.ts"
-import { createDashboardAdmin } from "./dashboard-admin.ts"
+import { createDashboardController } from "./modules/dashboard/dashboard.controller.ts"
 import { createAdminLoginRoutes } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
 import { serveFrontend } from "./http/frontend.ts"
@@ -98,7 +98,7 @@ export async function createHttpServer(host, options: any = {}) {
     return parsed.result.value
   }
 
-  const dashboardAdmin = createDashboardAdmin({
+  const dashboardAdmin = createDashboardController({
     dataDir: host.home,
     rpc: (method, payload) => adminRpc(method, payload, "dashboard"),
     gateway: async () => {

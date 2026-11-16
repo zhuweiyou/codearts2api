@@ -13,8 +13,6 @@
 import { readFile, readdir } from "node:fs/promises"
 import { join } from "node:path"
 
-export const API_PATH = "/admin/dashboard/api"
-
 /** 余额缓存时长：5 分钟，避免多个浏览器窗口同时打上游。 */
 const BALANCE_TTL_MS = 5 * 60 * 1000
 const PERMANENT_BALANCE_PROVIDERS = new Set(["cline", "codely"])
@@ -489,39 +487,4 @@ export function createDashboard(deps) {
   }
 
   return { snapshot }
-}
-
-/**
- * HTTP 挂载：handle(request, response, url) -> boolean，与 callerAdmin 同签名。
- * 只暴露两个端点，没有页面端点（看板不是独立 URL）。
- */
-export function createDashboardAdmin(options) {
-  const dashboard = createDashboard(options)
-  return {
-    async handle(request, response, url) {
-      if (url.pathname === API_PATH) {
-        if (request.method !== "GET") {
-          response.writeHead(405, { "content-type": "application/json; charset=utf-8" })
-          response.end(JSON.stringify({ error: "Method Not Allowed" }))
-          return true
-        }
-        try {
-          const fresh = url.searchParams.get("fresh") === "1"
-          const data = await dashboard.snapshot({ fresh })
-          response.writeHead(200, {
-            "content-type": "application/json; charset=utf-8",
-            "cache-control": "no-store",
-          })
-          response.end(JSON.stringify(data))
-        } catch (error) {
-          options.logger?.error?.("[dashboard] snapshot failed: " + String(error))
-          response.writeHead(500, { "content-type": "application/json; charset=utf-8" })
-          response.end(JSON.stringify({ error: String(error) }))
-        }
-        return true
-      }
-
-      return false
-    },
-  }
 }
