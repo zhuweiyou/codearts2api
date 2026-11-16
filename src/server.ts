@@ -8,12 +8,12 @@ import { createServer } from "node:http"
 
 import express from "express"
 
-import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
+import { LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
 import { createErrorHandler } from "./http/error.ts"
 import { CALLERS_API_BASE, createCallersController } from "./modules/callers/callers.controller.ts"
 import { createCallersService } from "./modules/callers/callers.service.ts"
 import { DASHBOARD_API_BASE, createDashboardController } from "./modules/dashboard/dashboard.controller.ts"
-import { createAdminLoginRoutes } from "./modules/auth/login.controller.ts"
+import { createAuthRouter } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
 import { serveFrontend } from "./modules/frontend/frontend.controller.ts"
 import { createGatewayController } from "./modules/gateway/gateway.controller.ts"
@@ -120,7 +120,7 @@ export async function createHttpServer(host, options: any = {}) {
     logger,
     upstreamTimeoutMs: options.upstreamTimeoutMs,
   })
-  const { handleLogin, handleLogout } = createAdminLoginRoutes({ adminKeyEnabled, adminKey, throttle, logger })
+  const authRouter = createAuthRouter({ adminKeyEnabled, adminKey, throttle, logger })
 
   const app = express()
   app.disable("x-powered-by")
@@ -146,12 +146,8 @@ export async function createHttpServer(host, options: any = {}) {
     }),
   )
 
-  // 登录 / 登出
-  app.all(
-    LOGIN_PATH,
-    a((req, res) => handleLogin(req, res, urlOf(req))),
-  )
-  app.all(LOGOUT_PATH, (req, res) => handleLogout(req, res))
+  // 登录 / 登出 / 会话（公开）
+  app.use(authRouter)
 
   // 首页与 /admin 等价 → /admin/
   app.get("/", (req, res) => sendAdmin(res, 302, "", { location: "/admin/" }))

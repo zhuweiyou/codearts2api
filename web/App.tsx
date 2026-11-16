@@ -10,6 +10,7 @@ import { routes } from "./routes"
 import { useAdminAuthVisible } from "./hooks/useAdminAuthVisible"
 import { useMeasureGutter } from "./hooks/useMeasureGutter"
 import { OAuthRelayFix } from "./components/OAuthRelayFix"
+import { logout } from "./api/auth"
 import { THEMES, useThemeStore } from "./store/theme"
 
 type ViewId = "overview" | "channels" | "callers"
@@ -122,9 +123,18 @@ export default function App() {
               ) : null}
             </span>
             {showLogout ? (
-              <a className="c2a-btn c2a-btn--ghost" id="c2a-logout" href="/admin/logout" title="退出管理后台">
+              <button
+                type="button"
+                className="c2a-btn c2a-btn--ghost"
+                id="c2a-logout"
+                title="退出管理后台"
+                onClick={async () => {
+                  await logout()
+                  window.location.assign("/admin/login")
+                }}
+              >
                 退出
-              </a>
+              </button>
             ) : null}
           </div>
         </div>

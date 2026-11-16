@@ -1,5 +1,4 @@
 /** 安全响应头、响应辅助函数、鉴权判定。与路由编排解耦，供各层复用。 */
-import { LOGIN_PATH, LOGOUT_PATH } from "../modules/auth/auth.service.ts"
 import { CARRIER_PATH } from "../core/upstream.ts"
 
 /**
@@ -41,37 +40,42 @@ export const CONTENT_TYPES = {
   ".txt": "text/plain; charset=utf-8",
 }
 
-export const send = (response, status, body, headers = {}) => {
+export const send = (response: any, status: number, body: any, headers: any = {}) => {
   response.writeHead(status, { "cache-control": "no-store", ...headers })
   response.end(body)
 }
 
-export const sendAdmin = (response, status, body, headers = {}) =>
+export const sendAdmin = (response: any, status: number, body: any, headers: any = {}) =>
   send(response, status, body, { ...SECURITY_HEADERS, ...headers })
 
-export const sendAdminJson = (response, status, value, headers = {}) =>
+export const sendAdminJson = (response: any, status: number, value: any, headers: any = {}) =>
   sendAdmin(response, status, JSON.stringify(value), { "content-type": "application/json; charset=utf-8", ...headers })
 
-/**
- * 一条路径是否需要管理端鉴权（**默认拦截**；只放行明确无秘密的少数路径）。
- */
-export function needsAdminAuth(path) {
+/** 只保护数据/动作类接口；页面、静态资源、登录/会话接口公开（登录界面在前端）。 */
+const GUARDED_PREFIXES = [
+  "/api/jet-hub",
+  "/admin/callers/api",
+  "/admin/dashboard/api",
+  "/admin/models/api",
+  "/admin/oauth-relay/replay",
+  "/relay/",
+]
+
+export function needsAdminAuth(path: string): boolean {
   if (path === "/healthz") return false
   if (path === "/v1" || path.startsWith("/v1/")) return false
   if (path === CARRIER_PATH) return false
-  if (path === LOGIN_PATH) return false
-  if (path === LOGOUT_PATH) return false
-  return true
+  return GUARDED_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(prefix.endsWith("/") ? prefix : prefix + "/"),
+  )
 }
 
-/**
- * 未授权响应：浏览器（Accept 含 text/html）→ 302 登录页；脚本 → 401 JSON。
- */
-export function respondUnauthorized(request, response, url) {
+/** 未授权响应：浏览器（Accept 含 text/html）→ 302 前端登录页；脚本 → 401 JSON。 */
+export function respondUnauthorized(request: any, response: any, url: any) {
   const accept = String(request.headers?.accept ?? "")
   if (accept.includes("text/html")) {
     const next = encodeURIComponent(`${url.pathname}${url.search}`)
-    sendAdmin(response, 302, "", { location: `${LOGIN_PATH}?next=${next}` })
+    sendAdmin(response, 302, "", { location: `/admin/login?next=${next}` })
     return
   }
   sendAdminJson(

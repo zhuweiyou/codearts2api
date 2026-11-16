@@ -55,7 +55,7 @@ basename=`/admin`）。`web/api/upstream.tsx` 用**桩 ctx** 调上游 `apply()`
 即可按路由异步拆分，其余无需改动**。**界面布局与
 样式由本仓库维护**（全局壳 `App.less` + 组件 `*.module.less`），仅 `.dim-jh-*` 弹窗/按钮复用
 上游注入的全局样式。生产由 `vp build` 产出 `dist/`，后端 Express 托管 `/admin`（SPA 200 回退）
-与 `/admin/assets`。
+与 `/admin/assets`。**登录界面在前端**（`web/components/Login` + `AuthGate`）：页面/静态资源公开，未登录由前端展示登录框；后端只提供 `POST /admin/login`、`GET /admin/api/session`，数据/动作 API 仍受管理密钥保护。
 
 ### 依赖划分
 
@@ -72,12 +72,12 @@ basename=`/admin`）。`web/api/upstream.tsx` 用**桩 ctx** 调上游 `apply()`
 ```
 web/                       # 前端（Vite root，源码根）
   index.html  main.tsx  App.tsx  App.less  vite-env.d.ts
-  api/                     # rpc / callers / providers / upstream（装载上游 JetHubPage）
+  api/                     # rpc / auth / callers / providers / upstream（装载上游 JetHubPage）
   hooks/                   # useOverviewData / useCallersData / useAdminAuthVisible / useMeasureGutter
   store/theme.ts           # zustand 主题
   utils/                   # time(dayjs, zh-cn) / callers-format / callers-prefs / clipboard / oauth-relay
   routes.tsx               # 显式路由表（react-router useRoutes；/ → /overview 重定向在这里）
-  components/              # 全局复用组件（OAuthRelayFix：顶栏「回调修复」）
+  components/              # 全局组件（OAuthRelayFix、Login、AuthGate）
   pages/                   # 页面组件（仅 index.tsx 为页面，页面私有组件与 index 同级内聚）
     overview/   index.tsx · sections.tsx · Card/Cards/Section/ProviderHead.tsx · format.ts · Overview.module.less
     callers/    index.tsx · Section · GroupsTab/KeysTab/UsageTab/RecordsTab · DaysDropdown/FormModal/SecretModal · Callers.module.less
@@ -92,7 +92,7 @@ src/                       # 后端（Node / Express，TypeScript，按职责分
   http/                    body · security · request · respond · error（HTTP 基础设施/适配）
   views/                   服务端渲染片段（登录页 HTML 转义等）
   modules/                 领域模块（controller=HTTP 适配，service=业务）
-    auth/                  auth.service · login.controller · login-page.view
+    auth/                  auth.service · login.controller
     callers/               callers.service · callers.controller
     caller-gate/           caller-gate.service（鉴权/白名单） · usage-recorder.service（用量记账）
     dashboard/             dashboard.service · dashboard.controller

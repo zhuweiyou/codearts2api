@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client"
 import { BrowserRouter } from "react-router-dom"
 
 import App from "./App"
+import { AuthGate } from "./components/AuthGate"
 import { getUpstreamPage } from "./api/upstream"
 import { installOAuthRelay } from "./utils/oauth-relay"
 import "./App.less"
@@ -43,7 +44,9 @@ if (!el) {
       }
       createRoot(el).render(
         <BrowserRouter basename="/admin">
-          <App />
+          <AuthGate>
+            <App />
+          </AuthGate>
         </BrowserRouter>,
       )
     })
