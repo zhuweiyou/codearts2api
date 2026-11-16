@@ -3,11 +3,11 @@ import { readFile } from "node:fs/promises"
 import { extname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { CONTENT_TYPES, sendAdmin, sendAdminJson } from "./security.ts"
+import { CONTENT_TYPES, sendAdmin, sendAdminJson } from "../../http/security.ts"
 
 const here = fileURLToPath(new URL(".", import.meta.url))
-/** 仓库 dist/（src/http → ../../dist）。 */
-const DIST_DIR = join(here, "..", "..", "dist")
+/** 仓库根 dist/（src 下与 dist-server 下相对层级一致：../../../dist）。 */
+const DIST_DIR = join(here, "..", "..", "..", "dist")
 const ASSET_PREFIX = "/admin/assets/"
 
 /**

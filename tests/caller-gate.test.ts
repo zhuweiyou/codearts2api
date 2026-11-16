@@ -29,7 +29,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { Readable } from "node:stream"
-import { _internal, createCallerGate } from "../src/caller-gate.ts"
+import { _internal, createCallerGate } from "../src/modules/caller-gate/caller-gate.service.ts"
 
 const { sha256 } = _internal
 

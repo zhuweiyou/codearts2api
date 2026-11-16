@@ -20,7 +20,7 @@
 
 import { createHost } from "./host/host.ts"
 import { createHttpServer } from "./server.ts"
-import { createCallerGate } from "./caller-gate.ts"
+import { createCallerGate } from "./modules/caller-gate/caller-gate.service.ts"
 import { createUpstreamKeyReader } from "./modules/gateway/gateway-key.service.ts"
 import { resolvePort, resolveHost, resolveProxyGateway, resolveAdminAuth } from "./config/env.ts"
 
