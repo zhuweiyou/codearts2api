@@ -1,0 +1,1008 @@
+/* 由 callers.css 迁移：类名驼峰化 + dim-jh-btn 保留全局 */
+.scope .tbl {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 13px;
+  color: var(--c2a-text-2);
+  background: var(--c2a-surface);
+  border-radius: 4px;
+}
+.scope .tbl th {
+  background: var(--c2a-surface-2);
+  color: var(--c2a-text-3);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c2a-border-soft);
+  white-space: nowrap;
+}
+.scope .tbl td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c2a-border-soft);
+  color: var(--c2a-text-2);
+  font-size: 13px;
+  vertical-align: middle;
+  line-height: 1.5;
+}
+.scope .tbl tbody tr:hover > td {
+  background: var(--c2a-surface-2);
+}
+.scope .tbl tr:last-child > td {
+  border-bottom: 0;
+}
+.scope .tbl .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.scope .tblFixed {
+  table-layout: fixed;
+}
+.scope .tblWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--c2a-border-soft);
+  border-radius: 8px;
+}
+@media (max-width: 720px) {
+  .scope .tblWrap > .tbl {
+    min-width: 680px;
+  }
+  .scope .filters {
+    padding: 10px;
+  }
+  .scope .field {
+    flex: 1 1 140px;
+  }
+  .scope .ddbtn {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .scope .fieldDays {
+    flex: 1 1 100%;
+  }
+  .scope .dd {
+    display: block;
+    width: 100%;
+  }
+  .scope .dd .ddbtn {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .scope .dd .ddpanel {
+    position: static;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 6px;
+    box-shadow: none;
+  }
+  .scope .tabs {
+    gap: 18px;
+  }
+}
+.scope .tblFixed td,
+.scope .tblFixed th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scope .section {
+  margin-bottom: 4px;
+}
+.scope .sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c2a-text);
+  margin: 0 0 10px;
+}
+.scope .muted {
+  color: var(--c2a-text-3);
+}
+.scope .empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--c2a-text-3);
+  font-size: 13px;
+}
+.scope .tabs {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid var(--c2a-border);
+  margin: 0 0 14px;
+}
+.scope .tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0 0 9px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  color: var(--c2a-text);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+.scope .tab:hover {
+  color: var(--c2a-brand);
+}
+.scope .tab.on {
+  color: var(--c2a-brand);
+  border-bottom-color: var(--c2a-brand);
+  font-weight: 600;
+}
+.scope .tab .n {
+  font-size: 11px;
+  color: var(--c2a-text-3);
+  margin-left: 5px;
+  font-weight: 400;
+}
+.scope .filters {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--c2a-border-soft);
+  border-radius: 6px;
+  background: var(--c2a-surface-2);
+}
+.scope .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.scope .field label {
+  font-size: 12px;
+  color: var(--c2a-text-2);
+  line-height: 16px;
+}
+.scope .field select,
+.scope .field input {
+  box-sizing: border-box;
+  height: 28px;
+  border: 1px solid var(--c2a-border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--c2a-surface);
+  color: var(--c2a-text-2);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.scope .field select:hover,
+.scope .field input:hover {
+  border-color: color-mix(in srgb, var(--c2a-text-3) 50%, var(--c2a-border));
+}
+.scope .field select:focus,
+.scope .field input:focus {
+  border-color: var(--c2a-brand);
+}
+.scope .fieldDays {
+  position: relative;
+}
+.scope .dd {
+  position: relative;
+  display: inline-block;
+}
+.scope .ddbtn {
+  box-sizing: border-box;
+  height: 28px;
+  min-width: 196px;
+  max-width: 260px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+  border: 1px solid var(--c2a-border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--c2a-surface);
+  color: var(--c2a-text-2);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+.scope .ddbtn:hover {
+  border-color: color-mix(in srgb, var(--c2a-text-3) 50%, var(--c2a-border));
+}
+.scope .dd[data-open="1"] .ddbtn {
+  border-color: var(--c2a-brand);
+}
+.scope .ddbtn > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scope .ddarrow {
+  flex: 0 0 auto;
+  color: var(--c2a-text-3);
+  font-size: 10px;
+}
+.scope .ddpanel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 252px;
+  background: var(--c2a-surface);
+  border: 1px solid var(--c2a-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+}
+.scope .ddpanel[hidden] {
+  display: none;
+}
+.scope .ddpre {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--c2a-border-soft);
+}
+.scope .preset {
+  appearance: none;
+  border: 1px solid var(--c2a-border);
+  background: var(--c2a-surface);
+  color: var(--c2a-text-2);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 20px;
+  padding: 0 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.scope .preset:hover {
+  color: var(--c2a-brand);
+  border-color: color-mix(in srgb, var(--c2a-brand) 35%, var(--c2a-border));
+  background: var(--c2a-brand-soft);
+}
+.scope .preset.on {
+  color: #fff;
+  background: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+}
+.scope .ddlist {
+  max-height: 196px;
+  overflow: auto;
+}
+.scope .ddrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--c2a-text-2);
+}
+.scope .ddrow:hover {
+  background: var(--c2a-surface-2);
+}
+.scope .ddbox {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--c2a-border);
+  border-radius: 3px;
+  background: var(--c2a-surface);
+  position: relative;
+  box-sizing: border-box;
+}
+.scope .ddrow.on .ddbox {
+  background: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+}
+.scope .ddrow.on .ddbox::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+.scope .ddlab {
+  flex: 1 1 auto;
+  font-variant-numeric: tabular-nums;
+}
+.scope .ddw {
+  flex: 0 0 auto;
+  color: var(--c2a-text-3);
+  font-size: 11px;
+}
+.scope .ddempty {
+  padding: 10px 6px;
+  color: var(--c2a-text-3);
+  font-size: 12px;
+  text-align: center;
+}
+.scope .fieldAct {
+  justify-content: flex-end;
+}
+.scope .badge {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.scope .badge.ok {
+  color: var(--c2a-ok);
+  border-color: color-mix(in srgb, var(--c2a-ok) 30%, var(--c2a-border));
+  background: var(--c2a-ok-soft);
+}
+.scope .badge.bad {
+  color: var(--c2a-err);
+  border-color: color-mix(in srgb, var(--c2a-err) 30%, var(--c2a-border));
+  background: var(--c2a-err-soft);
+}
+.scope .badge.off {
+  color: var(--c2a-text-3);
+  border-color: var(--c2a-border-soft);
+  background: var(--c2a-surface-2);
+}
+.scope .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.scope .chip {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 20px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--c2a-border-soft);
+  background: var(--c2a-surface-2);
+  color: var(--c2a-text-3);
+  white-space: nowrap;
+}
+.scope .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.scope .wrap {
+  white-space: normal;
+  word-break: break-word;
+}
+.scope .nowrap {
+  white-space: nowrap;
+}
+.scope :global(.dim-jh-btn) {
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 13px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--c2a-text-2);
+  background: var(--c2a-surface);
+  border: 1px solid var(--c2a-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background-color 0.15s;
+  white-space: nowrap;
+}
+.scope :global(.dim-jh-btn):hover {
+  color: var(--c2a-brand);
+  border-color: color-mix(in srgb, var(--c2a-brand) 35%, var(--c2a-border));
+  background: var(--c2a-brand-soft);
+}
+.scope :global(.dim-jh-btn):active {
+  color: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+}
+.scope :global(.dim-jh-btn)[data-act$="-rm"] {
+  color: var(--c2a-err);
+}
+.scope :global(.dim-jh-btn)[data-act$="-rm"]:hover {
+  color: var(--c2a-err);
+  border-color: color-mix(in srgb, var(--c2a-err) 40%, var(--c2a-border));
+  background: var(--c2a-err-soft);
+}
+.scope :global(.dim-jh-btn)[data-act$="-new"],
+.scope :global(.dim-jh-btn)[data-act="rec-apply"] {
+  color: #fff;
+  background: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+  height: 30px;
+  padding: 0 16px;
+}
+.scope :global(.dim-jh-btn)[data-act$="-new"]:hover,
+.scope :global(.dim-jh-btn)[data-act="rec-apply"]:hover {
+  color: #fff;
+  background: color-mix(in srgb, var(--c2a-brand) 85%, #000);
+  border-color: var(--c2a-brand);
+}
+.scope .ops {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+.scope .ops :global(.dim-jh-btn) {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+}
+.scope .scroll {
+  max-height: calc(100vh - 300px);
+  overflow: auto;
+}
+.scope .split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 12px;
+  align-items: start;
+}
+.scope .pane {
+  min-width: 0;
+}
+.scope .paneScroll {
+  max-height: calc(100vh - 330px);
+  min-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--c2a-border-soft);
+  border-radius: 8px;
+}
+.scope .paneScroll .tbl th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.scope .pane .tbl th {
+  white-space: nowrap;
+}
+.scope .pane .tbl th.num,
+.scope .pane .tbl td.num {
+  white-space: nowrap;
+  text-align: right;
+}
+@media (max-width: 1500px) {
+  .scope .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.scope .auto {
+  margin-left: auto;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--c2a-text-3);
+}
+.scope .autodot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c2a-text-3);
+}
+.scope .auto[data-mode="on"] .autodot {
+  background: var(--c2a-ok);
+  box-shadow: 0 0 0 3px var(--c2a-ok-soft);
+}
+.scope .auto[data-mode="wait"] .autodot {
+  background: var(--c2a-warn);
+  box-shadow: 0 0 0 3px var(--c2a-warn-soft);
+}
+.scope .auto[data-mode="err"] .autodot {
+  background: var(--c2a-err);
+  box-shadow: 0 0 0 3px var(--c2a-err-soft);
+}
+.scope .auto[data-mode="err"] [data-rec-autotext] {
+  color: var(--c2a-err);
+}
+.scope .auto :global(.dim-jh-btn) {
+  height: 26px;
+  padding: 0 11px;
+}
+.scope .rectbl th,
+.scope .rectbl td {
+  padding: 7px 8px;
+}
+.scope .rectbl th {
+  font-size: 12px;
+}
+.scope .recday > td {
+  background: var(--c2a-surface-2);
+  color: var(--c2a-text-3);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+.scope .rectbl tbody tr.recday:hover > td {
+  background: var(--c2a-surface-2);
+}
+.scope .rectime {
+  font-family: var(--c2a-mono);
+  font-size: 12px;
+  color: var(--c2a-text-3);
+  white-space: nowrap;
+}
+.scope .recnew {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 16px;
+  color: var(--c2a-brand);
+  background: var(--c2a-brand-soft);
+  vertical-align: 1px;
+}
+.scope .recwho {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c2a-text);
+}
+.scope .recsub {
+  display: block;
+  font-family: var(--c2a-mono);
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--c2a-text-3);
+  white-space: nowrap;
+}
+.scope .recmodel {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+.scope .recname {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--c2a-mono);
+  font-size: 12px;
+  color: var(--c2a-text);
+}
+.scope .recprov {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--c2a-mono);
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--c2a-text-3);
+}
+.scope .rectbl,
+.scope .modeltbl {
+  table-layout: fixed;
+  width: 100%;
+}
+.scope .rectbl td,
+.scope .modeltbl td {
+  overflow: hidden;
+}
+.scope .rectbl th.cTime {
+  width: 70px;
+}
+.scope .rectbl th.cWho {
+  width: 15%;
+}
+.scope .rectbl th.cRes {
+  width: 112px;
+}
+.scope .rectbl th.cMs {
+  width: 84px;
+}
+.scope .rectbl th.cIn,
+.scope .rectbl th.cOut {
+  width: 66px;
+}
+.scope .rectbl th.cWay {
+  width: 60px;
+}
+.scope .modeltbl th.mCalls {
+  width: 52px;
+}
+.scope .modeltbl th.mTok {
+  width: 100px;
+}
+.scope .modeltbl th.mAvg {
+  width: 76px;
+}
+.scope .modeltbl th.mWho {
+  width: 24%;
+}
+.scope .recok {
+  color: var(--c2a-ok);
+  white-space: nowrap;
+}
+.scope .recbad {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.scope .recwhy {
+  color: var(--c2a-err);
+  font-size: 12px;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scope .rectbl tbody tr.recrow.bad > td {
+  background: var(--c2a-err-soft);
+}
+.scope .recms {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-family: var(--c2a-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.scope .recbar {
+  display: block;
+  width: 56px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--c2a-border-soft);
+  overflow: hidden;
+}
+.scope .recbar > i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--c2a-brand);
+}
+.scope .recbar.slow > i {
+  background: var(--c2a-warn);
+}
+.scope .recbar.bad > i {
+  background: var(--c2a-err);
+}
+.scope .rectok {
+  font-family: var(--c2a-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.scope .recway {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+  color: var(--c2a-text-3);
+  border: 1px solid var(--c2a-border-soft);
+  background: var(--c2a-surface-2);
+}
+.scope .recway.stream {
+  color: var(--c2a-brand);
+  border-color: color-mix(in srgb, var(--c2a-brand) 30%, var(--c2a-border));
+  background: var(--c2a-brand-soft);
+}
+.scope .modeltbl th,
+.scope .modeltbl td {
+  padding: 8px;
+  vertical-align: middle;
+}
+.scope .modeltbl th {
+  font-size: 12px;
+}
+.scope .mcalls {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c2a-text);
+  font-variant-numeric: tabular-nums;
+}
+.scope .merr {
+  display: block;
+  font-size: 11px;
+  color: var(--c2a-err);
+  white-space: nowrap;
+}
+.scope .mtok {
+  display: block;
+  font-family: var(--c2a-mono);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.scope .mtok > span {
+  margin-right: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--c2a-text-3);
+}
+.scope .mwhos {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow: hidden;
+}
+.scope .mwho {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--c2a-text-2);
+  border: 1px solid var(--c2a-border-soft);
+  background: var(--c2a-surface-2);
+  white-space: nowrap;
+}
+.scope .mwho > .n {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scope .mwho > b {
+  font-weight: 600;
+  color: var(--c2a-text-3);
+  font-variant-numeric: tabular-nums;
+}
+.scope .mwho.more {
+  flex: 0 0 auto;
+  color: var(--c2a-text-3);
+}
+.scope .mwho.wide {
+  display: none;
+}
+@media (max-width: 1500px) {
+  .scope .mwho.wide {
+    display: inline-flex;
+  }
+  .scope .mwho.narrow {
+    display: none;
+  }
+}
+.scope .mmore > td {
+  font-size: 11.5px;
+  color: var(--c2a-text-3);
+  text-align: center;
+}
+@keyframes c2aRecFresh {
+  from {
+    background: var(--c2a-brand-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+.scope .recrow.fresh > td {
+  animation: c2aRecFresh 4s ease-out;
+}
+@media (max-width: 720px) {
+  .scope .auto {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+  .scope .rectbl,
+  .scope .rectbl tbody {
+    display: block;
+  }
+  .scope .rectbl thead {
+    display: none;
+  }
+  .scope .recday,
+  .scope .recday > td {
+    display: block;
+  }
+  .scope .recrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--c2a-border-soft);
+  }
+  .scope .recrow.bad {
+    background: var(--c2a-err-soft);
+  }
+  .scope .rectbl tbody tr.recrow > td {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+  }
+  .scope .recrow > td.cModel {
+    order: 1;
+    flex: 1 1 100%;
+  }
+  .scope .recrow > td.cTime {
+    order: 2;
+  }
+  .scope .recrow > td.cWho {
+    order: 3;
+  }
+  .scope .recrow > td.cRes {
+    order: 4;
+    margin-left: auto;
+  }
+  .scope .recrow > td.cMs,
+  .scope .recrow > td.cIn,
+  .scope .recrow > td.cOut,
+  .scope .recrow > td.cWay {
+    order: 5;
+  }
+  .scope .recrow > td[data-l]::before {
+    content: attr(data-l) " ";
+    font-size: 11px;
+    color: var(--c2a-text-3);
+  }
+  .scope .recwho,
+  .scope .recsub {
+    display: inline;
+    max-width: none;
+  }
+  .scope .recsub {
+    margin-left: 6px;
+  }
+  .scope .recmodel {
+    max-width: none;
+  }
+  .scope .recms {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+  .scope .recbar {
+    width: 40px;
+  }
+  .scope .modeltbl,
+  .scope .modeltbl tbody {
+    display: block;
+  }
+  .scope .modeltbl thead {
+    display: none;
+  }
+  .scope .modeltbl tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--c2a-border-soft);
+  }
+  .scope .modeltbl tbody tr > td {
+    display: block;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+  .scope .modeltbl tbody tr > td:first-child {
+    flex: 1 1 100%;
+  }
+  .scope .modeltbl tbody tr > td[data-l]::before {
+    content: attr(data-l) " ";
+    font-size: 11px;
+    color: var(--c2a-text-3);
+  }
+  .scope .modeltbl .mcalls {
+    display: inline;
+    font-size: 13px;
+  }
+  .scope .modeltbl .merr {
+    display: inline;
+    margin-left: 6px;
+  }
+  .scope .modeltbl .mtok {
+    display: inline;
+    margin-right: 10px;
+  }
+  .scope .modeltbl .recmodel {
+    max-width: none;
+  }
+  .scope .modeltbl .mmore > td {
+    flex: 1 1 100%;
+  }
+}
+.scope .form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: min(440px, 100%);
+}
+.scope .form label {
+  font-size: 13px;
+  color: var(--c2a-text-2);
+  display: block;
+  margin-bottom: 5px;
+}
+.scope .form input,
+.scope .form textarea,
+.scope .form select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--c2a-border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--c2a-text-2);
+  outline: none;
+}
+.scope .form input:focus,
+.scope .form textarea:focus,
+.scope .form select:focus {
+  border-color: var(--c2a-brand);
+}
+.scope .form .err {
+  color: var(--c2a-err);
+  font-size: 12px;
+  min-height: 16px;
+}
+.scope .secret {
+  background: var(--c2a-ok-soft);
+  border: 1px solid color-mix(in srgb, var(--c2a-ok) 30%, var(--c2a-border));
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+  word-break: break-all;
+  color: var(--c2a-ok);
+  margin: 10px 0;
+  cursor: text;
+  user-select: all;
+  -webkit-user-select: all;
+}
+.scope .copyhint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--c2a-err);
+  min-height: 18px;
+}
+.scope .copyhint[data-ok] {
+  color: var(--c2a-ok);
+}
+.scope .row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.scope .rowhint {
+  margin-right: auto;
+  align-self: center;
+  font-size: 11.5px;
+  color: var(--c2a-text-3);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

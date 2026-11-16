@@ -3,6 +3,5 @@ node_modules
 .gitignore
 *.log
 .DS_Store
-public/admin.js
-public/upstream-jet-hub.js
 /data
+dist-server

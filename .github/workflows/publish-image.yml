@@ -29,6 +29,35 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # ── 先跑测试门禁（格式/lint/类型/测试）；通过后 build 才构建镜像 ──
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PNPM_CONFIG_MINIMUM_RELEASE_AGE: "0"
+      PNPM_CONFIG_STORE_DIR: /home/runner/pnpm-store
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Format & lint (vp check)
+        run: pnpm exec vp check
+      - name: Type check (web)
+        run: pnpm run typecheck
+      # 后端测试会访问 /admin（serveFrontend 需 dist/index.html，否则 503），先构建前端
+      - name: Build frontend (for /admin SPA tests)
+        run: pnpm run build:web
+      - name: Unit / UI tests (vp test)
+        run: pnpm exec vp test run
+
   # ── 每个架构在自己的原生硬件上并行构建 ──
   # 不用 QEMU 跨架构模拟：amd64 跑在 ubuntu-24.04，arm64 跑在 ubuntu-24.04-arm
   # （GitHub 官方 ARM64 托管 runner）。原生构建比 QEMU 快得多，也避免模拟环境下
@@ -38,6 +67,7 @@ jobs:
   # GHCR，并把得到的 sha256 digest 作为 artifact 传出去，由下面的 merge job
   # 汇总成一个多架构 manifest list。这样最终 tag 才会同时指向 amd64 与 arm64。
   build:
+    needs: test
     if: >-
       github.event_name != 'push' || github.ref_type == 'tag' ||
       github.ref_name == github.event.repository.default_branch || inputs.ref != ''

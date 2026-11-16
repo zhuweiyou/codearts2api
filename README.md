@@ -40,13 +40,13 @@ docker exec codearts2api cat /data/admin-key
 
 ### 本机直跑
 
-**要求**：Node.js `^22.19.0 || >=24.0.0`（建议 24+），包管理器用 **pnpm 11**
+**要求**：Node.js `^22.19.0 || ^24.11.0 || >=26.0.0`（建议 24 LTS ≥24.11），包管理器用 **pnpm 11**
 （`corepack enable` 即可；项目已含 `pnpm-lock.yaml`）。
 
 ```bash
 pnpm install
-pnpm run build
-pnpm start
+pnpm run build   # 前端(dist/) + 后端(dist-server/) 一起构建
+pnpm start       # 运行后端编译产物 dist-server/index.js
 ```
 
 启动后打开 <http://127.0.0.1:8080/admin>。首次启动会在日志里打印一次管理密钥
@@ -82,7 +82,7 @@ pnpm start
 
 | 路径                                                                | 说明                                             |
 | ------------------------------------------------------------------- | ------------------------------------------------ |
-| `GET /admin`                                                        | 管理界面（登录页 → 上游 Jet Hub 设置页）         |
+| `GET /admin`                                                        | 管理界面（登录页 → 默认「总览」；渠道页复用上游 Jet Hub） |
 | `POST /api/jet-hub`                                                 | Jet Hub 管理 RPC（上游实现原样透传，需管理密钥） |
 | `GET /v1/models`、`POST /v1/chat/completions`、`POST /v1/responses` | OpenAI 兼容接口（上游网关，需网关 Key）          |
 | `GET /healthz`                                                      | 健康检查（不含密钥，可给监控用）                 |
