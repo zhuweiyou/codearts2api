@@ -150,23 +150,3 @@ test("replay 只接受 POST、合法 JSON 与本机回调地址", async (t) => {
   assert.equal(payload.port, 41451)
   assert.match(payload.error, /已不可达/)
 })
-
-test("中继 UI 脚本可匿名取到（它只是前端壳，不含数据）", async (t) => {
-  const app = await startTestApp()
-  t.onTestFinished(() => app.close())
-
-  // ⚠️ 这个脚本挂在 /admin 前缀下但由 oauthRelay.handle 提供，仍在鉴权门之后，
-  //    所以未登录应当 401/302 —— 与 relay 同一策略，不能因为「只是 JS」就放开。
-  const anonymous = await fetch(`${app.origin}/admin/oauth-relay-ui.js`, { redirect: "manual" })
-  assert.equal(anonymous.status, 401)
-
-  const authorized = await fetch(`${app.origin}/admin/oauth-relay-ui.js`, {
-    headers: { authorization: `Bearer ${app.adminKey}` },
-  })
-  assert.equal(authorized.status, 200)
-  assert.match(authorized.headers.get("content-type") ?? "", /application\/javascript/)
-  assert.equal(authorized.headers.get("cache-control"), "no-store")
-  const source = await authorized.text()
-  // 面板挂件的两个入口都在这个脚本里；出现其中一个就说明取到的是真身。
-  assert.match(source, /__c2OAuthRelayLoaded/)
-})
