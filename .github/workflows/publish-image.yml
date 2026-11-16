@@ -135,10 +135,35 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          # PR 只构建验证 Dockerfile，不推送；默认分支 / tag / workflow_call 按 digest 推送。
+          # PR：load 到本地用于冒烟、不推送；默认分支/tag：按 digest 推送。
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ github.event_name == 'pull_request' && steps.meta.outputs.tags || '' }}
           outputs: ${{ github.event_name != 'pull_request' && format('type=image,name={0}/{1},push-by-digest=true,name-canonical=true,push=true', env.REGISTRY, env.IMAGE_NAME) || '' }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      - name: Smoke test image (/healthz)
+        run: |
+          IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          else
+            IMAGE="$IMG@${{ steps.build.outputs.digest }}"
+            docker pull "$IMAGE"
+          fi
+          echo "Smoke image: $IMAGE"
+          docker run -d --name "smoke-${{ matrix.arch }}" \
+            -e CODEARTS2API_ADMIN_AUTH=0 -e DSH_OPENAI_GATEWAY_ENABLED=0 \
+            -p 18080:8080 "$IMAGE"
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/healthz > /tmp/hz 2>/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          docker logs "smoke-${{ matrix.arch }}" || true
+          docker rm -f "smoke-${{ matrix.arch }}" || true
+          if [ "$ok" != "1" ]; then echo "::error::/healthz smoke failed"; exit 1; fi
+          echo "healthz OK: $(cat /tmp/hz)"
 
       - name: Export digest
         if: github.event_name != 'pull_request'
