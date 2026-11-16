@@ -379,7 +379,6 @@ function writeAllowBuilds(hashes) {
     ...[...new Set(hashes)].map(
       (h) => `  'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/${h}': true`,
     ),
-    "  esbuild: true",
   ].join("\n")
   const re = /^allowBuilds:\n(?:[ \t]+.*\n?)*/m
   const next = re.test(text) ? text.replace(re, `${block}\n`) : `${text}${text.endsWith("\n") ? "" : "\n"}${block}\n`
@@ -603,16 +602,7 @@ const tail = changelog.slice(index).replace("<details open>", "<details>")
 writeFileSync(changelogPath, `${head}${entry}${tail}`, "utf8")
 log("已写入 CHANGELOG.md")
 
-// ⚠️ 自动格式化刚写进去的 CHANGELOG —— 否则它的格式（行宽、列表缩进）多半与
-//    Prettier 的约定不一致，下次 `pnpm run format:check` 就会红。
-//    只格式化这一个文件，不碰仓库里其它文件（那会把「本来没动过」的文件也重写）。
-try {
-  log("格式化 CHANGELOG.md …")
-  run("pnpm", ["exec", "prettier", "--write", "CHANGELOG.md"], { stdio: ["ignore", "inherit", "inherit"] })
-} catch (error) {
-  fail("格式化 CHANGELOG.md 失败", error)
-  process.exit(1)
-}
+// CHANGELOG.md 是 Markdown，vp fmt 默认忽略 *.md，无需额外格式化。
 
 // ── ⑧ 提交 ──
 
