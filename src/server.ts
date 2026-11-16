@@ -13,7 +13,7 @@ import { createErrorHandler } from "./http/error.ts"
 import { CALLERS_API_BASE, createCallersController } from "./modules/callers/callers.controller.ts"
 import { createCallersService } from "./modules/callers/callers.service.ts"
 import { DASHBOARD_API_BASE, createDashboardController } from "./modules/dashboard/dashboard.controller.ts"
-import { createAuthRouter } from "./modules/auth/login.controller.ts"
+import { AUTH_BASE, createAuthRouter } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
 import { serveFrontend } from "./modules/frontend/frontend.controller.ts"
 import { createGatewayController } from "./modules/gateway/gateway.controller.ts"
@@ -21,7 +21,7 @@ import { providerIds, readGatewayState } from "./modules/gateway/gateway.service
 import { needsAdminAuth, respondUnauthorized, send, sendAdmin, sendAdminJson } from "./http/security.ts"
 import { MODELS_API_BASE, createModelsController } from "./modules/models/models.controller.ts"
 import { createModelsService } from "./modules/models/models.service.ts"
-import { createOAuthRelay } from "./modules/oauth-relay/oauth-relay.controller.ts"
+import { RELAY_BASE, REPLAY_BASE, createOAuthRelay } from "./modules/oauth-relay/oauth-relay.controller.ts"
 import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./core/upstream.ts"
 
 // 兼容旧引用。
@@ -147,7 +147,7 @@ export async function createHttpServer(host, options: any = {}) {
   )
 
   // 登录 / 登出 / 会话（公开）
-  app.use(authRouter)
+  app.use(AUTH_BASE, authRouter)
 
   // 首页与 /admin 等价 → /admin/
   app.get("/", (req, res) => sendAdmin(res, 302, "", { location: "/admin/" }))
@@ -196,7 +196,8 @@ export async function createHttpServer(host, options: any = {}) {
   app.use(CALLERS_API_BASE, callerAdmin.router)
   app.use(DASHBOARD_API_BASE, dashboardAdmin.router)
   app.use(MODELS_API_BASE, modelsAdmin.router)
-  app.use(oauthRelay.router)
+  app.use(RELAY_BASE, oauthRelay.relayRouter)
+  app.use(REPLAY_BASE, oauthRelay.replayRouter)
 
   // Jet Hub 管理 RPC
   app.all(

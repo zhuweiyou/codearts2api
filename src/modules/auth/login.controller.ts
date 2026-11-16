@@ -6,16 +6,12 @@ import express from "express"
 import { sanitizeNext } from "../../core/safe-next.ts"
 import { clientIp, isSecureRequest } from "../../core/request.ts"
 import { sendJson } from "../../http/respond.ts"
-import {
-  LOGIN_PATH,
-  LOGOUT_PATH,
-  constantTimeEquals,
-  isAdminAuthorized,
-  clearSessionCookie,
-  sessionCookie,
-} from "./auth.service.ts"
+import { constantTimeEquals, isAdminAuthorized, clearSessionCookie, sessionCookie } from "./auth.service.ts"
 
-export const SESSION_PATH = "/admin/api/session"
+export const AUTH_BASE = "/admin"
+const SESSION_PATH = "/api/session"
+const LOGIN_PATH = "/login"
+const LOGOUT_PATH = "/logout"
 
 const CREDENTIAL_LIMIT = 8 * 1024
 

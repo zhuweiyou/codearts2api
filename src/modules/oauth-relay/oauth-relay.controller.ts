@@ -27,8 +27,10 @@ import { MIN_PORT, MAX_PORT, parseLoopbackUrl, loopbackOf } from "./oauth-relay.
 
 import { SESSION_COOKIE } from "../auth/auth.service.ts"
 
-export const RELAY_PREFIX = "/relay/"
-export const REPLAY_PATH = "/admin/oauth-relay/replay"
+export const RELAY_BASE = "/relay"
+export const REPLAY_BASE = "/admin/oauth-relay"
+
+const RELAY_PREFIX = RELAY_BASE + "/"
 
 const HOP_BY_HOP = new Set([
   "host",
@@ -320,16 +322,18 @@ export function createOAuthRelay(options: any = {}) {
     sendJson(response, 200, { ok: upstream.ok, status: upstream.status, port: parsed.port, target, snippet })
   }
 
-  const router = express.Router()
-  router.use(RELAY_PREFIX, (request: any, response: any, next: any) => {
+  const relayRouter = express.Router()
+  relayRouter.use("/", (request: any, response: any, next: any) => {
     const url = new URL(request.originalUrl ?? request.url ?? "/", "http://127.0.0.1")
     proxy(request, response, url).catch(next)
   })
-  router.all(REPLAY_PATH, (request: any, response: any, next: any) => {
+
+  const replayRouter = express.Router()
+  replayRouter.all("/replay", (request: any, response: any, next: any) => {
     replay(request, response).catch(next)
   })
 
-  return { router }
+  return { relayRouter, replayRouter }
 }
 
 function sendJson(response: any, status: number, value: any) {
