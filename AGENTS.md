@@ -89,8 +89,7 @@ src/                       # 后端（Node / Express，TypeScript，按职责分
   config/env.ts            环境变量解析（PORT/HOST/PROXY_GATEWAY/ADMIN_AUTH）
   core/                    home · logger · upstream(契约) · connection · errors · types · fs-store
   host/host.ts             上游宿主装配（五服务 + 装插件 + 契约核对）★核心
-  http/                    body · security · request · respond · error（HTTP 基础设施/适配）
-  views/                   服务端渲染片段（登录页 HTML 转义等）
+  http/                    body · security · request · respond · error（HTTP 基础设施/适配）
   modules/                 领域模块（controller=HTTP 适配，service=业务）
     auth/                  auth.service · login.controller
     callers/               callers.service · callers.controller
