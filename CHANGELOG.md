@@ -7,6 +7,22 @@
 ---
 
 <details open>
+<summary><b>2026-11-16 · 上游升级 <code>e300234</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `664db471f2e1b0a5507a6039c16162c2b11a402b` 更新到 `e30023432a4444ca784fedca50fa8392995bcf81`。
+
+### 上游改动
+
+- fix(jet-hub): 删掉按视口的 @media 上限（修 P1-1 会顺手激活它）—— 弹窗本来就够不到 172px（PR #94 对抗审计 P2-2）
+- fix(jet-hub): 账号列上下限不再被内联 style 压死 + 拆掉两条靠注释字面量通过的假绿（PR #94 正向审计）
+- fix(jet-hub): 修复被写坏的 CSS 注释（吞掉统计组兜底规则）+ 更正陈旧列宽注释（PR #94 审计）
+- feat(jet-hub): 用量面板列宽自适应 + 统计信息优先级 + 轮换起点显示真实账号名
+
+</details>
+
+<details>
 <summary><b>2026-11-16 · 迁移到 Vite+：/admin 前后端分离 + React/TS 重写 + Express/TS 后端</b></summary>
 
 ## 迁移
