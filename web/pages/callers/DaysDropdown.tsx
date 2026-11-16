@@ -50,13 +50,20 @@ export function DaysDropdown({
         <div className={styles.ddpanel} hidden={!daysOpen}>
           <div className={styles.ddpre}>
             {PRESETS.map(([kind, label]) => {
-              const on = sameSet(presetSet(kind, availableDays) || [], days)
+              // 没有可用的调用日志时，所有 preset 的集合都是空集；如果继续按
+              // sameSet 计算，它们会全部显示为「已选中」。这里直接禁用，避免
+              // 空的「全部」预设造成“一点全选”的假象。
+              const hasDays = availableDays.length > 0
+              const on = hasDays && sameSet(presetSet(kind, availableDays) || [], days)
               return (
                 <button
                   key={kind}
                   type="button"
                   className={clsx(styles.preset, on && styles.on)}
-                  onClick={() => applyPreset(kind)}
+                  disabled={!hasDays}
+                  onClick={() => {
+                    if (hasDays) applyPreset(kind)
+                  }}
                 >
                   {label}
                 </button>

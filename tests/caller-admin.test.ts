@@ -254,3 +254,25 @@ test("REST 路由按方法匹配（POST /state 不存在）", async (t) => {
   })
   assert.equal(response.status, 404)
 })
+
+test("旧版 POST action 协议仍可用（迁移兼容）", async (t) => {
+  const app = await startTestApp()
+  t.onTestFinished(() => app.close())
+
+  const headers = { authorization: `Bearer ${app.adminKey}`, "content-type": "application/json" }
+  const state = await fetch(`${app.origin}/admin/callers/api`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ action: "state" }),
+  })
+  assert.equal(state.status, 200)
+  assert.deepEqual((await state.json()).usage.rows, [])
+
+  const saved = await fetch(`${app.origin}/admin/callers/api`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ action: "group.save", name: "legacy", allow: ["*"] }),
+  })
+  assert.equal(saved.status, 200)
+  assert.deepEqual(await saved.json(), { ok: true })
+})

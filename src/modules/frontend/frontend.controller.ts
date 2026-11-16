@@ -38,6 +38,12 @@ export async function serveFrontend(request, response, path) {
     return true
   }
 
+  // `/admin/assets`（无尾斜杠）不是 SPA 路由，避免把 index.html 当静态目录返回。
+  if (path === "/admin/assets") {
+    sendAdminJson(response, 404, { error: "not found" })
+    return true
+  }
+
   const isSpaRoute = path === "/admin" || path === "/admin/" || path.startsWith("/admin/")
   if (isSpaRoute) {
     const target = join(DIST_DIR, "index.html")

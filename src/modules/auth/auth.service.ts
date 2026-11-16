@@ -12,13 +12,10 @@
  *
  * 浏览器里点开 `/admin` 是一次**文档导航**，导航请求**不可能**带 `Authorization`
  * 头（这是浏览器行为，不是我们的选择）；页面里的 `<script src="/admin/assets/*">`
- * 同理。所以「页面本身也要拦住」只有两条路：
- *
- * 1. 页面公开、只拦 API（参考仓库 workbuddy2api-panel 的取舍）——
- *    代价是任何人都能确认「这台机器跑着 codearts2api」并看到后台长什么样；
- * 2. **登录表单换一个会话 Cookie**，之后的导航与子资源都自动带上。
- *
- * 这里选 **2**：既然要求是「进页面鉴权」，页面就得真的拦住。同时**仍然接受**
+ * 同理。现在的取舍是 **页面公开、只拦数据/动作 API**：登录 UI 由前端 `AuthGate`
+ * 展示，页面与静态资源公开；`/api/jet-hub`、`/admin/<module>/api`、`/relay/*` 等数据接口
+ * 仍要求会话 Cookie 或 Bearer。这样登录页本身不依赖上游 bundle，也不会把
+ * “这台机器跑着 codearts2api”藏在一个假象后面。同时**仍然接受**
  * `Authorization: Bearer <admin-key>`，否则 curl / 脚本 / 监控就无法访问，
  * 而 README 里本来就有用 curl 调 RPC 的教程。
  *
@@ -52,12 +49,6 @@ export const ADMIN_KEY_FILE = "admin-key"
 
 /** 会话 Cookie 名。 */
 export const SESSION_COOKIE = "c2a_admin"
-
-/** 登录页路由（未鉴权可达，否则永远登不进去）。 */
-export const LOGIN_PATH = "/admin/login"
-
-/** 登出路由。 */
-export const LOGOUT_PATH = "/admin/logout"
 
 /**
  * 自动生成的密钥形态：`randomBytes(32).toString("base64url")` = 43 位。
@@ -154,6 +145,24 @@ export function sessionToken(key) {
 }
 
 /**
+ * 判断一条请求是否带有效的会话 Cookie。
+ *
+ * ⚠️ 只认 Cookie，不认 Bearer。`/admin/api/session` 是**公开**接口，如果它也
+ *    接受 Bearer，就会变成无限次猜管理密钥的判定口（响应直接告诉攻击者
+ *    `authenticated: true/false`，且不经过 adminGuard 的限速）。
+ *
+ * @param request - node 的 `IncomingMessage`。
+ * @param key - 管理密钥。
+ * @returns 是否已通过 Cookie 鉴权。
+ */
+export function isSessionAuthorized(request, key) {
+  if (typeof key !== "string" || key === "") return false
+  const token = request.cookies?.[SESSION_COOKIE]
+  if (typeof token !== "string" || token === "") return false
+  return constantTimeEquals(token, sessionToken(key))
+}
+
+/**
  * 判断一条请求是否已通过管理端鉴权。
  *
  * 两种凭据任一命中即放行：
@@ -172,12 +181,7 @@ export function isAdminAuthorized(request, key) {
     if (constantTimeEquals(authorization.slice("Bearer ".length), key)) return true
   }
 
-  const token = request.cookies?.[SESSION_COOKIE]
-  if (typeof token === "string" && token !== "") {
-    if (constantTimeEquals(token, sessionToken(key))) return true
-  }
-
-  return false
+  return isSessionAuthorized(request, key)
 }
 
 /**

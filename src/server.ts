@@ -124,6 +124,8 @@ export async function createHttpServer(host, options: any = {}) {
 
   const app = express()
   app.disable("x-powered-by")
+  // 大小写敏感：防止 /API/JET-HUB、/ADMIN/... 之类的变体绕过路由级鉴权；
+  // 受保护前缀另有 caseSensitive:false 的兜底中间件（见下方 protectedApi）。
   app.set("case sensitive routing", true)
   app.use(cookieParser())
 

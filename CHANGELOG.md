@@ -7,6 +7,17 @@
 ---
 
 <details open>
+<summary><b>2026-11-16 · 后端分层重构 + 管理端登录前端化</b></summary>
+
+## 变更
+
+- **后端分层**：`src` 从扁平文件拆为 `config/`（环境变量）、`core/`（home / logger / upstream / connection / fs-store / request / errors）、`host/`（宿主装配）、`http/`（安全响应 / 请求体 / 鉴权中间件）、`modules/`（auth / callers / caller-gate / dashboard / models / gateway / oauth-relay / frontend）。
+- **服务/控制器分离**：callers、models、dashboard、oauth-relay、gateway 等模块按 service（业务与存储）与 controller（HTTP 适配）拆分；callers / models 管理接口改为 REST 路由，前端 API 同步。
+- **登录前端化**：登录界面改为 `web/components/Login` + `AuthGate`；后端提供登录、会话、登出 API，页面与静态资源公开，数据/动作 API 仍受管理密钥保护。
+
+</details>
+
+<details>
 <summary><b>2026-11-16 · 上游升级 <code>c44f6ff</code>（自动升级）</b></summary>
 
 ## 上游升级

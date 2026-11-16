@@ -1,11 +1,11 @@
 .section {
   flex: none;
-  margin-bottom: 16px;
-  border: 1px solid var(--dsw-alias-border-l2, #eef0f3);
-  border-radius: 14px;
-  background: var(--dsw-alias-bg-layer-3, #fff);
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgb(31 35 41/3%);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  box-shadow: none;
 }
 .head {
   display: flex;
@@ -14,6 +14,7 @@
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--dsw-alias-border-l2, #eef0f3);
+  border-radius: var(--c2a-radius) var(--c2a-radius) 0 0;
   background: var(--dsw-alias-bg-layer-2, #f4f5f7);
 }
 .title {
@@ -98,6 +99,8 @@
   gap: 14px;
   padding: 7px 12px;
   border-bottom: 1px solid var(--dsw-alias-border-l2, #eef0f3);
+  border-radius: 0 0 var(--c2a-radius) var(--c2a-radius);
+  background: var(--dsw-alias-bg-layer-2, #f4f5f7);
   font-size: 11.5px;
   line-height: 17px;
   color: var(--dsw-alias-label-secondary, #5f6672);
@@ -118,9 +121,9 @@
 .sum .mute b {
   color: var(--dsw-alias-label-tertiary, #8f959e);
 }
+/* 模型列表不再自己滚动：由外层渠道面板统一滚动，Tab 栏保持吸顶。 */
 .scroll {
-  max-height: 330px;
-  overflow: auto;
+  overflow: visible;
 }
 .mrow {
   display: flex;

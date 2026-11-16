@@ -10,7 +10,7 @@ import { defineConfig } from "vite-plus"
  *   index.html          入口页（仅 #admin-root + module main.tsx）
  *   main.tsx            引导：内联 boot 垫片 + 动态加载上游 bundle + 挂 BrowserRouter
  *   App.tsx             外壳（顶栏/导航/主题/退出 + 路由出口）
- *   pages/*.tsx         文件路由（vite-plugin-pages，按页异步分块）
+ *   pages/*.tsx         页面组件（显式路由表见 `web/routes.tsx`，不依赖 vite-plugin-pages）
  *   components/**       视图组件（overview/callers…）
  *   api/**              RPC / 上游装载等
  *   store/**            zustand 全局状态

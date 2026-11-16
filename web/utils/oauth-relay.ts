@@ -6,7 +6,7 @@
  *  1) 把 loopback URL 改写为 `<origin>/relay/<port>/<path>`（供 window.open / 页面链接）；
  *  2) 把用户可能粘贴的 relay 地址还原成 loopback（供「回调修复」重放接口使用）。
  *
- * 端口范围与后端 `src/oauth-relay.ts` 的 parseLoopbackUrl 保持一致：**1024–65535**。
+ * 端口范围与后端 `src/modules/oauth-relay/oauth-relay.service.ts` 的 parseLoopbackUrl 保持一致：**1024–65535**。
  */
 
 const LOOPBACK = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]):(\d{2,5})(\/[^\s]*)?$/i

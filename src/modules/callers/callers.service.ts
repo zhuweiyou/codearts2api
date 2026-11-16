@@ -244,7 +244,7 @@ export function createCallersService(options: CallersServiceOptions) {
 
   async function state(day?: string) {
     const store = await readStore()
-    const d = typeof day === "string" && day ? day : today()
+    const d = typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : today()
     return {
       groups: store.groups,
       keys: store.keys.map(publicKey),

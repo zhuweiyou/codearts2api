@@ -1,12 +1,14 @@
 .page {
+  box-sizing: border-box;
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 24px;
   background: var(--c2a-bg, #f5f6f8);
-  color: var(--c2a-text-1, #1f2329);
+  color: var(--c2a-text, #1f2329);
 }
 .card {
+  box-sizing: border-box;
   width: 100%;
   max-width: 420px;
   padding: 28px;
@@ -43,33 +45,36 @@
   font-weight: 500;
 }
 .input {
-  width: 100%;
   box-sizing: border-box;
+  width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--c2a-border, #e5e6eb);
   border-radius: 8px;
+  background: var(--dsw-alias-bg-input, var(--c2a-surface-2, #fff));
+  color: var(--c2a-text, #1f2329);
   font: inherit;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .input:focus {
   outline: none;
-  border-color: #1677ff;
-  box-shadow: 0 0 0 3px rgb(22 119 255 / 16%);
+  border-color: var(--c2a-brand, #1677ff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c2a-brand, #1677ff) 16%, transparent);
 }
 .button {
+  box-sizing: border-box;
   width: 100%;
   margin-top: 16px;
   padding: 10px 12px;
   border: 0;
   border-radius: 8px;
-  background: #1677ff;
+  background: var(--c2a-brand, #1677ff);
   color: #fff;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 .button:hover {
-  background: #0f5fce;
+  background: color-mix(in srgb, var(--c2a-brand, #1677ff) 88%, #000);
 }
 .button:disabled {
   opacity: 0.7;
@@ -79,8 +84,8 @@
   margin: 0 0 16px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: #ffebe9;
-  border: 1px solid #ff818266;
-  color: #a40e26;
+  background: var(--c2a-err-soft, #ffebe9);
+  border: 1px solid color-mix(in srgb, var(--c2a-err, #d93025) 30%, var(--c2a-border, #e5e6eb));
+  color: var(--c2a-err, #a40e26);
   font-size: 13px;
 }

@@ -15,6 +15,7 @@
     "build": "pnpm run build:web && pnpm run build:server",
     "build:web": "vp build",
     "build:server": "tsc -p tsconfig.server.json",
+    "pretest": "pnpm run build:web",
     "preview": "vp preview",
     "test": "vp test run",
     "typecheck": "tsc -p tsconfig.json --noEmit",

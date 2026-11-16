@@ -27,7 +27,7 @@ export function GroupsTab({
               <col style={{ width: "11%" }} />
               <col style={{ width: "20%" }} />
               <col />
-              <col style={{ width: "9%" }} />
+              <col style={{ width: "112px" }} />
             </colgroup>
             <thead>
               <tr>

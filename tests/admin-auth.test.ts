@@ -93,6 +93,21 @@ test("会话接口：无 Cookie → false；登录后 → true", async (t) => {
   assert.equal(state.status, 200, "带会话 Cookie 应能访问受保护 API")
 })
 
+test("会话接口只认 Cookie，不接受 Bearer（防无限猜管理密钥）", async (t) => {
+  const app = await startTestApp({ adminKey: TEST_ADMIN_KEY })
+  t.onTestFinished(() => app.close())
+
+  // 正确密钥也不行：/admin/api/session 是公开接口，若接受 Bearer 就会绕开
+  // adminGuard 的失败限速，成为可以无限试密钥的 oracle。
+  for (const key of [TEST_ADMIN_KEY, "wrong-key"]) {
+    const response = await fetch(`${app.origin}/admin/api/session`, {
+      headers: { ...JSON_ACCEPT, authorization: `Bearer ${key}` },
+    })
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), { authenticated: false }, "Bearer 不应让会话接口返回 true")
+  }
+})
+
 test("密码错误回 401，且不回显密钥位置/来源", async (t) => {
   const app = await startTestApp({ adminKey: TEST_ADMIN_KEY })
   t.onTestFinished(() => app.close())
@@ -142,6 +157,10 @@ test("登出清除 Cookie", async (t) => {
   const out = await fetch(`${app.origin}/admin/logout`, { method: "POST", headers: { ...JSON_ACCEPT, cookie } })
   assert.equal(out.status, 200)
   assert.match(out.headers.get("set-cookie") ?? "", /Max-Age=0/)
+
+  // 登出有副作用：GET 不能清 Cookie（避免跨站图片/链接触发）。
+  const getOut = await fetch(`${app.origin}/admin/logout`, { headers: JSON_ACCEPT })
+  assert.equal(getOut.status, 405)
 })
 
 test("sanitizeNext 只放行站内绝对路径", () => {

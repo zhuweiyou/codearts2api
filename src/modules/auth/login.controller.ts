@@ -6,13 +6,15 @@ import express from "express"
 import { sanitizeNext } from "../../core/safe-next.ts"
 import { clientIp, isSecureRequest } from "../../core/request.ts"
 import { sendJson } from "../../http/respond.ts"
-import { constantTimeEquals, isAdminAuthorized, clearSessionCookie, sessionCookie } from "./auth.service.ts"
+import { constantTimeEquals, isSessionAuthorized, clearSessionCookie, sessionCookie } from "./auth.service.ts"
 
 export function createAuthRouter({ adminKeyEnabled, adminKey, throttle, logger }: any) {
   const router = express.Router()
 
   router.get("/api/session", (request, response) => {
-    const authenticated = adminKeyEnabled() ? isAdminAuthorized(request, adminKey) : true
+    // 这个接口是公开的：只认会话 Cookie。若接受 Bearer，会绕开 adminGuard 的
+    // 失败限速，成为可以无限试管理密钥的探测口（见 auth.service 的说明）。
+    const authenticated = adminKeyEnabled() ? isSessionAuthorized(request, adminKey) : true
     sendJson(response, 200, { authenticated })
   })
 
@@ -46,9 +48,14 @@ export function createAuthRouter({ adminKeyEnabled, adminKey, throttle, logger }
     },
   )
 
-  router.all("/logout", (_request, response) => {
+  router.post("/logout", (_request, response) => {
     response.setHeader("set-cookie", clearSessionCookie())
     sendJson(response, 200, { ok: true })
+  })
+
+  // 登出会改变状态：只允许 POST，GET 明确 405，避免跨站图片/链接触发登出。
+  router.get("/logout", (_request, response) => {
+    sendJson(response, 405, { error: "method not allowed" })
   })
 
   return router

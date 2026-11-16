@@ -4,12 +4,19 @@ import { useState } from "react"
 import { login } from "../api/auth"
 import styles from "./Login.module.less"
 
+/** 直接访问 /admin/xxx 时没有 ?next=，用当前地址作为登录后的回跳目标。 */
+function fallbackNext(): string {
+  const current = window.location.pathname + window.location.search
+  if (/^\/admin\/login(?:[/?]|$)/.test(current)) return "/admin/overview"
+  return current || "/admin/overview"
+}
+
 export function Login({ onSuccess }: { onSuccess: (next: string) => void }) {
   const [key, setKey] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const next = new URLSearchParams(window.location.search).get("next") || "/admin/overview"
+  const next = new URLSearchParams(window.location.search).get("next") || fallbackNext()
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()

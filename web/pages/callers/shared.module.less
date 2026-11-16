@@ -56,6 +56,13 @@
   text-overflow: ellipsis;
 }
 
+/* 操作列不能被 ellipsis 裁掉按钮；固定宽度由各表 colgroup 给出。 */
+.tblFixed td:last-child,
+.tblFixed th:last-child {
+  overflow: visible;
+  white-space: nowrap;
+}
+
 .tblWrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

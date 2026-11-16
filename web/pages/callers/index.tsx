@@ -142,11 +142,6 @@ export default function Callers({ active = true }: { active?: boolean }) {
               一并统计。
             </p>
           </div>
-          <div className="c2a-page-actions">
-            <button type="button" className="c2a-btn" onClick={() => d.refresh()}>
-              刷新
-            </button>
-          </div>
         </div>
 
         <div className={clsx(styles.scope, styles.body)}>
@@ -154,14 +149,12 @@ export default function Callers({ active = true }: { active?: boolean }) {
             {TABS.map((t) => {
               const n = d.data && t.count ? t.count(d.data) : null
               return (
-                <button
-                  key={t.key}
-                  className={clsx(styles.tab, tab === t.key && styles.on)}
-                  onClick={() => switchTab(t.key)}
-                >
-                  {t.label}
-                  {n !== null ? <span className={styles.n}>{n}</span> : null}
-                </button>
+                <div key={t.key} className={styles.tabItem} onClick={() => switchTab(t.key)}>
+                  <button className={clsx(styles.tab, tab === t.key && styles.on)}>
+                    {t.label}
+                    {n !== null ? <span className={styles.n}>{n}</span> : null}
+                  </button>
+                </div>
               )
             })}
           </div>
