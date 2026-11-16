@@ -15,7 +15,8 @@ import { createDashboardController } from "./modules/dashboard/dashboard.control
 import { createAdminLoginRoutes } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
 import { serveFrontend } from "./http/frontend.ts"
-import { createGatewayProxy, providerIds, readGatewayState } from "./http/gateway.ts"
+import { createGatewayController } from "./modules/gateway/gateway.controller.ts"
+import { providerIds, readGatewayState } from "./modules/gateway/gateway.service.ts"
 import { needsAdminAuth, respondUnauthorized, send, sendAdmin, sendAdminJson } from "./http/security.ts"
 import { createModelsController } from "./modules/models/models.controller.ts"
 import { createModelsService } from "./modules/models/models.service.ts"
@@ -112,7 +113,7 @@ export async function createHttpServer(host, options: any = {}) {
   const modelsAdmin = createModelsController({ service: modelsService, logger })
 
   const throttle = new LoginThrottle()
-  const { proxyToGateway } = createGatewayProxy({
+  const { proxyToGateway } = createGatewayController({
     host,
     callerGate,
     logger,
