@@ -31,7 +31,7 @@
     "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
     "@deepseek-ai/dsh-credentials-local": "0.2.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
-    "dsh-providers-hub": "git+https://github.com/iJetLi/dsh-providers-hub.git#f6fb8dfe61a0be6deebc8b0388dff504b7242a38",
+    "dsh-providers-hub": "git+https://github.com/iJetLi/dsh-providers-hub.git#664db471f2e1b0a5507a6039c16162c2b11a402b",
     "express": "^5.3.0"
   },
   "devDependencies": {

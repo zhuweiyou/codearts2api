@@ -19,6 +19,37 @@
 - **构建前后端分离产物**：`pnpm run build` = 前端 `vp build`(→`dist/`) + 后端 `tsc`(→`dist-server/`，含类型检查)；生产 `node dist-server/index.js`（运行期不再依赖 `vite-plus/register`），`register` 仅用于 `pnpm dev`。
 - **依赖归类**：前端库（react/react-dom/react-router-dom/clsx/zustand/dayjs 等）移到 `devDependencies`（被打进 `dist`）；`express` 与 `@deepseek-ai/*`、`dsh-providers-hub` 在 `dependencies`。
 - 下线旧产物/脚本：`public/admin.js`、`public/upstream-jet-hub.js`、`public/admin.html/css`、`public/admin-shell.js`、`public/admin-boot.js`、`build.mjs`、`src/callers-ui.js`。
+</details>
+
+<details>
+<summary><b>2026-11-16 · 上游升级 <code>664db47</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `f6fb8dfe61a0be6deebc8b0388dff504b7242a38` 更新到 `664db471f2e1b0a5507a6039c16162c2b11a402b`。
+
+### 上游改动
+
+- fix(raccoon): 签到金额以账单为准、零证据不锁死当天、形状异常与跨日判据加固（PR #88 双审计返工）
+- fix(modelscope): 已下线名单按归一化键兜底 + 补「has no provider supported」判据（PR #92 双审计返工）
+- fix(qoder): 形态头的机器形态必须可校验，搜索腿优先级补行为级守卫（PR #91 双审计返工）
+- fix(aggregate): deepseek 的 `-1017` / `-0813` 归到对应主键（实测：无后缀在魔搭已下线）
+- fix(aggregate): deepseek-v4.1-flash 的 `-1017` 版本号变体被当成独立模型
+- fix(modelscope): 已下线的模型 id 不再进目录（实测 8 条，逐个真发请求确认）
+- feat(qoder): 补 `Cosy-MachineOS` 形态头，补齐与官方请求层的头表差异
+- fix(qoder): 出口 fetcher 判据改用构造期基线，宿主包装 fetch 不再静默跳过代理
+- fix(aggregate): autoclaw 的 Auto / Auto-Fast 不许被排除，两站共用补丁并补全书写变体（PR #89 双审计返工）
+- fix(aggregate): autoclaw 的 GLM 带渠道前缀，同一模型被拆成两条虚拟模型
+- docs(workbuddy): 能力表与笔记同步更正「国际版无签到」，并把新笔记登记进索引
+- chore: 触发 GitHub 重新检测 PR #87 的合并状态
+- fix(workbuddy): 文案兜底收窄到整句、活跃上报补 outcome 闸门与总预算（PR #87 双审计返工）
+- feat(raccoon): 接通每日签到（办公端 setting_info 结算）+ 账单改走 v2
+- feat(workbuddy): 国际版接入每日签到 + 活跃上报，修正「后端无签到接口」的误判
+- fix(marvis): 两个 system 位置走同一个清洗函数，补三条行为级守卫（PR #185 双审计返工）
+- fix(marvis): messages 里的 system 那条也要过腾讯系风控指纹改写（Issue IKVF8Z）
+- docs(buddy): TENCENT_PROVIDERS 现在有三个元素，别再把 buddy/workbuddy 当「非腾讯系」反例
+- feat(marvis): system 正文接入腾讯内容指纹脱敏（与 buddy/workbuddy 同一份表）
+- fix(jet-hub): provider.status 用无原型对象 + model.list/fullCatalogIds 安全取键（Issue #84 双审计返工）
 
 </details>
 

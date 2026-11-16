@@ -33,8 +33,8 @@ importers:
         specifier: 0.2.2-rc.1
         version: 0.2.2-rc.1(@deepseek-ai/cordis@4.1.0)
       dsh-providers-hub:
-        specifier: git+https://github.com/iJetLi/dsh-providers-hub.git#f6fb8dfe61a0be6deebc8b0388dff504b7242a38
-        version: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/f6fb8dfe61a0be6deebc8b0388dff504b7242a38(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0)
+        specifier: git+https://github.com/iJetLi/dsh-providers-hub.git#664db471f2e1b0a5507a6039c16162c2b11a402b
+        version: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/664db471f2e1b0a5507a6039c16162c2b11a402b(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0)
       express:
         specifier: ^5.3.0
         version: 5.3.0
@@ -905,8 +905,8 @@ packages:
       '@types/react-dom':
         optional: true
 
-  '@testing-library/user-event@14.6.11':
-    resolution: {integrity: sha512-EiiRwfusxx0OiXIFiFAwgNSqeiH3cOer6UVUBd1J9kOoP9+MLO0qHW1aEwMjcZxw6KbBSgrV5fmD2AcWrvZ+VA==}
+  '@testing-library/user-event@14.6.12':
+    resolution: {integrity: sha512-8yQV8v+eToBhsUO4oYrZY7fzhpTEMZx4IDx0/iuER/x0Xuy0NdqQOhsaaUNlvXE03N7vQ+4RCXUieKC0NJty9w==}
     engines: {node: '>=12', npm: '>=6'}
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
@@ -1481,8 +1481,8 @@ packages:
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
 
-  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/f6fb8dfe61a0be6deebc8b0388dff504b7242a38:
-    resolution: {gitHosted: true, integrity: sha512-n9CgndWnV7UXnI1rqrBgWyL2Vsn0sAnC86F9FecDSmTM9qang5yRuE2tAFzBV2EvCWoa66Oj65yZHzZQBqPYTA==, tarball: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/f6fb8dfe61a0be6deebc8b0388dff504b7242a38}
+  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/664db471f2e1b0a5507a6039c16162c2b11a402b:
+    resolution: {gitHosted: true, integrity: sha512-lW1/uJnmrhLbbpeh2T0UQxV/L86S35WyZEPZHGCS3AuSv8GmpQkLjhdIAG8jKrpaQwsEY+mY2dQ9fVm636bk6Q==, tarball: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/664db471f2e1b0a5507a6039c16162c2b11a402b}
     version: 0.2.1-rc.3
     engines: {node: ^22.19.0 || >=24.0.0}
     peerDependencies:
@@ -2777,7 +2777,7 @@ snapshots:
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
-  '@testing-library/user-event@14.6.11(@testing-library/dom@10.4.2)':
+  '@testing-library/user-event@14.6.12(@testing-library/dom@10.4.2)':
     dependencies:
       '@testing-library/dom': 10.4.2
 
@@ -2872,7 +2872,7 @@ snapshots:
   '@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@1.6.0(@types/node@26.6.6)(esbuild@0.28.2)(less@4.9.1)(typescript@7.0.2)(yaml@2.9.1))(vitest@5.1.0)':
     dependencies:
       '@testing-library/dom': 10.4.2
-      '@testing-library/user-event': 14.6.11(@testing-library/dom@10.4.2)
+      '@testing-library/user-event': 14.6.12(@testing-library/dom@10.4.2)
       '@vitest/browser': 5.1.0(@voidzero-dev/vite-plus-core@1.6.0(@types/node@26.6.6)(esbuild@0.28.2)(less@4.9.1)(typescript@7.0.2)(yaml@2.9.1))(vitest@5.1.0)
       vitest: 5.1.0(@types/node@26.6.6)(@vitest/browser-preview@5.1.0)(@vitest/ui@5.1.0(vitest@5.1.0))(@voidzero-dev/vite-plus-core@1.6.0(@types/node@26.6.6)(esbuild@0.28.2)(less@4.9.1)(typescript@7.0.2)(yaml@2.9.1))(jsdom@31.0.1)
     transitivePeerDependencies:
@@ -3152,7 +3152,7 @@ snapshots:
 
   dom-accessibility-api@0.5.16: {}
 
-  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/f6fb8dfe61a0be6deebc8b0388dff504b7242a38(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0):
+  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/664db471f2e1b0a5507a6039c16162c2b11a402b(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0):
     dependencies:
       '@deepseek-ai/cordis': 4.1.0
       '@deepseek-ai/cosmokit': 1.9.0
