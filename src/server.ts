@@ -9,7 +9,8 @@ import { createServer } from "node:http"
 import express from "express"
 
 import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
-import { API_PATH as CALLER_API_PATH, createCallerAdmin } from "./caller-admin.ts"
+import { API_PATH as CALLER_API_PATH, createCallersController } from "./modules/callers/callers.controller.ts"
+import { createCallersService } from "./modules/callers/callers.service.ts"
 import { createDashboardAdmin } from "./dashboard-admin.ts"
 import { createAdminLoginRoutes } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
@@ -54,7 +55,8 @@ export async function createHttpServer(host, options: any = {}) {
   const proxyGateway = options.proxyGateway === true
   const callerGate = options.callerGate ?? null
   const logger = options.logger
-  const callerAdmin = createCallerAdmin({ home: host.home, logger })
+  const callersService = createCallersService({ home: host.home, logger })
+  const callerAdmin = createCallersController({ service: callersService, logger })
   const oauthRelay = createOAuthRelay({ logger })
   const adminAuthEnabled = options.adminAuth !== false
 
