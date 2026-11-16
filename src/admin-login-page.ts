@@ -22,7 +22,7 @@
  * **样式不执行代码**，放宽它换来的是这个页面可以自包含。
  */
 
-import { escapeHtml } from "./admin-auth.js"
+import { escapeHtml } from "./admin-auth.ts"
 
 /**
  * 渲染登录页。

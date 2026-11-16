@@ -21,7 +21,7 @@
 
 import { Readable } from "node:stream"
 
-import { SESSION_COOKIE } from "./admin-auth.js"
+import { SESSION_COOKIE } from "./admin-auth.ts"
 
 export const UI_PATH = "/admin/oauth-relay-ui.js"
 export const RELAY_PREFIX = "/relay/"

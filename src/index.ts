@@ -18,11 +18,11 @@
  * 故 SIGINT/SIGTERM 都必须走 `host.close()`。
  */
 
-import { createHost } from "./host.js"
-import { createHttpServer } from "./server.js"
+import { createHost } from "./host.ts"
+import { createHttpServer } from "./server.ts"
 import { join as joinPath } from "node:path"
 import { readFile } from "node:fs/promises"
-import { createCallerGate } from "./caller-gate.js"
+import { createCallerGate } from "./caller-gate.ts"
 
 /** 默认管理端口。 */
 const DEFAULT_PORT = 8080

@@ -62,10 +62,10 @@ import { connect } from "node:net"
 import { join } from "node:path"
 import * as plugin from "dsh-providers-hub"
 
-import { createConnection } from "./connection.js"
-import { pinHome } from "./home.js"
-import { installLogger } from "./logger.js"
-import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./upstream.js"
+import { createConnection } from "./connection.ts"
+import { pinHome } from "./home.ts"
+import { installLogger } from "./logger.ts"
+import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./upstream.ts"
 
 /** 凭据文档名（与官方实现一致）。 */
 const CREDENTIALS_FILENAME = ".credentials.yaml"
