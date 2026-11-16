@@ -15,9 +15,9 @@
  * 用 1x1 PNG 内联字面量，避免依赖 sharp 或外部文件。
  */
 
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
-import { startTestApp } from "./helpers.mjs"
+import { startTestApp } from "./helpers"
 
 /**
  * 一张最小的合法 PNG（1x1 红点）。
@@ -74,7 +74,7 @@ async function gatewayKey(origin, adminKey) {
 
 test("attachments 服务已装载，四个方法齐备", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const attachments = app.host.ctx.get("attachments")
   assert.ok(attachments, "ctx.attachments 应存在（图片能力的地基）")
@@ -87,7 +87,7 @@ test("attachments 服务已装载，四个方法齐备", async (t) => {
 
 test("图片落盘后再读回，字节与媒体类型一致（内容寻址）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const attachments = app.host.ctx.get("attachments")
   const bytes = Buffer.from(RED_PNG_BASE64, "base64")
@@ -119,7 +119,7 @@ test("图片落盘后再读回，字节与媒体类型一致（内容寻址）",
 
 test("媒体类型按字节硬校验：声明与实际不符应被拒", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const attachments = app.host.ctx.get("attachments")
   const pngBytes = Buffer.from(RED_PNG_BASE64, "base64")
@@ -134,7 +134,7 @@ test("媒体类型按字节硬校验：声明与实际不符应被拒", async (t
 
 test("网关收到 http(s) 图片链接时明确拒绝（防 SSRF）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
   const key = await gatewayKey(app.origin, app.adminKey)
 
   const { body } = await chat(
@@ -151,7 +151,7 @@ test("网关收到 http(s) 图片链接时明确拒绝（防 SSRF）", async (t)
 
 test("网关收到损坏的图片数据时报可读错误，而不是崩溃", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
   const key = await gatewayKey(app.origin, app.adminKey)
 
   const { body } = await chat(

@@ -6,9 +6,9 @@
  * 也不依赖任何 DSH 宿主。
  */
 
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
-import { startTestApp, rpc } from "./helpers.mjs"
+import { startTestApp, rpc } from "./helpers"
 
 /**
  * 渠道数量的**下限**（⚠️ 只防「几乎全没了」，不防删减）。
@@ -32,7 +32,7 @@ const MIN_PROVIDERS = 4
 
 test("插件在无 DSH 的纯 cordis 宿主上完整加载", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // ① 四个必要服务都在，且插件把 llm 适配器注册齐了。
   const llm = app.host.ctx.get("llm")
@@ -60,7 +60,7 @@ test("插件在无 DSH 的纯 cordis 宿主上完整加载", async (t) => {
 
 test("聚合目录与实际渠道 RPC 无需新增转发代码即可访问", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const catalog = await rpc(app.origin, "aggregate.catalog", { force: true })
   assert.equal(catalog.ok, true, `aggregate.catalog 应成功：${JSON.stringify(catalog)}`)
@@ -73,7 +73,7 @@ test("聚合目录与实际渠道 RPC 无需新增转发代码即可访问", asy
 
 test("/healthz 汇总服务状态", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const response = await fetch(`${app.origin}/healthz`)
   assert.equal(response.status, 200)
@@ -90,7 +90,7 @@ test("/healthz 汇总服务状态", async (t) => {
 
 test("未知 RPC 方法回可读错误而不是崩掉", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const result = await rpc(app.origin, "definitely.not.a.method", {})
   // 插件的 handler 会把未知方法抛出的异常包成 rpc 错误信封，
@@ -100,7 +100,7 @@ test("未知 RPC 方法回可读错误而不是崩掉", async (t) => {
 
 test("PROXY_GATEWAY 开启时 /v1/* 经本服务透明转发", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 先取网关密钥（经管理 RPC，这是显式的用户操作）。
   const status = await rpc(app.origin, "gateway.getEnabled", {})
@@ -150,7 +150,7 @@ test("PROXY_GATEWAY 开启时 /v1/* 经本服务透明转发", async (t) => {
 
 test("网关不可达时反代回可读的 OpenAI 错误信封", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 关掉网关，模拟「端口没人听」。
   await rpc(app.origin, "gateway.setEnabled", { enabled: false })

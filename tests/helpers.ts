@@ -56,8 +56,8 @@ export async function startTestApp(options = {}) {
   //    于是 `createHttpServer` 收到 `""` 而不去生成文件，测试测的就不是生产路径了。
   const adminKey = "adminKey" in options ? options.adminKey : TEST_ADMIN_KEY
 
-  const { createHost } = await import("../src/host.js")
-  const { createHttpServer } = await import("../src/server.js")
+  const { createHost } = await import("../src/host.ts")
+  const { createHttpServer } = await import("../src/server.ts")
 
   const host = await createHost()
   const server = await createHttpServer(host, {

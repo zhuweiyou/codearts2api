@@ -14,11 +14,11 @@
  * 3. 鉴权机制本身不会成为新的洞（开放重定向、Cookie 伪造、暴力破解）。
  */
 
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { startTestApp, rpc, TEST_ADMIN_KEY } from "./helpers.mjs"
+import { startTestApp, rpc, TEST_ADMIN_KEY } from "./helpers"
 
 /** 需要一个「浏览器会打开的页面」的 Accept 头。 */
 const BROWSER_ACCEPT = { accept: "text/html,application/xhtml+xml" }
@@ -33,17 +33,18 @@ const PROTECTED_PATHS = ["/", "/admin", "/admin/", "/admin.css", "/admin-boot.js
 
 test("未登录时管理页面与静态资源全部被拦（含根路径 /）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   for (const path of PROTECTED_PATHS) {
     const response = await fetch(`${app.origin}${path}`, {
       headers: BROWSER_ACCEPT,
       redirect: "manual",
     })
-    // 浏览器形态：302 到登录页，而不是 401 JSON —— 否则用户看到满屏花括号。
-    assert.equal(response.status, 302, `${path} 未登录应重定向到登录页`)
+    // 浏览器形态：302（根路径先归一到 /admin/，其余跳登录页），而不是 401 JSON。
+    assert.equal(response.status, 302, `${path} 未登录应重定向`)
     const location = response.headers.get("location")
-    assert.match(location, /^\/admin\/login\?next=/, `${path} 应跳到登录页并带上 next，实际：${location}`)
+    if (path === "/") assert.equal(location, "/admin/", "根路径应归一到 /admin/")
+    else assert.match(location, /^\/admin\/login\?next=/, `${path} 应跳到登录页并带上 next，实际：${location}`)
     // ⚠️ 关键：**不能**泄露页面内容。
     const body = await response.text()
     assert.equal(body, "", `${path} 的 302 不应带响应体`)
@@ -52,7 +53,7 @@ test("未登录时管理页面与静态资源全部被拦（含根路径 /）", 
 
 test("未登录时管理 RPC 回 401（而不是它的数据）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 用 curl 那种 Accept（不含 text/html）→ 应拿到 401 JSON 而不是 302。
   const response = await fetch(`${app.origin}/api/jet-hub`, {
@@ -81,7 +82,7 @@ test("未登录时管理 RPC 回 401（而不是它的数据）", async (t) => {
 
 test("错误的管理密钥被拒绝，正确的被接受", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const wrong = await rpc(app.origin, "account.list", { provider: "codearts" }, { key: "definitely-not-the-key" })
   assert.equal(wrong, undefined, "错误密钥不应拿到 rpc result")
@@ -92,7 +93,7 @@ test("错误的管理密钥被拒绝，正确的被接受", async (t) => {
 
 test("放行清单：/healthz 与验证码载体页不需要鉴权", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // /healthz：监控 / 容器探活要用，且它刻意不含密钥。
   const health = await fetch(`${app.origin}/healthz`)
@@ -110,7 +111,7 @@ test("放行清单：/healthz 与验证码载体页不需要鉴权", async (t) =
 
 test("/v1/* 不受管理端鉴权影响（它有自己的 Bearer）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 不带任何 Key：应是插件网关的 401，而**不是**管理端的 401 JSON。
   const response = await fetch(`${app.origin}/v1/models`, { headers: { accept: "*/*" } })
@@ -122,7 +123,7 @@ test("/v1/* 不受管理端鉴权影响（它有自己的 Bearer）", async (t) 
 
 test("登录表单能换到会话 Cookie，之后可直接访问页面", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // ① 拿登录页：无鉴权可达，且**不含任何密钥**。
   const page = await fetch(`${app.origin}/admin/login`, { headers: BROWSER_ACCEPT })
@@ -160,7 +161,7 @@ test("登录表单能换到会话 Cookie，之后可直接访问页面", async (
 
 test("未授权的 401 JSON 不回显密钥位置与来源", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 脚本 / 客户端（Accept 不含 text/html）拿到的是 401 JSON —— 同样是**未认证可达**的
   // 响应面，密钥文件路径与「来自环境变量」都属于部署内情，不能写给任何访问者。
@@ -175,7 +176,7 @@ test("未授权的 401 JSON 不回显密钥位置与来源", async (t) => {
 
 test("伪造的会话 Cookie 无效", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 会话令牌 = HMAC(admin-key, 常量)。不知道密钥就不可能算对。
   for (const fake of ["", "deadbeef", "x".repeat(43)]) {
@@ -195,7 +196,7 @@ test("伪造的会话 Cookie 无效", async (t) => {
 
 test("登录失败会限速，且 next 参数不能用于开放重定向", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // ① 连续输错：前几次回登录页（200），超过阈值后仍是 200 但提示「过于频繁」。
   let sawThrottle = false
@@ -223,7 +224,7 @@ test("登录失败会限速，且 next 参数不能用于开放重定向", async
   assert.equal(correctDuringThrottle.status, 200, "限速期间即使密钥正确也应被挡")
 
   // ③ 开放重定向防护：`next` 只能是站内路径。
-  const { sanitizeNext } = await import("../src/admin-login-page.js")
+  const { sanitizeNext } = await import("../src/admin-login-page.ts")
   for (const evil of [
     "https://evil.com",
     "//evil.com",
@@ -239,7 +240,7 @@ test("登录失败会限速，且 next 参数不能用于开放重定向", async
 
 test("管理响应带安全响应头（CSP / 防点击劫持 / 禁 MIME 嗅探）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const page = await fetch(`${app.origin}/admin/login`, { headers: BROWSER_ACCEPT })
   assert.match(page.headers.get("content-security-policy"), /default-src 'none'/, "应有严格 CSP")
@@ -256,7 +257,7 @@ test("管理响应带安全响应头（CSP / 防点击劫持 / 禁 MIME 嗅探�
     redirect: "manual",
   })
   const cookie = login.headers.get("set-cookie").split(";")[0]
-  for (const path of ["/admin", "/admin.js", "/admin.css"]) {
+  for (const path of ["/admin", "/admin/"]) {
     const response = await fetch(`${app.origin}${path}`, { headers: { ...BROWSER_ACCEPT, cookie } })
     assert.equal(response.status, 200, `${path} 应可访问`)
     assert.equal(response.headers.get("x-frame-options"), "DENY", `${path} 应带防点击劫持头`)
@@ -266,7 +267,7 @@ test("管理响应带安全响应头（CSP / 防点击劫持 / 禁 MIME 嗅探�
 test("管理密钥文件自动生成且不入库（0600 权限）", async (t) => {
   // 不带 adminKey 启动 ⇒ 走「自动生成到 home」的路径。
   const app = await startTestApp({ adminKey: "" })
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const keyPath = join(app.home, "admin-key")
   const key = readFileSync(keyPath, "utf8").trim()
@@ -301,13 +302,13 @@ test("管理密钥文件自动生成且不入库（0600 权限）", async (t) =>
   // 再次启动（同一 home）应复用同一把，而不是静默换新 —— 换新会让已登录的
   // 浏览器全部掉线，而用户无从判断原因。
   const again = await startTestApp({ home: app.home, adminKey: "" })
-  t.after(() => again.close())
+  t.onTestFinished(() => again.close())
   assert.equal(readFileSync(keyPath, "utf8").trim(), key, "重启不应更换密钥")
 })
 
 test("伪造 X-Forwarded-For 无法绕过登录限速", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 每个请求换一个伪造的 XFF。若服务采信这个头，每次都是「新 IP」，
   // 限速永远触发不了。服务按 TCP 对端计，所以第 11 次必然被挡。
@@ -332,7 +333,7 @@ test("伪造 X-Forwarded-For 无法绕过登录限速", async (t) => {
 
 test("PROXY_GATEWAY=0 时 /v1/* 回可读的 proxy_disabled 而不是裸 404", async (t) => {
   const app = await startTestApp({ proxyGateway: false })
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const response = await fetch(`${app.origin}/v1/models`, {
     headers: { accept: "*/*", authorization: "Bearer whatever" },
@@ -345,7 +346,7 @@ test("PROXY_GATEWAY=0 时 /v1/* 回可读的 proxy_disabled 而不是裸 404", a
 
 test("CODEARTS2API_ADMIN_AUTH=0 可关闭鉴权（本机开发用）", async (t) => {
   const app = await startTestApp({ adminAuth: false })
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 关掉后页面与 RPC 都应直接可用。
   const page = await fetch(`${app.origin}/admin`, { headers: BROWSER_ACCEPT })

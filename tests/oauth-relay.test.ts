@@ -16,10 +16,10 @@
  * 服务的假上游，属于集成测试；本文件守的是安全边界与错误分支。
  */
 
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
-import { startTestApp } from "./helpers.mjs"
-import { parseLoopbackUrl, loopbackOf } from "../src/oauth-relay.js"
+import { startTestApp } from "./helpers"
+import { parseLoopbackUrl, loopbackOf } from "../src/oauth-relay.ts"
 
 const BROWSER_ACCEPT = { accept: "text/html,application/xhtml+xml" }
 
@@ -72,7 +72,7 @@ test("parseLoopbackUrl 只接受回环地址与 1024–65535 端口", () => {
 
 test("/relay/* 未登录必须被管理端鉴权门拦下（浏览器 302，脚本 401）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 浏览器形态：302 到登录页。
   const browser = await fetch(`${app.origin}/relay/41451/auth/callback?code=abc`, {
@@ -88,7 +88,7 @@ test("/relay/* 未登录必须被管理端鉴权门拦下（浏览器 302，脚�
 
 test("中继路由的地址与端口校验（已登录）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const auth = { authorization: `Bearer ${app.adminKey}` }
 
@@ -109,7 +109,7 @@ test("中继路由的地址与端口校验（已登录）", async (t) => {
 
 test("replay 只接受 POST、合法 JSON 与本机回调地址", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const auth = { authorization: `Bearer ${app.adminKey}` }
   const endpoint = `${app.origin}/admin/oauth-relay/replay`
@@ -153,7 +153,7 @@ test("replay 只接受 POST、合法 JSON 与本机回调地址", async (t) => {
 
 test("中继 UI 脚本可匿名取到（它只是前端壳，不含数据）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // ⚠️ 这个脚本挂在 /admin 前缀下但由 oauthRelay.handle 提供，仍在鉴权门之后，
   //    所以未登录应当 401/302 —— 与 relay 同一策略，不能因为「只是 JS」就放开。

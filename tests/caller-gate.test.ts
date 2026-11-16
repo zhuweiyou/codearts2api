@@ -23,13 +23,13 @@
  * `oauth-relay.test.mjs` 里断言。
  */
 
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { Readable } from "node:stream"
-import { _internal, createCallerGate } from "../src/caller-gate.js"
+import { _internal, createCallerGate } from "../src/caller-gate.ts"
 
 const { sha256 } = _internal
 

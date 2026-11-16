@@ -11,10 +11,10 @@
  * 所以这里断言的不是「功能好不好用」，而是**请求形状与后端读法必须对齐**：
  * 顶层扁平字段才是契约，嵌套形态必须被拒绝（而不是被悄悄忽略）。
  */
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
 
-import { startTestApp } from "./helpers.mjs"
+import { startTestApp } from "./helpers"
 
 /**
  * 发一次 /admin/callers/api 请求。
@@ -43,7 +43,7 @@ async function readState(app) {
 
 test("group.save 接受顶层扁平字段", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const saved = await callApi(app, {
     action: "group.save",
@@ -64,7 +64,7 @@ test("group.save 接受顶层扁平字段", async (t) => {
 
 test("group.save 拒绝旧的嵌套 payload（不再静默忽略）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 这是修复前的真实形态。后端只读顶层 name，嵌套里写了也不认 ⇒ 必须报错，
   // 而不是「200 但什么都没存」。
@@ -81,7 +81,7 @@ test("group.save 拒绝旧的嵌套 payload（不再静默忽略）", async (t) 
 
 test("key.add 接受顶层扁平字段并透传 enabled=false", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
 
@@ -108,7 +108,7 @@ test("key.add 接受顶层扁平字段并透传 enabled=false", async (t) => {
 
 test("key.add 缺省 enabled 时默认为启用", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
   const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
@@ -120,7 +120,7 @@ test("key.add 缺省 enabled 时默认为启用", async (t) => {
 
 test("key.add 拒绝旧的嵌套 payload", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
   const nested = await callApi(app, {
@@ -136,7 +136,7 @@ test("key.add 拒绝旧的嵌套 payload", async (t) => {
 
 test("key.update 用顶层字段改名换组（旧写法会静默不生效）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
   await callApi(app, { action: "group.save", name: "team-b", allow: ["*"] })
@@ -164,7 +164,7 @@ test("key.update 用顶层字段改名换组（旧写法会静默不生效）", 
 
 test("key.update 的嵌套 patch 形态不会改动任何字段", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
   const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
@@ -188,7 +188,7 @@ test("key.update 的嵌套 patch 形态不会改动任何字段", async (t) => {
 
 test("key.update 换到不存在的分组会报错且不落盘", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
   const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
@@ -204,7 +204,7 @@ test("key.update 换到不存在的分组会报错且不落盘", async (t) => {
 
 test("group.rm 在分组仍被 key 使用时拒绝删除", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
   await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
@@ -219,7 +219,7 @@ test("group.rm 在分组仍被 key 使用时拒绝删除", async (t) => {
 
 test("key.rm 之后 group.rm 可以正常删组", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
   const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
@@ -240,7 +240,7 @@ test("key.rm 之后 group.rm 可以正常删组", async (t) => {
 
 test("state 附带模型清单且不阻塞", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 模型清单来自本进程的网关（startTestApp 会给随机端口起一个）。
   // 这里只钉两件事：形状是字符串数组（前端拿它渲染白名单勾选项），
@@ -257,7 +257,7 @@ test("state 附带模型清单且不阻塞", async (t) => {
 
 test("只接受 POST", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const response = await fetch(`${app.origin}/admin/callers/api`, {
     method: "GET",

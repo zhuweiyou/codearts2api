@@ -15,9 +15,9 @@
  * 而这正是用户最容易误判的场景，所以必须断言 `running`。
  */
 
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
-import { startTestApp, rpc } from "./helpers.mjs"
+import { startTestApp, rpc } from "./helpers"
 
 /** 构造一份含一个 codearts 账号的最小备份载荷。 */
 function backupPayload(accountId, credentialRef) {
@@ -51,7 +51,7 @@ function backupPayload(accountId, credentialRef) {
 
 test("多渠道账号：导入 → 列表 → 停用 → 删除", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // ① 导入一个账号（凭据 + 索引一起写入）。
   const imported = await rpc(app.origin, "backup.import", {
@@ -100,7 +100,7 @@ test("多渠道账号：导入 → 列表 → 停用 → 删除", async (t) => {
 
 test("备份导出 → 导入往返保持一致", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   await rpc(app.origin, "backup.import", {
     payload: backupPayload("codearts-ROUND01", "CODEARTS_ACCOUNT_ROUND01"),
@@ -123,7 +123,7 @@ test("备份导出 → 导入往返保持一致", async (t) => {
 
 test("网关：默认开启并真的在监听", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const status = await rpc(app.origin, "gateway.getEnabled", {})
   assert.equal(status.ok, true)
@@ -147,7 +147,7 @@ test("网关：默认开启并真的在监听", async (t) => {
 
 test("网关：可即时关闭与重新打开（无需重启）", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const initial = await rpc(app.origin, "gateway.getEnabled", {})
   const { host, port } = initial.value.address
@@ -185,7 +185,7 @@ test("网关：可即时关闭与重新打开（无需重启）", async (t) => {
 
 test("模型开关：可关闭与打开单个模型", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const before = await rpc(app.origin, "model.list", { provider: "codearts" })
   assert.equal(before.ok, true)
@@ -217,7 +217,7 @@ test("模型开关：可关闭与打开单个模型", async (t) => {
 
 test("供应商级开关：一键关闭与打开", async (t) => {
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const status = await rpc(app.origin, "provider.status", { providers: ["codearts"] })
   assert.equal(status.ok, true)

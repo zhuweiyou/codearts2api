@@ -15,12 +15,12 @@
  * 「凭据未配置」。现已改为复用官方 `@deepseek-ai/dsh-credentials-local`。
  */
 
-import { test } from "node:test"
+import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { startTestApp, rpc } from "./helpers.mjs"
+import { startTestApp, rpc } from "./helpers"
 
 test("用 CODEARTS2API_HOME 解析 home，且与 DSH 隔离", async (t) => {
   // 模拟「装过 DSH 的机器」：环境里已有一个 DSH 的 home 变量。
@@ -29,7 +29,7 @@ test("用 CODEARTS2API_HOME 解析 home，且与 DSH 隔离", async (t) => {
   process.env.DSH_JET_HUB_STATE_DIR = decoy
 
   const app = await startTestApp()
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   // 我们的 home 必须是自己那份，不能是 DSH 的。
   // ⚠️ 只比 `decoy` 是不够的：`startTestApp` 已把 `JET_HUB_STATE_DIR` 覆盖成
@@ -92,7 +92,7 @@ test("既有凭据可被读取（不会被报「凭据未配置」）", async (t
   )
 
   const app = await startTestApp({ home })
-  t.after(() => app.close())
+  t.onTestFinished(() => app.close())
 
   const listed = await rpc(app.origin, "account.list", { provider: "buddy" })
   assert.equal(listed.ok, true)
