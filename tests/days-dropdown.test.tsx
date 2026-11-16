@@ -34,8 +34,9 @@ test("点击面板内部 → 不收起", () => {
   assert.equal(props.setOpen.mock.calls.length, 0)
 })
 
-test("点切换按钮 → 切换 open", () => {
+test("点切换按钮 → setOpen(false)（当前 daysOpen=true）", () => {
   const props = setup()
   fireEvent.click(screen.getByRole("button", { name: /未选择|默认今天|点击/ }))
-  assert.equal(props.setOpen.mock.calls.length >= 1, true)
+  assert.equal(props.setOpen.mock.calls.length, 1)
+  assert.equal(props.setOpen.mock.calls[0][0], false)
 })

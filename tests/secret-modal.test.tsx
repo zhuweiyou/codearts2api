@@ -1,18 +1,18 @@
 /** @vitest-environment jsdom */
 import assert from "node:assert/strict"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { afterEach, test } from "vite-plus/test"
+import { afterEach, test, vi } from "vite-plus/test"
 
 import { SecretModal } from "../web/pages/callers/SecretModal.tsx"
 
 afterEach(cleanup)
 
-test("Esc 不关闭，只提示先复制", () => {
-  render(<SecretModal secret="sk-abc" onClose={() => {}} />)
+test("Esc 不关闭（onClose 不被调用），只提示先复制", () => {
+  const onClose = vi.fn()
+  render(<SecretModal secret="sk-abc" onClose={onClose} />)
   fireEvent.keyDown(document, { key: "Escape" })
-  // 弹窗仍在
-  assert.ok(screen.queryByRole("dialog"))
-  // 出现「先复制」提示
+  assert.ok(screen.queryByRole("dialog")) // 弹窗仍在
+  assert.equal(onClose.mock.calls.length, 0) // 未关闭
   assert.match(screen.getByText(/只显示一次，请先复制/).textContent ?? "", /请先复制/)
 })
 
