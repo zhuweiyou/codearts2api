@@ -10,47 +10,15 @@
  * 数据全部读本机文件，不向上游发请求（余额除外，有 5 分钟缓存 + 单飞）。
  */
 
-import { readFile, readdir } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
+
+import { readJson, readJsonl } from "../../core/fs-store.ts"
 import { join } from "node:path"
 
 /** 余额缓存时长：5 分钟，避免多个浏览器窗口同时打上游。 */
 const BALANCE_TTL_MS = 5 * 60 * 1000
 const PERMANENT_BALANCE_PROVIDERS = new Set(["cline", "codely"])
 const PERMANENT_PACKAGE_PROVIDERS = new Set(["loomy", "magicrew", "magicrewintl"])
-
-/**
- * 读一个 JSON 文件；不存在或坏掉都返回 `undefined`（看板不该因为少一个文件 500）。
- *
- * ⚠️ 异步读：看板一次快照要读 5~6 个文件（含当日 300KB+ 的用量 JSONL），
- *    同步读会让整个进程在这段时间里停止响应 `/v1` 流式请求。
- */
-async function readJson(file) {
-  try {
-    return JSON.parse(await readFile(file, "utf8"))
-  } catch {
-    return undefined
-  }
-}
-
-async function readJsonl(file) {
-  let text
-  try {
-    text = await readFile(file, "utf8")
-  } catch {
-    return []
-  }
-  return text
-    .split(/\r?\n/)
-    .filter((l) => l.trim())
-    .map((l) => {
-      try {
-        return JSON.parse(l)
-      } catch {
-        return undefined
-      }
-    })
-    .filter(Boolean)
-}
 
 /** 按 UTC+8 取日期字符串。 */
 function utc8Date(d = new Date()) {
@@ -77,7 +45,14 @@ function normalizeExpiry(v) {
  *
  * @param {{dataDir: string, rpc: (method: string, payload?: object) => Promise<any>, gateway?: () => object, logger?: object}} deps
  */
-export function createDashboard(deps) {
+export interface DashboardOptions {
+  dataDir: string
+  rpc: (method: string, payload?: any) => Promise<any>
+  gateway?: () => any
+  logger?: any
+}
+
+export function createDashboard(deps: DashboardOptions) {
   const dataDir = deps.dataDir
   const jetHub = join(dataDir, "jet-hub")
   const usageDir = join(dataDir, "caller-usage")

@@ -1,4 +1,5 @@
 import { AppError } from "../../core/errors.ts"
+import type { Logger } from "../../core/types.ts"
 
 /**
  * 供应商「可用模型」领域服务。
@@ -57,7 +58,12 @@ function summarizeCounts(rows: any[]) {
   return counts
 }
 
-export function createModelsService(options: any = {}) {
+export interface ModelsServiceOptions {
+  rpc: (method: string, payload?: any) => Promise<any>
+  logger?: Logger
+}
+
+export function createModelsService(options: ModelsServiceOptions) {
   const rpc = options.rpc
   const logger = options.logger ?? console
   if (typeof rpc !== "function") throw new Error("models service 需要 rpc 依赖")

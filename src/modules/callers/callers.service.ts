@@ -5,10 +5,12 @@
  * - 校验失败抛 {@link CallerAdminError}（带 status），由控制器转成响应。
  */
 import { createHash, randomBytes } from "node:crypto"
-import { readFile, readdir, rename, stat, writeFile } from "node:fs/promises"
+import { readFile, readdir, stat } from "node:fs/promises"
 import { join } from "node:path"
 
 import { AppError } from "../../core/errors.ts"
+import { writeJsonAtomic } from "../../core/fs-store.ts"
+import type { Logger } from "../../core/types.ts"
 
 const KEY_PREFIX = "p_"
 const STORE_VERSION = 1
@@ -98,7 +100,13 @@ function aggregateByModel(rows: any[]) {
     .sort((a, b) => b.calls - a.calls)
 }
 
-export function createCallersService(options: any = {}) {
+export interface CallersServiceOptions {
+  home: string
+  logger?: Logger
+  masterKeyPath?: string
+}
+
+export function createCallersService(options: CallersServiceOptions) {
   const home = options.home
   const logger = options.logger ?? console
   const storePath = join(home, "caller-keys.json")
@@ -124,10 +132,7 @@ export function createCallersService(options: any = {}) {
   }
 
   async function writeStore(data: any) {
-    const text = JSON.stringify(data, null, 2) + "\n"
-    const tmp = `${storePath}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`
-    await writeFile(tmp, text, { mode: 0o600 })
-    await rename(tmp, storePath)
+    await writeJsonAtomic(storePath, data)
   }
 
   function publicKey(key: any) {
