@@ -475,7 +475,7 @@ if (typeof url === "string" && !url.trim().startsWith("data:")) {
   同机是否跑着别的内部服务），而不是「自用」这个词本身。
 
 **将来若要支持（方案 B）**：在本项目的 `/v1/*` 反代层拦一道
-（`src/server.ts` 的 `proxyToGateway`）—— 检测 http(s) `image_url` → 下载 → 转 base64
+（`src/modules/gateway/gateway.controller.ts` 的 `proxyToGateway`）—— 检测 http(s) `image_url` → 下载 → 转 base64
 data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 
 | 防护                                                                                  | 原因                    |
