@@ -1,4 +1,4 @@
-/** 调用方后端接口（/admin/callers/api）。与 caller-admin.js 的入参契约一致：顶层扁平字段。 */
+/** 调用方后端接口（/admin/callers/api）。入参契约：顶层扁平字段。 */
 const API = "/admin/callers/api"
 
 export interface Group {

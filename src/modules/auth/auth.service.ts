@@ -11,7 +11,7 @@
  * ## 为什么需要 Cookie（而不是只用 Bearer）
  *
  * 浏览器里点开 `/admin` 是一次**文档导航**，导航请求**不可能**带 `Authorization`
- * 头（这是浏览器行为，不是我们的选择）；页面里的 `<script src="/admin.js">`
+ * 头（这是浏览器行为，不是我们的选择）；页面里的 `<script src="/admin/assets/*">`
  * 同理。所以「页面本身也要拦住」只有两条路：
  *
  * 1. 页面公开、只拦 API（参考仓库 workbuddy2api-panel 的取舍）——
@@ -209,7 +209,7 @@ export function isAdminAuthorized(request, key) {
  * - `HttpOnly`：JS 读不到（XSS 拿不走，也算不出）；
  * - `SameSite=Lax`：跨站 POST 不携带，挡住最简单的 CSRF；同时不影响用户从
  *   书签 / 外链点进 `/admin`（那是顶层 GET 导航，Lax 允许）；
- * - `Path=/`：`/api/jet-hub` 与 `/admin.js` 都要带；
+ * - `Path=/`：`/api/jet-hub` 与 `/admin/assets/*` 都要带；
  * - `Secure`：仅在 HTTPS 下加。**刻意不默认开启** —— 本服务自身只提供明文
  *   HTTP，若默认带 `Secure`，用户按 README 直连 `http://ip:8080` 时浏览器
  *   会**静默不存**这个 Cookie，表现为「密码输对了但还是让我登录」，极难排查。

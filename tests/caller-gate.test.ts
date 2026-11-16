@@ -19,7 +19,7 @@
  *
  * 判定逻辑全在 `inspect` 里，起一个 HTTP 服务只会把断言变成「测 fetch 库」。
  * 这里用假的 request（一个带 `headers` 的 Readable）就能覆盖全部分支，
- * 唯一的例外是 `/relay/*` 的鉴权 —— 那条属于 server.js 的鉴权门，在
+ * 唯一的例外是 `/relay/*` 的鉴权 —— 那条属于 server.ts 的鉴权门，在
  * `oauth-relay.test.mjs` 里断言。
  */
 

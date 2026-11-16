@@ -330,7 +330,7 @@ export function createOAuthRelay(options: any = {}) {
       }
       return false
     } catch (error) {
-      // 异常不能外溢：server.js 外层兜底会把它变成 500 并丢掉中继语义
+      // 异常不能外溢：server.ts 外层兜底会把它变成 500 并丢掉中继语义
       logger?.error?.(`[oauth-relay] 处理 ${url.pathname} 失败：${String(error)}`)
       if (!response.headersSent) sendJson(response, 500, { error: String(error) })
       else response.end()

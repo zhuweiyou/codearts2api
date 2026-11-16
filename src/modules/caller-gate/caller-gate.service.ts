@@ -303,7 +303,7 @@ export function createCallerGate(options: any = {}) {
   /**
    * 取「上游网关那把 key」。
    *
-   * `options.upstreamKey` 允许返回字符串或 Promise（`index.js` 里是异步读文件 +
+   * `options.upstreamKey` 允许返回字符串或 Promise（`index.ts` 里是异步读文件 +
    * 短缓存）。这里统一 await，调用方不必关心它是哪一种。
    */
   async function upstreamKeyValue() {
@@ -665,9 +665,9 @@ export function createCallerGate(options: any = {}) {
     sendJson,
     Readable,
     /**
-     * server.js 反代前要用它把调用方的 key 换成上游真 key。
+     * 反代前要用它把调用方的 key 换成上游真 key。
      *
-     * ⚠️ 返回 Promise（`index.js` 里是异步读文件）：上游 key 可能在运行期被换掉，
+     * ⚠️ 返回 Promise（`index.ts` 里是异步读文件）：上游 key 可能在运行期被换掉，
      *    所以不能只在启动时读一次就存死。
      */
     upstreamKey: () => upstreamKeyValue(),

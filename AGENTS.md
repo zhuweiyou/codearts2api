@@ -83,14 +83,22 @@ web/                       # 前端（Vite root，源码根）
     callers/    index.tsx · Section · GroupsTab/KeysTab/UsageTab/RecordsTab · DaysDropdown/FormModal/SecretModal · Callers.module.less
     channels/   index.tsx · ModelsPanel · ModelsPanelHost · ModelsPanel.module.less
 
-src/                       # 后端（Node / Express，TypeScript）
-  index.ts                 进程入口：装配 → 监听 → 优雅退出
-  host.ts                  宿主装配（五服务 + 装插件 + 契约核对）★核心
-  upstream.ts              对上游的契约常量 + RPC 信封
-  server.ts                Express 路由编排（健康检查 / 登录 / /v1 反代 / 鉴权 / 前端 / RPC）
-  http/                    security · body · admin-login · gateway · frontend 分层
-  home.ts logger.ts admin-auth.ts admin-login-page.ts connection.ts
-  caller-gate.ts caller-admin.ts （已移除 caller-cli） dashboard-admin.ts models-admin.ts oauth-relay.ts
+src/                       # 后端（Node / Express，TypeScript，按职责分层）
+  index.ts                 进程入口：配置 → 装配 → 监听 → 信号退出
+  server.ts                Express 应用装配（路由挂载）
+  config/env.ts            环境变量解析（PORT/HOST/PROXY_GATEWAY/ADMIN_AUTH）
+  core/                    home · logger · upstream(契约) · connection
+  host/host.ts             上游宿主装配（五服务 + 装插件 + 契约核对）★核心
+  http/                    body · security · request（HTTP 基础设施/适配）
+  modules/                 领域模块（controller=HTTP 适配，service=业务）
+    auth/                  auth.service · login.controller · login-page.view
+    callers/               callers.service · callers.controller
+    caller-gate/           caller-gate.service（运行时鉴权/白名单/记账）
+    dashboard/             dashboard.service · dashboard.controller
+    models/                models.service · models.controller
+    oauth-relay/           oauth-relay.service · oauth-relay.controller
+    gateway/               gateway.service · gateway.controller · gateway-key.service
+    frontend/              frontend.controller
 
 tests/                     # 行为/UI 测试（Vitest，*.test.{ts,tsx}；组件用 jsdom）
 vite.config.ts             # vp 配置：root=web、全局 fmt/lint/test/build、alias（路由为显式 routes.tsx）

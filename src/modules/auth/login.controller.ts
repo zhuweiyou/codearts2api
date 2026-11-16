@@ -1,4 +1,4 @@
-/** 管理端登录/登出流程（表单登录 → 会话 Cookie），从 server.js 拆出。 */
+/** 管理端登录/登出流程（表单登录 → 会话 Cookie）。 */
 import {
   LOGIN_PATH,
   clientIp,

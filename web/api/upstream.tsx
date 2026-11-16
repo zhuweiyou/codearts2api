@@ -1,10 +1,10 @@
 /**
  * 装载上游浏览器 bundle（`dsh-providers-hub/client`）里的整页组件 `JetHubPage`。
- * 自 `web/admin.jsx` 迁移，逻辑不变：先截留 `__ModuleLoader__.load({id,factory})` 的那一行，
+ * 逻辑：先截留 `__ModuleLoader__.load({id,factory})` 的那一行，
  * 再用桩 ctx 调 `apply()`，从 slots 里捞整页组件。
  *
  * ⚠️ 上游 bundle 只 external 了 react / react-dom 与宿主 UI 原子库
- * （`@deepseek-ai/dsh-client-ui-primitives`，这里用最小替身顶上，理由见 web/admin.jsx 文件头）。
+ * （`@deepseek-ai/dsh-client-ui-primitives`，这里用最小替身顶上，理由见本文件说明）。
  */
 import * as React from "react"
 import { createPortal } from "react-dom"
