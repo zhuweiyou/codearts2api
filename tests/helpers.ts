@@ -93,7 +93,11 @@ export async function startTestApp(options = {}) {
      * zcode 的 captcha 子进程，不收会让 `node --test` 挂住不退出。
      */
     async close() {
-      await new Promise((resolve) => server.close(() => resolve()))
+      await new Promise((resolve) => {
+        server.close(() => resolve())
+        // 强制断开 undici/keep-alive 等残留连接，避免 server.close 在 Windows 上拖到超时
+        server.closeAllConnections?.()
+      })
       await host.close()
     },
   }

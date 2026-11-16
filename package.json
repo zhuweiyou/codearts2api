@@ -16,6 +16,7 @@
     "build:web": "vp build",
     "preview": "vp preview",
     "test": "vp test run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "format": "vp fmt --write .",

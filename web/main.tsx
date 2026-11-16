@@ -25,9 +25,9 @@ function loadUpstream(): Promise<void> {
   })
 }
 
-const el = document.getElementById("admin-root")
+const el = document.getElementById("c2a-root")
 if (!el) {
-  console.error("[admin] 找不到 #admin-root")
+  console.error("[admin] 找不到 #c2a-root")
 } else {
   loadUpstream()
     .then(() => {

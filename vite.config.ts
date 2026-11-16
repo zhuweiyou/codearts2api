@@ -36,7 +36,8 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    // 文件路由：web/pages/*.tsx → 路由；importMode async 让每个路由成为独立 chunk。
+    // 文件路由：约定 pages/<route>/index.tsx 才是页面；内部组件一律放 web/components/**（不在 pages 下）。
+    // 这样无需 exclude 白名单，新增组件也不会被误注册成路由。
     Pages({ dirs: "pages", extensions: ["tsx"], importMode: "async" }),
   ],
   server: {
@@ -84,20 +85,15 @@ export default defineConfig({
     ],
   },
   // Lint（Oxlint）：忽略产物/依赖；src 后端与新前端都在检查范围内。
+  // Lint（Oxlint，非类型感知）：只做语法/风格规则；类型检查交给独立的 `pnpm run typecheck`（tsc，覆盖 web）。
   lint: {
-    ignorePatterns: [
-      "dist/**",
-      "node_modules/**",
-      "coverage/**",
-      "data/**",
-      "attachments/**",
-      "public/admin.js",
-      "public/upstream-jet-hub.js",
-    ],
+    ignorePatterns: ["dist/**", "node_modules/**", "coverage/**", "data/**", "attachments/**"],
   },
   // 测试统一用 Vitest（vp test）。tests 在仓库根，用 ../tests 从 web 根指过去。
   test: {
     environment: "node",
     include: ["../tests/**/*.test.ts"],
+    // Windows / 并行下 app.close()（含插件定时器回收）可能超过默认 10s
+    hookTimeout: 30_000,
   },
 })

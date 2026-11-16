@@ -6,13 +6,13 @@ import { useState } from "react"
 
 import { addKey, removeGroup, removeKey, saveGroup, updateKey, type CallerState } from "../../api/callers"
 import { useCallersData, type CallersTab } from "../../hooks/useCallersData"
-import { FormModal, type FormField } from "./FormModal"
-import { GroupsTab } from "./GroupsTab"
-import { KeysTab } from "./KeysTab"
-import { RecordsTab } from "./RecordsTab"
-import { SecretModal } from "./SecretModal"
-import { UsageTab } from "./UsageTab"
-import styles from "./Callers.module.less"
+import { FormModal, type FormField } from "../../components/callers/FormModal"
+import { GroupsTab } from "../../components/callers/GroupsTab"
+import { KeysTab } from "../../components/callers/KeysTab"
+import { RecordsTab } from "../../components/callers/RecordsTab"
+import { SecretModal } from "../../components/callers/SecretModal"
+import { UsageTab } from "../../components/callers/UsageTab"
+import styles from "../../components/callers/Callers.module.less"
 
 /* ── 主组件 ───────────────────────────────────────────────────── */
 

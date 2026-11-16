@@ -10,8 +10,8 @@ import {
   ModelsSection,
   TrendSection,
   UsageSection,
-} from "./sections"
-import styles from "./Overview.module.less"
+} from "../../components/overview/sections"
+import styles from "../../components/overview/Overview.module.less"
 
 /* ── 主组件 ───────────────────────────────────────────────────── */
 

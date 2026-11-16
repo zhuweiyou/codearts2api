@@ -1,6 +1,8 @@
 import clsx from "clsx"
-import styles from "./Callers.module.less"
+import { useEffect, useRef } from "react"
+
 import { daysText, presetSet, sameSet, wd } from "../../utils/callers-format"
+import styles from "./Callers.module.less"
 
 const PRESETS: [string, string][] = [
   ["latest", "最近一天"],
@@ -25,8 +27,20 @@ export function DaysDropdown({
   toggleDay: (day: string) => void
   applyPreset: (kind: string) => void
 }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+
+  // 点击面板外部即收起（不吞这次点击）；与旧外壳 handleDaysClick 行为一致。
+  useEffect(() => {
+    if (!daysOpen) return
+    function onDocMouseDown(event: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onDocMouseDown)
+    return () => document.removeEventListener("mousedown", onDocMouseDown)
+  }, [daysOpen, setOpen])
+
   return (
-    <div className={clsx(styles.field, styles.fieldDays)}>
+    <div className={clsx(styles.field, styles.fieldDays)} ref={wrapRef}>
       <label>日期（可多选，最多 31 天）</label>
       <div className={styles.dd} data-open={daysOpen ? "1" : "0"}>
         <button type="button" className={styles.ddbtn} onClick={() => setOpen(!daysOpen)}>

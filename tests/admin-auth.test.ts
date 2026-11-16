@@ -156,7 +156,7 @@ test("登录表单能换到会话 Cookie，之后可直接访问页面", async (
   const admin = await fetch(`${app.origin}/admin`, { headers: { ...BROWSER_ACCEPT, cookie } })
   assert.equal(admin.status, 200, "带会话 Cookie 应能打开管理页")
   const adminHtml = await admin.text()
-  assert.match(adminHtml, /admin-root/, "应返回真实的管理页面")
+  assert.match(adminHtml, /c2a-root/, "应返回真实的管理页面")
 })
 
 test("未授权的 401 JSON 不回显密钥位置与来源", async (t) => {
