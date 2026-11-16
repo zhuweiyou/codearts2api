@@ -1,0 +1,108 @@
+/* GroupsTab 组件样式（由 Callers.module.less 拆分）。 */
+
+.tbl th {
+  background: var(--c2a-surface-2);
+  color: var(--c2a-text-3);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c2a-border-soft);
+  white-space: nowrap;
+}
+
+.tbl td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c2a-border-soft);
+  color: var(--c2a-text-2);
+  font-size: 13px;
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+.tbl tbody tr:hover > td {
+  background: var(--c2a-surface-2);
+}
+
+.tbl tr:last-child > td {
+  border-bottom: 0;
+}
+
+.tbl .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tblFixed {
+  table-layout: fixed;
+}
+
+.tblWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--c2a-border-soft);
+  border-radius: 8px;
+}
+
+.tblFixed td,
+.tblFixed th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.muted {
+  color: var(--c2a-text-3);
+}
+
+.empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--c2a-text-3);
+  font-size: 13px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 20px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--c2a-border-soft);
+  background: var(--c2a-surface-2);
+  color: var(--c2a-text-3);
+  white-space: nowrap;
+}
+
+.wrap {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.ops {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 720px) {
+  .tblWrap > .tbl {
+    min-width: 680px;
+  }
+}
+
+@keyframes c2aRecFresh {
+  from {
+    background: var(--c2a-brand-soft);
+  }
+  to {
+    background: transparent;
+  }
+}

@@ -3,7 +3,7 @@ import clsx from "clsx"
 import { type CallerState } from "../../api/callers"
 import { fmt, fmtTokens } from "../../utils/callers-format"
 import { Section } from "./Section"
-import styles from "./Callers.module.less"
+import styles from "./UsageTab.module.less"
 
 /* ── 用量 ─────────────────────────────────────────────────────── */
 

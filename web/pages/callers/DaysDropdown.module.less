@@ -1,0 +1,247 @@
+/* DaysDropdown 组件样式（由 Callers.module.less 拆分）。 */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field label {
+  font-size: 12px;
+  color: var(--c2a-text-2);
+  line-height: 16px;
+}
+
+.field select,
+.field input {
+  box-sizing: border-box;
+  height: 28px;
+  border: 1px solid var(--c2a-border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--c2a-surface);
+  color: var(--c2a-text-2);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field select:hover,
+.field input:hover {
+  border-color: color-mix(in srgb, var(--c2a-text-3) 50%, var(--c2a-border));
+}
+
+.field select:focus,
+.field input:focus {
+  border-color: var(--c2a-brand);
+}
+
+.fieldDays {
+  position: relative;
+}
+
+.dd {
+  position: relative;
+  display: inline-block;
+}
+
+.ddbtn {
+  box-sizing: border-box;
+  height: 28px;
+  min-width: 196px;
+  max-width: 260px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+  border: 1px solid var(--c2a-border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--c2a-surface);
+  color: var(--c2a-text-2);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.ddbtn:hover {
+  border-color: color-mix(in srgb, var(--c2a-text-3) 50%, var(--c2a-border));
+}
+
+.dd[data-open="1"] .ddbtn {
+  border-color: var(--c2a-brand);
+}
+
+.ddbtn > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ddarrow {
+  flex: 0 0 auto;
+  color: var(--c2a-text-3);
+  font-size: 10px;
+}
+
+.ddpanel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 252px;
+  background: var(--c2a-surface);
+  border: 1px solid var(--c2a-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+}
+
+.ddpanel[hidden] {
+  display: none;
+}
+
+.ddpre {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--c2a-border-soft);
+}
+
+.preset {
+  appearance: none;
+  border: 1px solid var(--c2a-border);
+  background: var(--c2a-surface);
+  color: var(--c2a-text-2);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 20px;
+  padding: 0 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.preset:hover {
+  color: var(--c2a-brand);
+  border-color: color-mix(in srgb, var(--c2a-brand) 35%, var(--c2a-border));
+  background: var(--c2a-brand-soft);
+}
+
+.preset.on {
+  color: #fff;
+  background: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+}
+
+.ddlist {
+  max-height: 196px;
+  overflow: auto;
+}
+
+.ddrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--c2a-text-2);
+}
+
+.ddrow:hover {
+  background: var(--c2a-surface-2);
+}
+
+.ddbox {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--c2a-border);
+  border-radius: 3px;
+  background: var(--c2a-surface);
+  position: relative;
+  box-sizing: border-box;
+}
+
+.ddrow.on .ddbox {
+  background: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+}
+
+.ddrow.on .ddbox::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+
+.ddlab {
+  flex: 1 1 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.ddw {
+  flex: 0 0 auto;
+  color: var(--c2a-text-3);
+  font-size: 11px;
+}
+
+.ddempty {
+  padding: 10px 6px;
+  color: var(--c2a-text-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .field {
+    flex: 1 1 140px;
+  }
+  .ddbtn {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .fieldDays {
+    flex: 1 1 100%;
+  }
+  .dd {
+    display: block;
+    width: 100%;
+  }
+  .dd .ddbtn {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .dd .ddpanel {
+    position: static;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 6px;
+    box-shadow: none;
+  }
+}
+
+@keyframes c2aRecFresh {
+  from {
+    background: var(--c2a-brand-soft);
+  }
+  to {
+    background: transparent;
+  }
+}

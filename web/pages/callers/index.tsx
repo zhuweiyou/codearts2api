@@ -12,7 +12,7 @@ import { KeysTab } from "./KeysTab"
 import { RecordsTab } from "./RecordsTab"
 import { SecretModal } from "./SecretModal"
 import { UsageTab } from "./UsageTab"
-import styles from "./Callers.module.less"
+import styles from "./index.module.less"
 
 /* ── 主组件 ───────────────────────────────────────────────────── */
 

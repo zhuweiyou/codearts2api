@@ -7,7 +7,7 @@ import { dayHead, fmt, fmtMs, fmtTokens, localDay, recKey, statusReason } from "
 import { hhmmss } from "../../utils/time"
 import { DaysDropdown } from "./DaysDropdown"
 import { Section } from "./Section"
-import styles from "./Callers.module.less"
+import styles from "./RecordsTab.module.less"
 
 /* ── 调用记录 ─────────────────────────────────────────────────── */
 
