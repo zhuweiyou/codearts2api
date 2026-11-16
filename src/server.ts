@@ -9,25 +9,22 @@ import { createServer } from "node:http"
 import cookieParser from "cookie-parser"
 import express from "express"
 
-import { LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
-import { clientIp } from "./core/request.ts"
+import { LoginThrottle } from "./modules/auth/auth.service.ts"
 import { createErrorHandler } from "./http/error.ts"
 import { createCallersController } from "./modules/callers/callers.controller.ts"
 import { createCallersService } from "./modules/callers/callers.service.ts"
 import { createDashboardController } from "./modules/dashboard/dashboard.controller.ts"
+import { createAdminGuard } from "./http/admin-guard.ts"
 import { createAuthRouter } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
 import { serveFrontend } from "./modules/frontend/frontend.controller.ts"
 import { createGatewayController } from "./modules/gateway/gateway.controller.ts"
 import { providerIds, readGatewayState } from "./modules/gateway/gateway.service.ts"
-import { needsAdminAuth, respondUnauthorized, send, sendAdmin, sendAdminJson } from "./http/security.ts"
+import { send, sendAdmin, sendAdminJson } from "./http/security.ts"
 import { createModelsController } from "./modules/models/models.controller.ts"
 import { createModelsService } from "./modules/models/models.service.ts"
 import { createOAuthRelay } from "./modules/oauth-relay/oauth-relay.controller.ts"
 import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./core/upstream.ts"
-
-// 兼容旧引用。
-export { needsAdminAuth } from "./http/security.ts"
 
 /** node req/res ↔ WHATWG Request/Response 适配。 */
 async function toWebRequest(request, href) {
@@ -123,6 +120,7 @@ export async function createHttpServer(host, options: any = {}) {
     upstreamTimeoutMs: options.upstreamTimeoutMs,
   })
   const authRouter = createAuthRouter({ adminKeyEnabled, adminKey, throttle, logger })
+  const adminGuard = createAdminGuard({ adminKeyEnabled, adminKey, throttle })
 
   const app = express()
   app.disable("x-powered-by")
@@ -185,38 +183,29 @@ export async function createHttpServer(host, options: any = {}) {
     }),
   )
 
-  // 管理端鉴权门（其余一切）
-  app.use((req, res, next) => {
-    const url = urlOf(req)
-    if (adminKeyEnabled() && needsAdminAuth(url.pathname) && !isAdminAuthorized(req, adminKey)) {
-      // 对「带 Bearer 猜管理密钥」的请求也计入限速，防止绕过 /admin/login 的限速
-      const authorization = String(req.headers.authorization ?? "")
-      if (authorization.startsWith("Bearer ")) {
-        const ip = clientIp(req)
-        throttle.fail(ip)
-        const limited = throttle.check(ip)
-        if (limited !== null) {
-          sendAdminJson(res, 429, { error: `尝试过于频繁，请 ${limited.retryAfter} 秒后再试。` })
-          return
-        }
-      }
-      respondUnauthorized(req, res, url)
-      return
-    }
-    next()
-  })
+  // 受保护前缀的大小写不敏感兜底：Express 路由 case-sensitive 后，大写变体不会被下面的小写
+  // 路由命中，但也绝不能落到 SPA；这里统一按前缀跑鉴权中间件（仍返回 401/302，而不是 200 页面）。
+  const protectedApi = express.Router({ caseSensitive: false })
+  protectedApi.use(
+    ["/api/jet-hub", "/relay", "/admin/callers/api", "/admin/dashboard/api", "/admin/models/api", "/admin/oauth-relay"],
+    adminGuard,
+  )
+  app.use(protectedApi)
 
   // 调用方管理：只路由 API（/admin/callers/api）。页面由前端 SPA 提供，
   // 避免 caller-admin 里的旧独立页（PAGE_PATH=/admin/callers）抢先响应 SPA 路由。
-  app.use("/admin/callers/api", callerAdmin.router)
-  app.use("/admin/dashboard/api", dashboardAdmin.router)
-  app.use("/admin/models/api", modelsAdmin.router)
-  app.use("/relay", oauthRelay.relayRouter)
-  app.use("/admin/oauth-relay", oauthRelay.replayRouter)
+  const adminApi = express.Router()
+  adminApi.use("/callers/api", adminGuard, callerAdmin.router)
+  adminApi.use("/dashboard/api", adminGuard, dashboardAdmin.router)
+  adminApi.use("/models/api", adminGuard, modelsAdmin.router)
+  adminApi.use("/oauth-relay", adminGuard, oauthRelay.replayRouter)
+  app.use("/admin", adminApi)
+  app.use("/relay", adminGuard, oauthRelay.relayRouter)
 
   // Jet Hub 管理 RPC
   app.all(
     JET_HUB_PATH,
+    adminGuard,
     a(async (req, res) => {
       const outcome = await host.handleRpc(JET_HUB_PATH, await toWebRequest(req, urlOf(req).href))
       if (outcome === undefined) {
