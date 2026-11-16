@@ -13,5 +13,5 @@ packages:
 #     URL（含 commit），升级上游 commit 时由 scripts/upgrade-upstream.mjs 自动改写本行；
 #   - esbuild：postinstall 要落平台二进制。
 allowBuilds:
-  'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/f6fb8dfe61a0be6deebc8b0388dff504b7242a38': true
+  'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/664db471f2e1b0a5507a6039c16162c2b11a402b': true
   esbuild: true
