@@ -1,0 +1,114 @@
+.empty {
+  composes: empty from "./shared.module.less";
+}
+
+.scope .tabs {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid var(--c2a-border);
+  margin: 0 0 14px;
+}
+
+.scope .tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0 0 9px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  color: var(--c2a-text);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+
+.scope .tab:hover {
+  color: var(--c2a-brand);
+}
+
+.scope .tab.on {
+  color: var(--c2a-brand);
+  border-bottom-color: var(--c2a-brand);
+  font-weight: 600;
+}
+
+.scope .tab .n {
+  font-size: 11px;
+  color: var(--c2a-text-3);
+  margin-left: 5px;
+  font-weight: 400;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .scope .tabs {
+    gap: 18px;
+  }
+}
+
+.scope :global(.dim-jh-btn) {
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 13px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--c2a-text-2);
+  background: var(--c2a-surface);
+  border: 1px solid var(--c2a-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background-color 0.15s;
+  white-space: nowrap;
+}
+
+.scope :global(.dim-jh-btn):hover {
+  color: var(--c2a-brand);
+  border-color: color-mix(in srgb, var(--c2a-brand) 35%, var(--c2a-border));
+  background: var(--c2a-brand-soft);
+}
+
+.scope :global(.dim-jh-btn):active {
+  color: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+}
+
+.scope :global(.dim-jh-btn)[data-act$="-rm"] {
+  color: var(--c2a-err);
+}
+
+.scope :global(.dim-jh-btn)[data-act$="-rm"]:hover {
+  color: var(--c2a-err);
+  border-color: color-mix(in srgb, var(--c2a-err) 40%, var(--c2a-border));
+  background: var(--c2a-err-soft);
+}
+
+.scope :global(.dim-jh-btn)[data-act$="-new"],
+.scope :global(.dim-jh-btn)[data-act="rec-apply"] {
+  color: #fff;
+  background: var(--c2a-brand);
+  border-color: var(--c2a-brand);
+  height: 30px;
+  padding: 0 16px;
+}
+
+.scope :global(.dim-jh-btn)[data-act$="-new"]:hover,
+.scope :global(.dim-jh-btn)[data-act="rec-apply"]:hover {
+  color: #fff;
+  background: color-mix(in srgb, var(--c2a-brand) 85%, #000);
+  border-color: var(--c2a-brand);
+}

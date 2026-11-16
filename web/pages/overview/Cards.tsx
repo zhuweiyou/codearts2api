@@ -1,6 +1,6 @@
 import clsx from "clsx"
 
-import styles from "./Overview.module.less"
+import styles from "./Cards.module.less"
 
 export function Cards({ children }: { children: React.ReactNode }) {
   const count = Array.isArray(children) ? children.flat().filter(Boolean).length : 1

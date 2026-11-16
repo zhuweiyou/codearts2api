@@ -1,4 +1,4 @@
-import styles from "./Overview.module.less"
+import styles from "./Section.module.less"
 
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

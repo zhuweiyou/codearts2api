@@ -1,92 +1,51 @@
 # syntax=docker/dockerfile:1
 
-# 基础镜像要满足两个条件：
-# 1. Node ≥ 22.19（上游 `engines` 的下限，也是 `AbortSignal.any` 等 API 的前提）；
-# 2. 带 pnpm —— git 依赖的 `prepare` 脚本会执行 `pnpm build:all`。
-#
-# ⚠️ **为什么是 24 而不是 22**（2026-10-21 换）：Node 22 已于 2026-10-20 转入
-#    Maintenance LTS，**2027-04-30 EOL**（只剩半年多）；Node 24 的 EOL 是 2028-04-30。
-#    上游 `engines` 为 `^22.19.0 || >=24.0.0`；本仓库收紧为 `^22.19.0 || ^24.11.0 || >=26.0.0`（对齐 vite-plus），node:24-slim 满足。
-#    26 要到 2026-10-28 才转 Active LTS（EOL 2029-04-30），届时可再升。
-FROM node:24-slim
-
-# git：pnpm 要从 GitHub 克隆依赖；ca-certificates：TLS 根证书。
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends git ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-
-# ── pnpm：显式钉版本 ──
-# 上游的 `prepare` 是 `pnpm build:all`，所以装依赖时**必须**有 pnpm 可用。
-#
-# ⚠️ 上游 2026-10-21 的 b0940ca 之后 `prepare` 已改成内联真实命令、不再依赖任何
-#    包管理器。但**本仓库锁定的 commit 可能还没到那一步**（升级是逐个 commit 走的），
-#    所以这里**继续保留 pnpm** —— 留着无害，去掉则会在旧 commit 上装不上。
-#
-# ⚠️ 不用裸 `corepack enable`：那会让 corepack 用**它自己内置的默认版本**，
-#    该默认值随 Node 镜像版本漂移（本仓库开发机上实测拿到 11.25.0，但别的
-#    Node 小版本可能不同），构建因此不可复现。这里显式 `prepare --activate`
-#    钉住版本，与开发机一致。
-#
-# ⚠️ 不在 package.json 里写 `packageManager` 字段：统一在镜像里用 corepack 钉 pnpm 版本，
-#    保证 Docker 构建与 CI / 本地用同一个 pnpm（CI 用 pnpm/action-setup 钉同一版本）。
-RUN corepack enable && corepack prepare pnpm@11.25.0 --activate \
-  && pnpm --version
-
+# ── 构建阶段：装依赖（含 dev）→ 构建 dist/ 与 dist-server/ → 剪掉 dev 依赖 ──
+FROM node:24-slim AS build
 WORKDIR /app
 
-# ── 依赖层：先只拷清单，让这一层能被缓存 ──
-# ⚠️ 用 pnpm 安装（不是 npm）：上游 `dsh-providers-hub` 是 git 依赖，它自带
-#    pnpm-lock.yaml 锁定 `@deepseek-ai/dsh-*` 到编译验证过的版本；npm 不读上游
-#    lock，会解析到 registry 上最新版（失败码枚举改名），导致上游 prepare 的 tsc 失败。
-#    `pnpm-workspace.yaml` 的 allowBuilds 放行上游 prepare 与 Vite+ 的构建脚本。
-#
-# ⚠️ 必须装 devDependencies：前端 `dist/(前端产物)` 由 Vite+ + react 在镜像
-#    构建期产出，`pnpm run build` 需要 Vite+ 二进制与 react 源码作为输入。
-#    pnpm 默认安装 devDependencies（不加 `--prod`）。
-#
-# 💡 `sharp`（附件服务用来校验/缩放图片）是**原生包**，靠 optionalDependencies
-#    分发平台二进制。lockfile 里已含 linux-x64 / linuxmusl-x64 等全部平台条目，
-#    故 Debian 基底能直接装上，不需要额外 apt 依赖（预编译包自带 libvips）。
-#
-# ⚠️ `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` **不能删**：pnpm 11 有「新包冷却期」
-#    （默认拒绝装上发布不足 24 小时的包），而上游会把它**刚发布**的 DSH 基础包
-#    （`@deepseek-ai/dsh-*`）写进自己的 `pnpm-lock.yaml`，于是 prepare 直接失败。
-#    ⚠️ 只有这个**环境变量**能穿透到 pnpm 的子进程 —— `.npmrc` 与 `npm_config_*`
-#    均已实测无效。删掉这行，镜像会在上游每次发版后约 24 小时内构建失败。
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 pnpm install --frozen-lockfile
+# git：pnpm 要克隆 git 依赖；ca-certificates：TLS 校验
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
-# ── 源码与前端构建 ──
+# 显式钉 pnpm 版本：corepack 的默认版本会随 Node 镜像漂移，构建不可复现
+RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
+
+# 先只拷清单，让依赖层能被缓存。pnpm-workspace.yaml 里的 overrides / allowBuilds
+# 会影响解析与 prepare，必须一起进镜像。
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 必须用环境变量：只有它能穿透到 pnpm 的子进程，
+# 绕过 pnpm 11 的「新包冷却期」（上游会把刚发布的 dsh-* 写进自己的 lock）。
+# 缓存挂载只加速重装，不进镜像层。
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+  PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 pnpm install --frozen-lockfile
+
 COPY . .
-# 前端由 Vite+（vp build）产出到 dist/，不入库；每次镜像构建都重生成，
-# 保证前端与所锁定的上游 commit 一致。
 RUN pnpm run build
 
-# ── 运行 ──
-# 本程序自己的状态目录（账号池、凭据、网关 API Key、管理密钥都在这下面），
-# 挂卷即可持久化；不挂则容器重启后账号会丢。
-# ⚠️ 用 CODEARTS2API_HOME 而不是 DSH_HOME：后者是 DSH 的变量，本程序启动时
-#    会把它覆盖成自己的目录，写在这里容易误导（也不生效）。
+# 剪掉 devDependencies：运行期只需要 express / @deepseek-ai/* / dsh-providers-hub。
+# 不 prune 的话 vite-plus、typescript、jsdom 等都会被打进运行镜像。
+RUN pnpm prune --prod
+
+# ── 运行阶段：只带运行产物与运行期依赖 ──
+FROM node:24-slim AS runtime
+WORKDIR /app
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-server ./dist-server
+
+ENV NODE_ENV=production
+# 本程序自己的状态目录（账号池、凭据、网关 Key、管理密钥），挂卷持久化
 ENV CODEARTS2API_HOME=/data
 ENV PORT=8080
-# 插件网关的**监听地址**被上游硬编码为 127.0.0.1（不可经 env 改），所以容器外
-# 无法直达它 —— 必须让本服务把 /v1/* 转发进来，对外只需一个端口。
-#
-# ⚠️ 这行现在是**冗余**的：产品默认已开启（见 src/index.ts 的 resolveProxyGateway）。
-#    保留它是为了「将来默认值再变时，镜像行为不跟着漂」。
+# 上游网关的监听地址硬编码为 127.0.0.1，容器外无法直达，因此由本服务反代 /v1/*
 ENV PROXY_GATEWAY=1
-# 管理端鉴权默认开启：独立于网关 Key 的管理密钥会自动生成到 /data/admin-key。
-# ⚠️ 这里**刻意不设** CODEARTS2API_ADMIN_KEY —— 让每个部署实例各自随机生成。
-#    若写死一个值，所有用这个镜像的人就共用同一把后台密码。
-#    需要固定值时由使用者自己 `-e CODEARTS2API_ADMIN_KEY=...` 覆盖。
-# 网关仍是本机回环上的独立端口（由插件自己监听），仅容器内部使用。
 ENV DSH_OPENAI_GATEWAY_PORT=8326
 
 VOLUME ["/data"]
-# 8080：管理界面 /admin（带登录页）与 OpenAI 兼容接口 /v1/*。
-# 8326 不需要对外暴露。
 EXPOSE 8080
 
-# `pnpm run build` 已含 build:server（tsc → dist-server/）与 build:web（vp → dist/）。
-# 生产直接运行后端编译产物，运行期不再依赖 vite-plus/register。
 CMD ["node", "dist-server/index.js"]

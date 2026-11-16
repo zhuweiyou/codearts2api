@@ -1,44 +1,3 @@
-/* 总览（dashboard）专用的 c2a-* 样式。逐条照搬 src/dashboard-admin.js 的 ensureStyle()，
-   颜色引用上游 CSS 变量并带原生缺省值，保证深色主题自动跟随。 */
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.section {
-  margin: 0;
-  min-width: 0;
-  padding: 14px 16px 16px;
-  border: 1px solid var(--c2a-border, #e5e6eb);
-  border-radius: var(--c2a-radius, 10px);
-  background: var(--c2a-surface, #fff);
-  box-shadow: var(--c2a-shadow, none);
-}
-.sectionTitle {
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 20px;
-  margin: 0 0 10px;
-  color: var(--dsw-alias-label-primary, #1f2329);
-}
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-}
-.cards6 {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-@media (max-width: 1100px) {
-  .cards6 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-@media (max-width: 560px) {
-  .cards6 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 .tblWrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -74,49 +33,6 @@ details.chan > summary:focus-visible {
 }
 .chanBody {
   margin-top: 9px;
-}
-.card {
-  border: 1px solid var(--dsw-alias-border-default, #e5e5e5);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: var(--dsw-alias-bg-layer-3, #fff);
-}
-.card .k {
-  font-size: 11.5px;
-  line-height: 17px;
-  color: var(--dsw-alias-label-tertiary, #8f959e);
-}
-.card .v {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.25;
-  margin-top: 2px;
-  font-variant-numeric: tabular-nums;
-  color: var(--dsw-alias-label-primary, #1f2329);
-}
-.card .v .u {
-  font-size: 11.5px;
-  font-weight: 400;
-  color: var(--dsw-alias-label-tertiary, #8f959e);
-  margin-left: 3px;
-}
-.card .f {
-  font-size: 11px;
-  line-height: 16px;
-  margin-top: 3px;
-  color: var(--dsw-alias-label-tertiary, #8f959e);
-}
-.card.ok .v {
-  color: var(--dsw-alias-state-success-primary, #15803d);
-}
-.card.warn .v {
-  color: var(--dsw-alias-state-warn-primary, #b45309);
-}
-.card.bad .v {
-  color: var(--dsw-alias-state-error-primary, #d93025);
-}
-.card.brand .v {
-  color: var(--dsw-alias-brand-primary, #1677ff);
 }
 .tbl {
   width: 100%;
@@ -303,25 +219,6 @@ details.chan > summary:focus-visible {
   flex-wrap: wrap;
   margin-bottom: 5px;
 }
-.ico {
-  display: inline-flex;
-  width: 20px;
-  height: 20px;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-}
-.ico img {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  object-fit: contain;
-}
-.chanName {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--dsw-alias-label-primary, #1f2329);
-}
 .chanCell {
   display: inline-flex;
   align-items: center;
@@ -353,12 +250,6 @@ details.chan > summary:focus-visible {
   }
 }
 @media (max-width: 720px) {
-  .section {
-    padding: 12px;
-  }
-  .card .v {
-    font-size: 18px;
-  }
   .chanSum {
     margin-left: 0;
     flex-basis: 100%;

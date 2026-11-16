@@ -1,5 +1,5 @@
 import clsx from "clsx"
-import styles from "./Callers.module.less"
+import styles from "./SecretModal.module.less"
 import { useEffect, useRef, useState } from "react"
 
 import { copyText, selectAllText } from "../../utils/clipboard"

@@ -2,7 +2,7 @@ import clsx from "clsx"
 
 import { type CallerState } from "../../api/callers"
 import { Section } from "./Section"
-import styles from "./Callers.module.less"
+import styles from "./GroupsTab.module.less"
 
 /* ── 分组 ─────────────────────────────────────────────────────── */
 

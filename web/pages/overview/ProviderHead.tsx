@@ -1,5 +1,5 @@
 import { providerIconUrl, providerLabel } from "../../api/providers"
-import styles from "./Overview.module.less"
+import styles from "./ProviderHead.module.less"
 
 export function ProviderHead({ provider }: { provider: string }) {
   const url = providerIconUrl(provider)
