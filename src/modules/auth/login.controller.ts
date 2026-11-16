@@ -1,14 +1,7 @@
 /** 管理端登录/登出流程（表单登录 → 会话 Cookie）。 */
-import {
-  LOGIN_PATH,
-  clientIp,
-  clearSessionCookie,
-  constantTimeEquals,
-  isAdminAuthorized,
-  isSecureRequest,
-  sessionCookie,
-} from "./auth.service.ts"
+import { LOGIN_PATH, clearSessionCookie, constantTimeEquals, isAdminAuthorized, sessionCookie } from "./auth.service.ts"
 import { renderLoginPage, sanitizeNext } from "./login-page.view.ts"
+import { clientIp, isSecureRequest } from "../../core/request.ts"
 import { readLoginForm } from "../../http/body.ts"
 import { SECURITY_HEADERS, sendAdmin, sendAdminJson } from "../../http/security.ts"
 

@@ -22,7 +22,7 @@
  * **样式不执行代码**，放宽它换来的是这个页面可以自包含。
  */
 
-import { escapeHtml } from "./auth.service.ts"
+import { escapeHtml } from "../../views/html.ts"
 
 /**
  * 渲染登录页。

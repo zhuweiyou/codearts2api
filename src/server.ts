@@ -9,7 +9,7 @@ import { createServer } from "node:http"
 import express from "express"
 
 import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
-import { API_PATH as CALLER_API_PATH, createCallersController } from "./modules/callers/callers.controller.ts"
+import { createCallersController } from "./modules/callers/callers.controller.ts"
 import { createCallersService } from "./modules/callers/callers.service.ts"
 import { createDashboardController } from "./modules/dashboard/dashboard.controller.ts"
 import { createAdminLoginRoutes } from "./modules/auth/login.controller.ts"
@@ -128,16 +128,6 @@ export async function createHttpServer(host, options: any = {}) {
   const a = (fn) => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next)
   }
-  /** 把 (req,res,url)->boolean 的旧 handler 包成 Express 中间件。 */
-  const mount = (handler) => async (req, res, next) => {
-    try {
-      if (await handler.handle(req, res, urlOf(req))) return
-      next()
-    } catch (err) {
-      next(err)
-    }
-  }
-
   // 健康检查（无鉴权）
   app.get(
     "/healthz",
@@ -206,16 +196,10 @@ export async function createHttpServer(host, options: any = {}) {
 
   // 调用方管理：只路由 API（/admin/callers/api）。页面由前端 SPA 提供，
   // 避免 caller-admin 里的旧独立页（PAGE_PATH=/admin/callers）抢先响应 SPA 路由。
-  app.use(
-    a(async (req, res, next) => {
-      if (urlOf(req).pathname !== CALLER_API_PATH) return next()
-      const handled = await callerAdmin.handle(req, res, urlOf(req))
-      if (!handled) next()
-    }),
-  )
-  app.use(mount(dashboardAdmin))
-  app.use(mount(modelsAdmin))
-  app.use(mount(oauthRelay))
+  app.use(callerAdmin.router)
+  app.use(dashboardAdmin.router)
+  app.use(modelsAdmin.router)
+  app.use(oauthRelay.router)
 
   // Jet Hub 管理 RPC
   app.all(

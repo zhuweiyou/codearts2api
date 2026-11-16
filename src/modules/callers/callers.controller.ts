@@ -1,3 +1,5 @@
+import express from "express"
+
 /**
  * 调用方管理控制器（`/admin/callers/api`）：只做 HTTP 适配 —— 解析 action/body、调用 service、写响应。
  * 业务全部在 {@link createCallersService}。
@@ -95,16 +97,14 @@ export function createCallersController({ service, logger }: { service: CallersS
     }
   }
 
-  /** @returns 是否已处理该请求 */
-  async function handle(request: any, response: any, url: any): Promise<boolean> {
-    if (url.pathname !== API_PATH) return false
+  const router = express.Router()
+  router.all(API_PATH, (request: any, response: any, next: any) => {
     if (request.method !== "POST") {
       sendJson(response, 405, { error: "只支持 POST" })
-      return true
+      return
     }
-    await handleApi(request, response)
-    return true
-  }
+    handleApi(request, response).catch(next)
+  })
 
-  return { handle }
+  return { router }
 }

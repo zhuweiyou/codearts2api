@@ -1,3 +1,5 @@
+import express from "express"
+
 /** 模型清单控制器（/admin/models/api）：仅 HTTP 适配。 */
 import { ModelsError, type ModelsService } from "./models.service.ts"
 
@@ -80,15 +82,14 @@ export function createModelsController({ service, logger }: { service: ModelsSer
     }
   }
 
-  return {
-    async handle(request: any, response: any, url: any) {
-      if (url.pathname !== API_PATH) return false
-      if (request.method !== "POST") {
-        sendJson(response, 405, { error: "只支持 POST" })
-        return true
-      }
-      await handleApi(request, response)
-      return true
-    },
-  }
+  const router = express.Router()
+  router.all(API_PATH, (request: any, response: any, next: any) => {
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "只支持 POST" })
+      return
+    }
+    handleApi(request, response).catch(next)
+  })
+
+  return { router }
 }

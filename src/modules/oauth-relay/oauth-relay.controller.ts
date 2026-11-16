@@ -1,3 +1,5 @@
+import express from "express"
+
 // OAuth 回调中继：把上游硬绑 127.0.0.1:<随机端口> 的登录页/回调，搬到公网域名下。
 //
 // 背景：上游 provider 的 OAuth 回调服务器一律 server.listen(0, "127.0.0.1")，
@@ -318,30 +320,19 @@ export function createOAuthRelay(options: any = {}) {
     sendJson(response, 200, { ok: upstream.ok, status: upstream.status, port: parsed.port, target, snippet })
   }
 
-  async function handle(request, response, url) {
-    try {
-      if (url.pathname.startsWith(RELAY_PREFIX)) {
-        await proxy(request, response, url)
-        return true
-      }
-      if (url.pathname === REPLAY_PATH) {
-        await replay(request, response)
-        return true
-      }
-      return false
-    } catch (error) {
-      // 异常不能外溢：server.ts 外层兜底会把它变成 500 并丢掉中继语义
-      logger?.error?.(`[oauth-relay] 处理 ${url.pathname} 失败：${String(error)}`)
-      if (!response.headersSent) sendJson(response, 500, { error: String(error) })
-      else response.end()
-      return true
-    }
-  }
+  const router = express.Router()
+  router.use(RELAY_PREFIX, (request: any, response: any, next: any) => {
+    const url = new URL(request.originalUrl ?? request.url ?? "/", "http://127.0.0.1")
+    proxy(request, response, url).catch(next)
+  })
+  router.all(REPLAY_PATH, (request: any, response: any, next: any) => {
+    replay(request, response).catch(next)
+  })
 
-  return { handle }
+  return { router }
 }
 
-function sendJson(response, status, value) {
+function sendJson(response: any, status: number, value: any) {
   const body = Buffer.from(JSON.stringify(value), "utf8")
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
