@@ -1,39 +1,5 @@
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.field label {
-  font-size: 12px;
-  color: var(--c2a-text-2);
-  line-height: 16px;
-}
-
-.field select,
-.field input {
-  box-sizing: border-box;
-  height: 28px;
-  border: 1px solid var(--c2a-border);
-  border-radius: 4px;
-  padding: 0 8px;
-  font: inherit;
-  font-size: 12px;
-  background: var(--c2a-surface);
-  color: var(--c2a-text-2);
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.field select:hover,
-.field input:hover {
-  border-color: color-mix(in srgb, var(--c2a-text-3) 50%, var(--c2a-border));
-}
-
-.field select:focus,
-.field input:focus {
-  border-color: var(--c2a-brand);
+  composes: field from "./shared.module.less";
 }
 
 .fieldDays {
@@ -232,14 +198,5 @@
     box-sizing: border-box;
     margin-top: 6px;
     box-shadow: none;
-  }
-}
-
-@keyframes c2aRecFresh {
-  from {
-    background: var(--c2a-brand-soft);
-  }
-  to {
-    background: transparent;
   }
 }

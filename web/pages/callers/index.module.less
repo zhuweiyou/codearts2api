@@ -1,8 +1,5 @@
-.scope .empty {
-  padding: 28px 12px;
-  text-align: center;
-  color: var(--c2a-text-3);
-  font-size: 13px;
+.empty {
+  composes: empty from "./shared.module.less";
 }
 
 .scope .tabs {
@@ -114,24 +111,4 @@
   color: #fff;
   background: color-mix(in srgb, var(--c2a-brand) 85%, #000);
   border-color: var(--c2a-brand);
-}
-
-.scope .ops :global(.dim-jh-btn) {
-  height: 24px;
-  padding: 0 9px;
-  font-size: 11.5px;
-}
-
-.scope .auto :global(.dim-jh-btn) {
-  height: 26px;
-  padding: 0 11px;
-}
-
-@keyframes c2aRecFresh {
-  from {
-    background: var(--c2a-brand-soft);
-  }
-  to {
-    background: transparent;
-  }
 }

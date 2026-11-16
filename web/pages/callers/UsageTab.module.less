@@ -1,99 +1,39 @@
-.tbl th {
-  background: var(--c2a-surface-2);
-  color: var(--c2a-text-3);
-  font-weight: 600;
-  font-size: 13px;
-  text-align: left;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--c2a-border-soft);
-  white-space: nowrap;
-}
-
-.tbl td {
-  text-align: left;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--c2a-border-soft);
-  color: var(--c2a-text-2);
-  font-size: 13px;
-  vertical-align: middle;
-  line-height: 1.5;
-}
-
-.tbl tbody tr:hover > td {
-  background: var(--c2a-surface-2);
-}
-
-.tbl tr:last-child > td {
-  border-bottom: 0;
-}
-
-.tbl .num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+.tbl {
+  composes: tbl from "./shared.module.less";
 }
 
 .tblWrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--c2a-border-soft);
-  border-radius: 8px;
+  composes: tblWrap from "./shared.module.less";
+}
+
+.num {
+  composes: num from "./shared.module.less";
 }
 
 .muted {
-  color: var(--c2a-text-3);
+  composes: muted from "./shared.module.less";
 }
 
 .empty {
-  padding: 28px 12px;
-  text-align: center;
-  color: var(--c2a-text-3);
-  font-size: 13px;
+  composes: empty from "./shared.module.less";
 }
 
 .badge {
-  display: inline-block;
-  padding: 0 7px;
-  border-radius: 4px;
-  font-size: 12px;
-  line-height: 20px;
-  border: 1px solid;
-  white-space: nowrap;
+  composes: badge from "./shared.module.less";
 }
 
-.badge.ok {
-  color: var(--c2a-ok);
-  border-color: color-mix(in srgb, var(--c2a-ok) 30%, var(--c2a-border));
-  background: var(--c2a-ok-soft);
+.ok {
+  composes: ok from "./shared.module.less";
 }
 
-.badge.bad {
-  color: var(--c2a-err);
-  border-color: color-mix(in srgb, var(--c2a-err) 30%, var(--c2a-border));
-  background: var(--c2a-err-soft);
+.bad {
+  composes: bad from "./shared.module.less";
 }
 
-.badge.off {
-  color: var(--c2a-text-3);
-  border-color: var(--c2a-border-soft);
-  background: var(--c2a-surface-2);
+.off {
+  composes: off from "./shared.module.less";
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-}
-
-@media (max-width: 720px) {
-  .tblWrap > .tbl {
-    min-width: 680px;
-  }
-}
-
-@keyframes c2aRecFresh {
-  from {
-    background: var(--c2a-brand-soft);
-  }
-  to {
-    background: transparent;
-  }
+  composes: mono from "./shared.module.less";
 }
