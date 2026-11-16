@@ -146,7 +146,7 @@ function writeHead(response, status, outHeaders) {
   response.writeHead(status, outHeaders)
 }
 
-export function createOAuthRelay(options = {}) {
+export function createOAuthRelay(options: any = {}) {
   const logger = options.logger ?? console
 
   // ── 中继：/relay/<port>/<path> → http://127.0.0.1:<port>/<path> ──
@@ -297,9 +297,9 @@ export function createOAuthRelay(options = {}) {
       sendJson(response, 413, { error: `请求体过大（上限 ${REPLAY_BODY_LIMIT} 字节）` })
       return
     }
-    let payload
+    let payload: any
     try {
-      payload = JSON.parse(raw || "{}")
+      payload = JSON.parse((raw as string) || "{}")
     } catch {
       sendJson(response, 400, { error: "请求体不是合法 JSON" })
       return

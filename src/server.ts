@@ -29,7 +29,7 @@ async function toWebRequest(request, href) {
   for (const [key, value] of Object.entries(request.headers)) {
     if (value === undefined) continue
     if (Array.isArray(value)) for (const item of value) headers.append(key, item)
-    else headers.set(key, value)
+    else headers.set(key, value as string)
   }
   const method = request.method ?? "GET"
   const body = method === "GET" || method === "HEAD" ? undefined : await readBody(request)
@@ -50,7 +50,7 @@ async function sendWebResponse(response, web) {
  * @param host { logger, home, routes, handleRpc, ctx }
  * @param options { logger, proxyGateway, adminAuth, adminKey, callerGate, upstreamTimeoutMs }
  */
-export async function createHttpServer(host, options = {}) {
+export async function createHttpServer(host, options: any = {}) {
   const proxyGateway = options.proxyGateway === true
   const callerGate = options.callerGate ?? null
   const logger = options.logger

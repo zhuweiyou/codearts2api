@@ -160,7 +160,7 @@ async function shutdown(signal) {
   }, 10_000)
   force.unref?.()
 
-  await new Promise((resolve) => server.close(() => resolve()))
+  await new Promise<void>((resolve) => server.close(() => resolve()))
   try {
     await host.close()
   } catch (error) {

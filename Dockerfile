@@ -87,5 +87,6 @@ VOLUME ["/data"]
 # 8326 不需要对外暴露。
 EXPOSE 8080
 
-# 后端为 TypeScript，用 vite-plus/register 直接运行（镜像默认装 devDependencies，含 vite-plus）。
-CMD ["node", "--import", "vite-plus/register", "src/index.ts"]
+# `pnpm run build` 已含 build:server（tsc → dist-server/）与 build:web（vp → dist/）。
+# 生产直接运行后端编译产物，运行期不再依赖 vite-plus/register。
+CMD ["node", "dist-server/index.js"]

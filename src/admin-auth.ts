@@ -217,7 +217,7 @@ export function isAdminAuthorized(request, key) {
  * @param key - 管理密钥。
  * @param options - `{ secure }`。
  */
-export function sessionCookie(key, options = {}) {
+export function sessionCookie(key, options: any = {}) {
   const parts = [
     `${SESSION_COOKIE}=${encodeURIComponent(sessionToken(key))}`,
     "Path=/",
@@ -277,7 +277,7 @@ export class LoginThrottle {
   /** `ip → { count, resetAt }`。 */
   entries = new Map()
 
-  constructor(options = {}) {
+  constructor(options: any = {}) {
     this.windowMs = options.windowMs ?? 10 * 60 * 1000
     this.maxFailures = options.maxFailures ?? 10
   }

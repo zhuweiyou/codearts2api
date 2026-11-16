@@ -136,7 +136,7 @@ function aggregateByModel(rows) {
     .sort((a, b) => b.calls - a.calls)
 }
 
-export function createCallerAdmin(options = {}) {
+export function createCallerAdmin(options: any = {}) {
   const home = options.home
   const logger = options.logger ?? console
   const storePath = join(home, "caller-keys.json")
@@ -226,7 +226,7 @@ export function createCallerAdmin(options = {}) {
         modelsCache = { at: now, ids: [] }
         return []
       }
-      const payload = await res.json()
+      const payload: any = await res.json()
       const ids = [...new Set((payload.data ?? []).map((m) => String(m.id)).filter(Boolean))].sort()
       modelsCache = { at: now, ids }
       return ids

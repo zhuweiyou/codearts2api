@@ -287,7 +287,7 @@ export function createDashboard(deps) {
     const buckets = { d7: [], d30: [], later: [], never: [], expired: [], undatedExpiring: [] }
     const now = Date.now()
 
-    for (const [provider, pack] of Object.entries(balanceMap || {})) {
+    for (const [provider, pack] of Object.entries(balanceMap || {}) as [string, any][]) {
       if (!pack || pack.error) continue
       const accs = Array.isArray(pack.accounts) ? pack.accounts : []
       for (const acc of accs) {

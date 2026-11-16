@@ -50,3 +50,4 @@ npm-debug.log*
 *.tsbuildinfo
 dist/
 build/
+dist-server

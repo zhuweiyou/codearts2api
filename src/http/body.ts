@@ -7,9 +7,9 @@ export const BODY_LIMIT = 16 * 1024 * 1024
 export const LOGIN_BODY_LIMIT = 4 * 1024
 
 /** 把 node req 读成 Buffer（带上限，超限即断）。 */
-export function readBody(request, limit = BODY_LIMIT) {
-  return new Promise((resolve, reject) => {
-    const chunks = []
+export function readBody(request: any, limit = BODY_LIMIT): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = []
     let size = 0
     request.on("data", (chunk) => {
       size += chunk.length

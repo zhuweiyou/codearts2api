@@ -133,7 +133,7 @@ function sendJson(response, status, payload) {
   response.end(body)
 }
 
-export function createCallerGate(options = {}) {
+export function createCallerGate(options: any = {}) {
   const home = options.home
   const logger = options.logger ?? console
   const storePath = join(home, "caller-keys.json")
@@ -349,7 +349,7 @@ export function createCallerGate(options = {}) {
    * @returns {Promise<{ ok: boolean, status?: number, error?: object, body?: Buffer, entry?: object, unbuffered?: boolean }>}
    */
   async function inspect(request, url, method) {
-    const auth = await authenticate(request)
+    const auth: any = await authenticate(request)
     if (!auth) return { ok: true, disabled: true }
     if (auth.unknown) {
       return {

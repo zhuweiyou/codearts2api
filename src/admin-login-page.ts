@@ -31,7 +31,7 @@ import { escapeHtml } from "./admin-auth.ts"
  *   `error` 非空时显示错误行；`next` 是登录成功后要跳回的站内路径。
  * @returns 完整 HTML 文档。
  */
-export function renderLoginPage(options = {}) {
+export function renderLoginPage(options: any = {}) {
   const next = sanitizeNext(options.next)
   const error = typeof options.error === "string" && options.error !== "" ? options.error : null
 

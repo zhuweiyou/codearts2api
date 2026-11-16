@@ -87,7 +87,7 @@ export function createGatewayProxy({ host, callerGate, logger, upstreamTimeoutMs
     for (const [key, value] of Object.entries(request.headers)) {
       if (value === undefined || HOP_BY_HOP.has(key.toLowerCase())) continue
       if (Array.isArray(value)) for (const item of value) headers.append(key, item)
-      else headers.set(key, value)
+      else headers.set(key, value as string)
     }
 
     const method = request.method ?? "GET"

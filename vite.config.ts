@@ -65,6 +65,7 @@ export default defineConfig({
     useTabs: false,
     ignorePatterns: [
       "dist/**",
+      "dist-server/**",
       "node_modules/**",
       "coverage/**",
       "data/**",
@@ -82,13 +83,14 @@ export default defineConfig({
   // Lint（Oxlint）：忽略产物/依赖；src 后端与新前端都在检查范围内。
   // Lint（Oxlint，非类型感知）：只做语法/风格规则；类型检查交给独立的 `pnpm run typecheck`（tsc，覆盖 web）。
   lint: {
-    ignorePatterns: ["dist/**", "node_modules/**", "coverage/**", "data/**", "attachments/**"],
+    ignorePatterns: ["dist/**", "dist-server/**", "node_modules/**", "coverage/**", "data/**", "attachments/**"],
   },
   // 测试统一用 Vitest（vp test）。tests 在仓库根，用 ../tests 从 web 根指过去。
   test: {
     environment: "node",
     include: ["../tests/**/*.test.ts"],
-    // Windows / 并行下 app.close()（含插件定时器回收）可能超过默认 10s
+    // Windows / 并行下 app.close() 与部分用例可能超过默认超时（hook 10s / test 5s）
     hookTimeout: 30_000,
+    testTimeout: 30_000,
   },
 })

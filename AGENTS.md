@@ -11,8 +11,8 @@
   lock 会解析到最新版，导致上游 prepare 的 tsc 失败。
 - **提交前自检（统一走 vp）**：`vp fmt`、`vp lint`、`vp test run`、`vp build`、`vp check` 全绿。
 - **前端构建产物 `dist/` 不入库**（`.gitignore` 排除）。**前端源码根是 `web/`**（Vite root：
-  `web/index.html` + `main.tsx` + `pages/**`）；**后端源码在 `src/**/*.ts`**，用
-  `node --import vite-plus/register src/index.ts` 运行。
+  `web/index.html` + `main.tsx` + `pages/**`）；**后端源码在 `src/**/*.ts`**：`pnpm run build` 会把它
+  编译到 `dist-server/`，**生产用 `node dist-server/index.js` 运行**；`vite-plus/register` 仅用于 `pnpm dev`。
 - 改了前端后 `vp build` 验证打包（产出 `dist/`，后端 Express 托管 `/admin` + SPA 回退）。
 - 上游契约（端点路径、RPC 信封、slot 名、inject 列表）集中在 `src/upstream.ts` 与
   `src/host.ts`，命中漂移时优先改这两处，而不是复制上游逻辑。
@@ -101,8 +101,11 @@ Dockerfile  CHANGELOG.md  README.md  AGENTS.md
 
 ```bash
 pnpm install                                   # 从 GitHub 拉取上游并现场编译 lib/
-pnpm run build                                 # = vp build，构建前端 → dist/
-pnpm start                                     # = node --import vite-plus/register src/index.ts，默认 http://127.0.0.1:8080/admin
+pnpm run build                                 # 构建前端(vp build→dist/) + 后端(tsc→dist-server/)，后端会做类型检查
+pnpm run build:web                             # 仅前端
+pnpm run build:server                          # 仅后端（tsc 类型检查 + 产出 dist-server/）
+pnpm start                                     # = node dist-server/index.js（需先 build），默认 http://127.0.0.1:8080/admin
+pnpm dev                                       # 开发：node --watch --import vite-plus/register src/index.ts
 pnpm test                                      # = vp test run（Vitest）
 pnpm run dev:web                               # = vp dev（前端 dev server + proxy）
 pnpm run lint                                  # = vp lint（Oxlint）
@@ -162,7 +165,7 @@ chmod 600 ~/.codearts2api/.credentials.yaml      # 权限校验要求，否则�
 ### 本机直跑
 
 ```bash
-PORT=8080 CODEARTS2API_HOME=/var/lib/codearts2api node --import vite-plus/register src/index.ts
+pnpm run build && PORT=8080 CODEARTS2API_HOME=/var/lib/codearts2api node dist-server/index.js
 ```
 
 一个端口同时提供 `/admin`（带登录页）与 `/v1/*`（反代默认已开）。首次启动会在日志里
@@ -680,8 +683,6 @@ Node 进程运行期只读取 `dist/` 静态产物，**不会 `require`** 这些
 
 判定标准：`src/**` 里 `import` 的 → dependencies；只在 `web/**` 被 Vite 打进产物、或仅构建/测试用的 → devDependencies。
 
-> ⚠️ **例外：`vite-plus` 目前是运行期隐式依赖。** 后端已转为 TypeScript，开发/生产用
-> `node --import vite-plus/register src/index.ts` 直接运行 TS ⇒ 运行期需要 `vite-plus`。
-> 因此镜像/部署**不能 `pnpm install --prod`**（否则缺 `vite-plus` 起不来）。
-> 更稳的生产做法：用 `vp pack`（tsdown）把后端**预编译成 JS**，再 `node dist/index.js`，
-> 届时运行期就不再需要 `vite-plus`（可安全 `--prod`）。
+> ✅ **运行期不再依赖 `vite-plus`**：后端由 `pnpm run build:server`（`tsc`）编译到 `dist-server/`，
+> 生产用 `node dist-server/index.js` 运行（只需 `dependencies`）。`vite-plus/register` 仅用于 `pnpm dev`。
+> 因此生产镜像可 `pnpm install --prod`（前提：在含 devDependencies 的环境先完成 `pnpm run build`）。

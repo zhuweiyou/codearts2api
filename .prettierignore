@@ -15,3 +15,4 @@ attachments/
 .git/
 coverage/
 *.log
+dist-server

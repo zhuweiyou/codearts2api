@@ -99,7 +99,7 @@ function summarize(models, accounts, now) {
 }
 
 function summarizeCounts(rows) {
-  const counts = { total: rows.length, ok: 0, partial: 0, limited: 0, off: 0, dead: 0 }
+  const counts = { total: rows.length, ok: 0, partial: 0, limited: 0, off: 0, dead: 0, usable: 0 }
   for (const r of rows) {
     if (counts[r.state] !== undefined) counts[r.state] += 1
   }
