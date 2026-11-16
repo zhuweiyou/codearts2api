@@ -23,14 +23,55 @@ import { startTestApp } from "./helpers"
  * 那样测到的就不是入参契约了。
  */
 async function callApi(app, payload) {
-  const response = await fetch(`${app.origin}/admin/callers/api`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${app.adminKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  })
+  const base = `${app.origin}/admin/callers/api`
+  let method = "GET"
+  let path = ""
+  let body
+  switch (payload.action) {
+    case "state":
+      path = "/state"
+      break
+    case "records": {
+      const p = new URLSearchParams()
+      p.set("days", (payload.days ?? []).join(","))
+      p.set("caller", payload.filter?.caller ?? "")
+      p.set("model", payload.filter?.model ?? "")
+      p.set("status", payload.filter?.status ?? "")
+      p.set("limit", String(payload.limit ?? 300))
+      path = "/records?" + p.toString()
+      break
+    }
+    case "group.save":
+      method = "POST"
+      path = "/groups"
+      body = payload
+      break
+    case "group.rm":
+      method = "DELETE"
+      path = "/groups/" + encodeURIComponent(payload.name ?? "")
+      break
+    case "key.add":
+      method = "POST"
+      path = "/keys"
+      body = payload
+      break
+    case "key.update":
+      method = "PATCH"
+      path = "/keys/" + encodeURIComponent(payload.id ?? "")
+      body = payload
+      break
+    case "key.rm":
+      method = "DELETE"
+      path = "/keys/" + encodeURIComponent(payload.id ?? "")
+      break
+    default:
+      throw new Error("unknown action " + payload.action)
+  }
+  const headers = { authorization: `Bearer ${app.adminKey}` }
+  if (body) headers["content-type"] = "application/json"
+  const init: any = { method, headers }
+  if (body) init.body = JSON.stringify(body)
+  const response = await fetch(base + path, init)
   return { status: response.status, body: await response.json() }
 }
 
@@ -255,14 +296,13 @@ test("state 附带模型清单且不阻塞", async (t) => {
   assert.deepEqual(state.usage.rows, [])
 })
 
-test("只接受 POST", async (t) => {
+test("REST 路由按方法匹配（POST /state 不存在）", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  const response = await fetch(`${app.origin}/admin/callers/api`, {
-    method: "GET",
+  const response = await fetch(`${app.origin}/admin/callers/api/state`, {
+    method: "POST",
     headers: { authorization: `Bearer ${app.adminKey}` },
   })
-  assert.equal(response.status, 405)
-  assert.deepEqual(await response.json(), { error: "只支持 POST" })
+  assert.equal(response.status, 404)
 })

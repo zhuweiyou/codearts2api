@@ -43,17 +43,25 @@ function currentProvider(): Provider | null {
   const label = btn.querySelector(".dim-jh-providerLabel strong")
   return { id, label: label && label.textContent ? label.textContent : id }
 }
-async function post<T = any>(body: Record<string, unknown>): Promise<T> {
-  const r = await fetch(API, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+async function request<T = any>(path: string, init: RequestInit = {}): Promise<T> {
+  const r = await fetch(API + path, {
     credentials: "same-origin",
+    ...init,
+    headers: {
+      accept: "application/json",
+      ...(init.body ? { "content-type": "application/json" } : {}),
+    },
   })
   const data = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error((data && (data as any).error) || "HTTP " + r.status)
   return data as T
 }
+const getOverview = (id: string) => request("/" + encodeURIComponent(id))
+const toggleModel = (provider: string, modelId: string, disabled: boolean) =>
+  request("/" + encodeURIComponent(provider) + "/models/" + encodeURIComponent(modelId), {
+    method: "PATCH",
+    body: JSON.stringify({ disabled }),
+  })
 function visibleModels(data: any, q: string, filter: string): any[] {
   const query = q.trim().toLowerCase()
   return (data.models || []).filter((m: any) => {
@@ -96,7 +104,7 @@ export function ModelsPanel() {
 
   const load = async (id: string) => {
     try {
-      const res = await post({ action: "overview", provider: id })
+      const res = await getOverview(id)
       if (providerIdRef.current !== id) return
       setData(res)
       setErr(null)
@@ -136,7 +144,7 @@ export function ModelsPanel() {
     const nextDisabled = !m.disabled
     setBusy((b) => ({ ...b, [key]: true }))
     try {
-      await post({ action: "toggle", provider: id, modelId: m.id, disabled: nextDisabled })
+      await toggleModel(id, m.id, nextDisabled)
       await load(id)
     } catch (e: any) {
       setErr(String(e?.message ?? e))

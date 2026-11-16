@@ -1,39 +1,55 @@
-/**
- * 调用方管理控制器（`/admin/callers/api`）：单端点 RPC，按 `action` 用表驱动分发到 service。
- * 只做 HTTP 适配；业务全在 {@link CallersService}。
- */
+/** 调用方管理 REST 控制器。业务全在 {@link CallersService}。 */
 import express from "express"
 
 import { readJsonBody, sendJson } from "../../http/respond.ts"
 import type { CallersService } from "./callers.service.ts"
 
-export const API_PATH = "/admin/callers/api"
+export const CALLERS_API_PREFIX = "/admin/callers/api"
 
 export function createCallersController({ service }: { service: CallersService }) {
-  const actions: Record<string, (payload: any) => Promise<any>> = {
-    state: (p) => service.state(p.day),
-    records: (p) => service.records({ days: p.days, filter: p.filter, limit: p.limit }),
-    "key.add": (p) => service.addKey({ name: p.name, group: p.group, enabled: p.enabled }),
-    "key.update": (p) => service.updateKey({ id: p.id, name: p.name, group: p.group, enabled: p.enabled }),
-    "key.rm": (p) => service.removeKey(String(p.id ?? "")),
-    "group.save": (p) => service.saveGroup({ name: p.name, desc: p.desc, allow: p.allow }),
-    "group.rm": (p) => service.removeGroup(String(p.name ?? "")),
-  }
-
   const router = express.Router()
-  router.all(API_PATH, async (request, response) => {
-    if (request.method !== "POST") {
-      sendJson(response, 405, { error: "只支持 POST" })
-      return
+
+  router.get(`${CALLERS_API_PREFIX}/state`, async (request, response) => {
+    const day = typeof request.query.day === "string" ? request.query.day : undefined
+    sendJson(response, 200, await service.state(day))
+  })
+
+  router.get(`${CALLERS_API_PREFIX}/records`, async (request, response) => {
+    const days = typeof request.query.days === "string" && request.query.days ? request.query.days.split(",") : []
+    const filter = {
+      caller: String(request.query.caller ?? ""),
+      model: String(request.query.model ?? ""),
+      status: String(request.query.status ?? ""),
     }
-    const payload = await readJsonBody(request)
-    const action = String(payload.action ?? "")
-    const run = actions[action]
-    if (!run) {
-      sendJson(response, 400, { error: `未知操作 ${action || "（空）"}` })
-      return
-    }
-    sendJson(response, 200, await run(payload))
+    const limit = Number(request.query.limit ?? 300)
+    sendJson(response, 200, await service.records({ days, filter, limit }))
+  })
+
+  router.post(`${CALLERS_API_PREFIX}/groups`, async (request, response) => {
+    const body = await readJsonBody(request)
+    sendJson(response, 200, await service.saveGroup({ name: body.name, desc: body.desc, allow: body.allow }))
+  })
+
+  router.delete(`${CALLERS_API_PREFIX}/groups/:name`, async (request, response) => {
+    sendJson(response, 200, await service.removeGroup(request.params.name))
+  })
+
+  router.post(`${CALLERS_API_PREFIX}/keys`, async (request, response) => {
+    const body = await readJsonBody(request)
+    sendJson(response, 200, await service.addKey({ name: body.name, group: body.group, enabled: body.enabled }))
+  })
+
+  router.patch(`${CALLERS_API_PREFIX}/keys/:id`, async (request, response) => {
+    const body = await readJsonBody(request)
+    sendJson(
+      response,
+      200,
+      await service.updateKey({ id: request.params.id, name: body.name, group: body.group, enabled: body.enabled }),
+    )
+  })
+
+  router.delete(`${CALLERS_API_PREFIX}/keys/:id`, async (request, response) => {
+    sendJson(response, 200, await service.removeKey(request.params.id))
   })
 
   return { router }

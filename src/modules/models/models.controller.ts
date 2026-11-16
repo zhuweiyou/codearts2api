@@ -1,47 +1,54 @@
-/** 模型清单控制器（/admin/models/api）：单端点 RPC，按 action 表驱动分发。 */
+/** 模型清单 REST 控制器。业务在 {@link ModelsService}。 */
 import express from "express"
 
 import { AppError } from "../../core/errors.ts"
 import { readJsonBody, sendJson } from "../../http/respond.ts"
 import type { ModelsService } from "./models.service.ts"
 
-export const API_PATH = "/admin/models/api"
+export const MODELS_API_PREFIX = "/admin/models/api"
 
 export function createModelsController({ service }: { service: ModelsService }) {
-  const actions: Record<string, (payload: any) => Promise<any>> = {
-    list: (p) => service.list(String(p.provider ?? "")),
-    overview: (p) => service.overview(String(p.provider ?? "")),
-    status: (p) => {
-      const providers = Array.isArray(p.providers)
-        ? p.providers.map((x: any) => String(x)).filter((x: string) => x.length > 0)
-        : []
-      if (providers.length === 0) throw new AppError(400, "invalid_providers", "providers 必须是非空字符串数组")
-      return service.status(providers)
-    },
-    toggle: (p) =>
-      service.toggle({ provider: String(p.provider ?? ""), modelId: String(p.modelId ?? ""), disabled: p.disabled }),
-    toggleMany: (p) => {
-      const modelIds = Array.isArray(p.modelIds)
-        ? p.modelIds.map((x: any) => String(x)).filter((x: string) => x.length > 0)
-        : []
-      return service.toggleMany({ provider: String(p.provider ?? ""), modelIds, disabled: p.disabled })
-    },
-  }
-
   const router = express.Router()
-  router.all(API_PATH, async (request, response) => {
-    if (request.method !== "POST") {
-      sendJson(response, 405, { error: "只支持 POST" })
+
+  router.get(`${MODELS_API_PREFIX}/status`, async (request, response) => {
+    const providers = String(request.query.providers ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean)
+    if (providers.length === 0) throw new AppError(400, "invalid_providers", "providers 必须是非空字符串数组")
+    sendJson(response, 200, await service.status(providers))
+  })
+
+  router.get(`${MODELS_API_PREFIX}/:provider`, async (request, response) => {
+    const provider = request.params.provider
+    if (request.query.plain === "1") {
+      sendJson(response, 200, await service.list(provider))
       return
     }
-    const payload = await readJsonBody(request)
-    const action = String(payload.action ?? "")
-    const run = actions[action]
-    if (!run) {
-      sendJson(response, 400, { error: `未知操作 ${action || "（空）"}` })
-      return
-    }
-    sendJson(response, 200, await run(payload))
+    sendJson(response, 200, await service.overview(provider))
+  })
+
+  router.patch(`${MODELS_API_PREFIX}/:provider/models/:modelId`, async (request, response) => {
+    const body = await readJsonBody(request)
+    sendJson(
+      response,
+      200,
+      await service.toggle({
+        provider: request.params.provider,
+        modelId: request.params.modelId,
+        disabled: body.disabled,
+      }),
+    )
+  })
+
+  router.patch(`${MODELS_API_PREFIX}/:provider/models`, async (request, response) => {
+    const body = await readJsonBody(request)
+    const modelIds = Array.isArray(body.modelIds) ? body.modelIds.map((m: any) => String(m)).filter(Boolean) : []
+    sendJson(
+      response,
+      200,
+      await service.toggleMany({ provider: request.params.provider, modelIds, disabled: body.disabled }),
+    )
   })
 
   return { router }
