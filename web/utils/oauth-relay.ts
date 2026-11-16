@@ -21,7 +21,12 @@ function isAllowedPort(portText: string): boolean {
 export function relayLoopbackUrl(raw: string, origin?: string): string {
   if (typeof raw !== "string" || raw === "") return raw
   const base = origin ?? (typeof location !== "undefined" ? location.origin : "")
-  const match = LOOPBACK.exec(raw.trim())
+  const text = raw.trim()
+  // 幂等：已经是本站中继地址（<origin>/relay/...）就原样返回。
+  // 否则当 origin 本身是 loopback（如 http://localhost:3000 / http://127.0.0.1:8080）时，
+  // 会把中继地址再次当成 loopback 反复改写 → DOM 观察器无限循环。
+  if (base && text.startsWith(base.replace(/\/$/, "") + "/relay/")) return raw
+  const match = LOOPBACK.exec(text)
   if (!match || !isAllowedPort(match[2])) return raw
   const rest = match[3] || "/"
   return base + "/relay/" + match[2] + rest
@@ -54,10 +59,10 @@ export function isReplayableUrl(raw: string, origin?: string): boolean {
 export function installOAuthRelay(): void {
   if (typeof window === "undefined" || typeof document === "undefined") return
   const w = window as any
-  if (w.__c2OAuthRelayLoaded) return
-  w.__c2OAuthRelayLoaded = true
+  if (w.__c2aOAuthRelayLoaded) return
+  w.__c2aOAuthRelayLoaded = true
 
-  w.__c2RelayOf = (raw: string) => relayLoopbackUrl(raw, window.location.origin)
+  w.__c2aRelayOf = (raw: string) => relayLoopbackUrl(raw, window.location.origin)
 
   // 1) 改写 window.open：上游一律 window.open(loginUrl, "_blank", "width=800,height=600")
   const rawOpen = w.open ? w.open.bind(window) : null
@@ -80,9 +85,9 @@ export function installOAuthRelay(): void {
       const next = relayLoopbackUrl(href, window.location.origin)
       if (next !== href) {
         el.setAttribute("href", next)
-        el.setAttribute("data-c2-relayed", "1")
+        el.setAttribute("data-c2a-relayed", "1")
       }
-      return
+      // 注意：不 return —— <a class="dim-jh-loginLink"> 的可见文本也要一并改写。
     }
     if (tag === "CODE" || el.classList.contains("dim-jh-loginLink")) {
       const text = el.textContent || ""

@@ -157,7 +157,7 @@ export function ModelsPanel() {
   ]
 
   return (
-    <section className={styles.section} data-c2x-section={provider.id}>
+    <section className={styles.section} data-c2a-section={provider.id}>
       <div className={styles.head}>
         <h3 className={styles.title}>{provider.label} 可用模型</h3>
         <span className={styles.sub}>

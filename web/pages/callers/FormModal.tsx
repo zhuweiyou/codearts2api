@@ -13,7 +13,7 @@ export interface FormField {
 
 /**
  * 新建/编辑分组与 Key 的表单弹窗。默认点遮罩不关，只认「取消/确定/Esc」（与旧行为一致，
- * 可设 window.__c2FormBackdropClose=true 恢复点遮罩关闭）。
+ * 可设 window.__c2aFormBackdropClose=true 恢复点遮罩关闭）。
  */
 export function FormModal({
   title,
@@ -74,14 +74,14 @@ export function FormModal({
       onClick={(e) => {
         const clean = downOnBackdrop.current
         downOnBackdrop.current = false
-        if (clean && e.target === e.currentTarget && (window as any).__c2FormBackdropClose === true) onClose()
+        if (clean && e.target === e.currentTarget && (window as any).__c2aFormBackdropClose === true) onClose()
       }}
     >
       <div
         role="dialog"
         aria-modal="true"
         className={clsx("dim-jh-modal", styles.scope)}
-        data-scope="c2m"
+        data-scope="c2a"
         style={{ width: "min(520px,calc(100vw - 24px))" }}
         onKeyDown={(e) => {
           if (e.key === "Escape" || e.key === "Esc") {

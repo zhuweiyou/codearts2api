@@ -88,7 +88,7 @@ export default defineConfig({
   // 测试统一用 Vitest（vp test）。tests 在仓库根，用 ../tests 从 web 根指过去。
   test: {
     environment: "node",
-    include: ["../tests/**/*.test.ts"],
+    include: ["../tests/**/*.test.{ts,tsx}"],
     // Windows / 并行下 app.close() 与部分用例可能超过默认超时（hook 10s / test 5s）
     hookTimeout: 30_000,
     testTimeout: 30_000,

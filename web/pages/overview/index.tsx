@@ -20,7 +20,7 @@ export default function Overview({ active = true }: { active?: boolean }) {
 
   return (
     <section className="c2a-view" id="c2a-view-overview" data-view="overview" role="tabpanel" aria-label="总览">
-      <div className="c2a-page" data-c2d="1">
+      <div className="c2a-page" data-c2a-page="overview">
         <div className="c2a-page-head">
           <div>
             <h1 className="c2a-page-title">总览</h1>

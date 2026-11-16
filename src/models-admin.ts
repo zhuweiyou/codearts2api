@@ -254,7 +254,7 @@ export function createModelsAdmin(options) {
  *   的 `div.dim-jh-layout > main.dim-jh-panel`）。它内部按当前选中供应商渲染
  *   `ProviderPanel`（内含 `.dim-jh-accountSection`「XX 账号管理」+ 账号卡片）。
  *
- *   把本模块的 `section.c2x-section` 作为 `main.dim-jh-panel` 的**第一个子节点**，
+ *   把本模块的 `section.c2a-section` 作为 `main.dim-jh-panel` 的**第一个子节点**，
  *   就落在「XX 账号管理」上方 —— 先看模型能不能用，再看号。
  *
  * 当前选中的供应商不靠 JS 状态推断，而是直接读原生 DOM：

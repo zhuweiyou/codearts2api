@@ -14,7 +14,7 @@ export function ModelsPanelHost() {
       if (el && panel.contains(el)) return
       if (!el) {
         el = document.createElement("div")
-        el.setAttribute("data-c2x-host", "1")
+        el.setAttribute("data-c2a-host", "1")
       }
       panel.insertBefore(el, panel.firstChild)
       setHost(el)
