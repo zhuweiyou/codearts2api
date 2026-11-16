@@ -7,6 +7,22 @@
 ---
 
 <details open>
+<summary><b>2026-11-16 · 上游升级 <code>c44f6ff</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `e30023432a4444ca784fedca50fa8392995bcf81` 更新到 `c44f6ffb545f726da8c9add9b8173c3faa1062ce`。
+
+### 上游改动
+
+- fix(marvis): tools 形状对齐 + 审计修正（**不是** IKVL6C 的修复）
+- test(marvis): 补接线层守卫，并按双审计把「决定性证据」降级为推断（Gitee IKVL6C 返工）
+- docs(marvis): 更正「只有 marvis 偏离」的归因 —— 实为四家同源模板的错误推论
+- fix(marvis): 工具为空时不再下发 `tools: []`，避免模型在正文臆造 DSML 标记（Gitee IKVL6C）
+
+</details>
+
+<details>
 <summary><b>2026-11-16 · 上游升级 <code>e300234</code>（自动升级）</b></summary>
 
 ## 上游升级
