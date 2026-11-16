@@ -6,6 +6,7 @@
  */
 import { createServer } from "node:http"
 
+import cookieParser from "cookie-parser"
 import express from "express"
 
 import { LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
@@ -126,6 +127,7 @@ export async function createHttpServer(host, options: any = {}) {
   const app = express()
   app.disable("x-powered-by")
   app.set("case sensitive routing", true)
+  app.use(cookieParser())
 
   const urlOf = (req) => new URL(req.originalUrl ?? req.url ?? "/", `http://${req.headers.host ?? "127.0.0.1"}`)
   const a = (fn) => (req, res, next) => {

@@ -4,7 +4,8 @@ import { sendAdminJson } from "./security.ts"
 
 export function createErrorHandler(logger?: any) {
   return (error: any, request: any, response: any, _next: any) => {
-    const status = isAppError(error) ? error.status : 500
+    const rawStatus = Number(error?.status ?? error?.statusCode)
+    const status = isAppError(error) ? error.status : rawStatus >= 400 && rawStatus < 500 ? rawStatus : 500
     if (status >= 500)
       logger?.error?.(
         `[http] ${request?.method ?? ""} ${request?.originalUrl ?? request?.url ?? ""} 处理失败：${String(error)}`,

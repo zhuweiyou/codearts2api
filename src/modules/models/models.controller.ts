@@ -2,11 +2,12 @@
 import express from "express"
 
 import { AppError } from "../../core/errors.ts"
-import { readJsonBody, sendJson } from "../../http/respond.ts"
+import { sendJson } from "../../http/respond.ts"
 import type { ModelsService } from "./models.service.ts"
 
 export function createModelsController({ service }: { service: ModelsService }) {
   const router = express.Router()
+  router.use(express.json({ limit: "1mb" }))
 
   router.get("/status", async (request, response) => {
     const providers = String(request.query.providers ?? "")
@@ -27,7 +28,7 @@ export function createModelsController({ service }: { service: ModelsService }) 
   })
 
   router.patch("/:provider/models/:modelId", async (request, response) => {
-    const body = await readJsonBody(request)
+    const body = request.body ?? {}
     sendJson(
       response,
       200,
@@ -40,7 +41,7 @@ export function createModelsController({ service }: { service: ModelsService }) 
   })
 
   router.patch("/:provider/models", async (request, response) => {
-    const body = await readJsonBody(request)
+    const body = request.body ?? {}
     const modelIds = Array.isArray(body.modelIds) ? body.modelIds.map((m: any) => String(m)).filter(Boolean) : []
     sendJson(
       response,

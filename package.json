@@ -31,12 +31,14 @@
     "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
     "@deepseek-ai/dsh-credentials-local": "0.2.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
+    "cookie-parser": "^1.4.7",
     "dsh-providers-hub": "git+https://github.com/iJetLi/dsh-providers-hub.git#c44f6ffb545f726da8c9add9b8173c3faa1062ce",
     "express": "^5.3.0"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
+    "@types/cookie-parser": "^1.4.10",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

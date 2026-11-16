@@ -1,11 +1,12 @@
 /** 调用方管理 REST 控制器（挂在 /admin/callers/api 下）。业务全在 {@link CallersService}。 */
 import express from "express"
 
-import { readJsonBody, sendJson } from "../../http/respond.ts"
+import { sendJson } from "../../http/respond.ts"
 import type { CallersService } from "./callers.service.ts"
 
 export function createCallersController({ service }: { service: CallersService }) {
   const router = express.Router()
+  router.use(express.json({ limit: "1mb" }))
 
   router.get("/state", async (request, response) => {
     const rawDay = typeof request.query.day === "string" ? request.query.day : ""
@@ -25,7 +26,7 @@ export function createCallersController({ service }: { service: CallersService }
   })
 
   router.post("/groups", async (request, response) => {
-    const body = await readJsonBody(request)
+    const body = request.body ?? {}
     sendJson(response, 200, await service.saveGroup({ name: body.name, desc: body.desc, allow: body.allow }))
   })
 
@@ -34,12 +35,12 @@ export function createCallersController({ service }: { service: CallersService }
   })
 
   router.post("/keys", async (request, response) => {
-    const body = await readJsonBody(request)
+    const body = request.body ?? {}
     sendJson(response, 200, await service.addKey({ name: body.name, group: body.group, enabled: body.enabled }))
   })
 
   router.patch("/keys/:id", async (request, response) => {
-    const body = await readJsonBody(request)
+    const body = request.body ?? {}
     sendJson(
       response,
       200,

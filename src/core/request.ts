@@ -1,23 +1,5 @@
 /** 与框架无关的请求工具（cookie/IP/HTTPS 判定）。 */
 
-export function parseCookies(header: any): Record<string, string> {
-  const out: Record<string, string> = Object.create(null)
-  if (typeof header !== "string" || header === "") return out
-  for (const part of header.split(";")) {
-    const index = part.indexOf("=")
-    if (index < 0) continue
-    const name = part.slice(0, index).trim()
-    if (name === "") continue
-    const rawValue = part.slice(index + 1).trim()
-    try {
-      out[name] = decodeURIComponent(rawValue)
-    } catch {
-      out[name] = rawValue
-    }
-  }
-  return out
-}
-
 /** 来源 IP：只看 TCP 对端地址（刻意不信 X-Forwarded-For，防伪造绕过限速）。 */
 export function clientIp(request: any) {
   return request.socket?.remoteAddress ?? "unknown"

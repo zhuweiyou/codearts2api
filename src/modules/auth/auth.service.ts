@@ -47,8 +47,6 @@ import { createHmac, randomBytes, timingSafeEqual, createHash } from "node:crypt
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 
-import { parseCookies } from "../../core/request.ts"
-
 /** 密钥文件名（放在 state home 下）。 */
 export const ADMIN_KEY_FILE = "admin-key"
 
@@ -174,8 +172,7 @@ export function isAdminAuthorized(request, key) {
     if (constantTimeEquals(authorization.slice("Bearer ".length), key)) return true
   }
 
-  const cookies = parseCookies(request.headers?.cookie)
-  const token = cookies[SESSION_COOKIE]
+  const token = request.cookies?.[SESSION_COOKIE]
   if (typeof token === "string" && token !== "") {
     if (constantTimeEquals(token, sessionToken(key))) return true
   }
