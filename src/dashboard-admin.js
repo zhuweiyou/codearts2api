@@ -1089,19 +1089,57 @@ export const UI_SRC = String.raw`
     const atText = typeof c.lastAt === "number" && c.lastAt > 0 ? when(c.lastAt) : "—";
     const head = cards([
       card("今日签到", ok ? "已完成" : "未完成", "", lastText, ok ? "ok" : "warn"),
+      // ⚠️ 这里原写「systemd 启动 30 秒 + cron 每日 00:05」—— 那是**别的部署形态**的
+      //    描述。本程序（codearts2api）里自动签到是上游的两个时段 + 启动后补跑，
+      //    时刻就在 times 字段里（UTC+8），直接展示它才不会与实际排期自相矛盾。
       card("自动签到", c.enabled ? "已开启" : "已关闭", "",
-        "systemd 启动 30 秒 + cron 每日 00:05", c.enabled ? "ok" : "warn"),
+        Array.isArray(c.times) && c.times.length > 0
+          ? c.times.join(" / ") + "（UTC+8，启动后补跑）"
+          : "每天两个时段（启动后补跑）",
+        c.enabled ? "ok" : "warn"),
       card("最近执行", atText, "", esc(c.lastResult || "—"), ok ? "" : "warn"),
     ]);
+    /**
+     * 渠道行的语义分档。
+     *
+     * ⚠️ 原先只有「已领/已完成 → 绿」「不支持/手动 → 黄」，其余一律**红** ——
+     *    于是「1 个未开启」（活动未开放）被渲染成故障红点，用户以为坏了
+     *    （2026-11-16 实测报障：WorkBuddy 国际版活动未开启，面板红点）。
+     *    「未开启 / 未开放 / 无资格 / 活动结束」都是**当天没有可领的**，
+     *    属正常状态，与「需手动签到」同类 ⇒ 归黄。
+     */
     const rows = (c.channels || []).map(function (ch) {
-      const t = String(ch.text || "");
-      const tone = t.indexOf("已领") >= 0 || t.indexOf("已完成") >= 0 ? "ok"
-        : t.indexOf("不支持") >= 0 || t.indexOf("手动") >= 0 ? "warn" : "bad";
+      /**
+       * ⚠️ 上游对 inactive 的措辞是「N 个未开启」（例如「1 个未开启」）。
+       *    数量在这种状态下没有信息量，却容易被读成「有 N 个出问题了」——
+       *    2026-11-16 用户直接要求改成「活动未开启」。
+       *    ⚠️ 这里只做**展示层**归一：状态判定仍用原文（tone 判据见下）。
+       *    ⚠️ 本函数在 UI_SRC（String.raw 模板）里，注释与正则都不要出现反引号。
+       */
+      const raw = String(ch.text || "");
+      const t = raw.replace(/^[0-9]+ *个 *未开启$/, "活动未开启");
+      const tone = t.indexOf("已领") >= 0 || t.indexOf("已完成") >= 0 || t.indexOf("领取成功") >= 0 ? "ok"
+        : /不支持|手动|未开启|未开放|无资格|未开始|活动结束|暂不可领/.test(t) ? "warn" : "bad";
       return "<tr><td><span class=\"c2d-ch\">" + esc(ch.provider) + "</span></td>" +
         '<td><span class="c2d-dot ' + tone + '"></span>' + esc(t) + "</td></tr>";
     }).join("");
-    return head + '<table class="c2d-tbl" style="margin-top:8px"><thead><tr><th>渠道</th><th>签到状态</th></tr></thead><tbody>' +
-      rows + "</tbody></table>";
+    /**
+     * 快照过期提示。
+     *
+     * ⚠️ channels[] 是**上一次运行**的结果，不是实时状态。升级/停机几天后，
+     *    面板会把旧文案（例如「无签到接口」）当成现状显示，用户无从判断这是
+     *    「现在的结论」还是「上周的结论」——2026-11-16 实测踩过一次：
+     *    镜像已修好，面板却还写着「无签到接口」。
+     *    故当快照不是今天时明说一句（lagDays 由后端按 UTC+8 日键算好）。
+     */
+    const staleHint = lag !== null && lag > 0 && c.lastDate
+      ? '<div class="c2d-muted" style="margin-top:6px">⚠️ 下表是 ' + esc(c.lastDate)
+        + " 那一轮的结果（已隔 " + String(lag) + " 天），不是今天的快照；"
+        + "下一次自动签到跑完会重写。</div>"
+      : "";
+    return head + staleHint
+      + '<table class="c2d-tbl" style="margin-top:8px"><thead><tr><th>渠道</th><th>签到状态</th></tr></thead><tbody>'
+      + rows + "</tbody></table>";
   }
 
 
