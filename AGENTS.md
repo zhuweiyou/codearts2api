@@ -9,7 +9,7 @@
   （`corepack enable` 即可，仓库含 `pnpm-lock.yaml`）。⚠️ **不要用 npm 安装**：上游
   `dsh-providers-hub` 是 git 依赖、自带 pnpm-lock 锁定 `@deepseek-ai/dsh-*`；npm 不读上游
   lock 会解析到最新版，导致上游 prepare 的 tsc 失败。
-- **提交前自检（统一走 vp）**：`vp fmt`、`vp lint`、`vp test run`、`vp build`、`vp check` 全绿。
+- **提交前自检**：`vp fmt`、`vp lint`、`vp check`、`pnpm run typecheck`、`vp test run`、`pnpm run build` 全绿。
 - **前端构建产物 `dist/` 不入库**（`.gitignore` 排除）。**前端源码根是 `web/`**（Vite root：
   `web/index.html` + `main.tsx` + `pages/**`）；**后端源码在 `src/**/*.ts`**：`pnpm run build` 会把它
   编译到 `dist-server/`，**生产用 `node dist-server/index.js` 运行**；`vite-plus/register` 仅用于 `pnpm dev`。
@@ -514,7 +514,7 @@ import * as plugin from "dsh-providers-hub" // src/host.ts 唯一的一行
 | 加 RPC 方法                       | **0 行**                          | 我们的转发是通用透传，不枚举方法                          |
 | **改管理端点路径**                | 1 个常量                          | `src/upstream.ts`                                         |
 | **改 RPC 信封 / 线协议**          | 1 个函数                          | `src/upstream.ts` 的 `rpcEnvelope()`                      |
-| **改客户端 loader 形态**          | 可能 1~2 处                       | `web/index.html` + `web/pages 组件`                     |
+| **改客户端 loader 形态**          | 可能 1~2 处                       | `web/index.html` + `web/api/upstream.tsx`                     |
 | **改 slot 名 `settings.section`** | 1 个常量                          | `src/upstream.ts`                                         |
 | **改插件 `inject` 列表**          | `src/host.ts` 的 provide          | 少了服务插件会永久 pending                                |
 
@@ -568,7 +568,7 @@ GitHub Actions 因此会发失败通知邮件。
 | `DSH 基础包整族同版本` 自检            | 装了两套不同版本（版本不一致）                                     | 同上；修完 `rm -rf node_modules pnpm-lock.yaml && pnpm install`                             |
 | `pnpm-lock.yaml` 核对                  | lock 未更新到新 commit                                             | 脚本会自动回滚，重跑 `pnpm install --no-frozen-lockfile`                                    |
 | `pnpm run build`                       | 上游产物形态变了（`./client` 导出路径不同）                        | 对照[升级时需要改多少代码](#升级时需要改多少代码) 的契约表                                  |
-| `pnpm test`                            | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                   | 按报错改 `src/upstream.ts` 的常量或 `web/pages 组件` 的 shim                                 |
+| `pnpm test`                            | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                   | 按报错改 `src/upstream.ts` 的常量或 `web/api/upstream.tsx` 的 shim                                 |
 | `pnpm run lint` / `format`             | 本仓库代码风格问题                                                 | `pnpm run format` 修                                                                        |
 | `git commit`                           | 权限或并发冲突                                                     | 看 Actions 日志                                                                             |
 
@@ -625,7 +625,7 @@ pnpm run format:check  # 确认代码风格一致
 | 失败的是                                               | 说明                     | 怎么办                                                    |
 | ------------------------------------------------------ | ------------------------ | --------------------------------------------------------- |
 | `host.test.ts` 的「provider 不见了」                  | 上游**删除/改名**了渠道  | 按报错给出的实际列表更新 `EXPECTED_PROVIDERS`（只改测试） |
-| `（UI 测试已移除）` 的「只请求我们 shim 能提供的模块」 | 上游引入**新的外部依赖** | 在 `web/pages 组件` 的 `captured.factory()` 里补上该模块   |
+| `（UI 测试已移除）` 的「只请求我们 shim 能提供的模块」 | 上游引入**新的外部依赖** | 在 `web/api/upstream.tsx` 的 `captured.factory()` 里补上该模块   |
 | `home-isolation.test.ts`                              | 存储格式/隔离被改坏      | 看具体断言，通常与 `src/home.ts` 或凭据服务有关           |
 | `format:check` 报**已有文件**（不是本次改的）          | 工作区行尾漂移           | 见下方「行尾」；**不要**用 `format` 去「修」代码          |
 | 其它                                                   | 契约漂移                 | 对照 `src/upstream.ts` 顶部契约表                         |

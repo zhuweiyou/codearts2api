@@ -13,8 +13,8 @@
 
 把 `/admin` 从「Node 直发静态页 + esbuild 打包的单入口 + 运行时下发的字符串脚本」重构为 **Vite+ 前后端分离**：
 
-- **前端**：Vite+（Vite/Rolldown）构建，源码在 `web/`（Vite root）：`index.html` + `main.tsx` + `pages/**`（文件路由 `vite-plugin-pages`，按路由/组件异步分块）。外壳/导航/主题/路由、总览 dashboard、调用方 callers、模型面板 models 全部用 **React + TypeScript(.tsx)** 重写；状态用 zustand、时间用 dayjs、样式用 **CSS Modules(`*.module.less`) + Less**（全局壳样式在 `App.less`，前缀 `c2a-`；组件私有 `styles.驼峰` + `clsx`）。上游 `JetHubPage` 仍以 `__ModuleLoader__` 垫片装载（`?url` 资产），`dim-jh-*` 复用上游全局样式。
-- **后端**：`src/*.js` → **`.ts`**；HTTP 改为 **Express** 路由/中间件编排（`src/http/*` 分层：security / body / admin-login / gateway / frontend）；`/v1/*` 仍以原始 handler 反代（保 SSE + caller-gate 记账）。生产托管 `dist/`（`/admin` + `/admin/assets` + SPA 200 fallback）。运行：`node --import vite-plus/register src/index.ts`。
+- **前端**：Vite+（Vite/Rolldown）构建，源码在 `web/`（Vite root）：`index.html` + `main.tsx` + `pages/**`（显式路由 `web/routes.tsx`，目前同步 import、不 lazy 分包）。外壳/导航/主题/路由、总览 dashboard、调用方 callers、模型面板 models 全部用 **React + TypeScript(.tsx)** 重写；状态用 zustand、时间用 dayjs、样式用 **CSS Modules(`*.module.less`) + Less**（全局壳样式在 `App.less`，前缀 `c2a-`；组件私有 `styles.驼峰` + `clsx`）。上游 `JetHubPage` 仍以 `__ModuleLoader__` 垫片装载（`?url` 资产），`dim-jh-*` 复用上游全局样式。
+- **后端**：`src/*.js` → **`.ts`**；HTTP 改为 **Express** 路由/中间件编排（`src/http/*` 分层：security / body / admin-login / gateway / frontend）；`/v1/*` 仍以原始 handler 反代（保 SSE + caller-gate 记账）。生产托管 `dist/`（`/admin` + `/admin/assets` + SPA 200 fallback）。运行：生产 `node dist-server/index.js`（`tsc` 编译；dev 用 register）。
 - **工具链统一到 vp**：`vp build` / `vp test`（Vitest，测试全转 TS）/ `vp check`（Oxlint+Oxfmt）/ `vp fmt` 全绿；类型检查用 `pnpm run typecheck`（tsc）。路由为**显式声明**（`web/routes.tsx`，不再用 vite-plugin-pages）。
 - **构建前后端分离产物**：`pnpm run build` = 前端 `vp build`(→`dist/`) + 后端 `tsc`(→`dist-server/`，含类型检查)；生产 `node dist-server/index.js`（运行期不再依赖 `vite-plus/register`），`register` 仅用于 `pnpm dev`。
 - **依赖归类**：前端库（react/react-dom/react-router-dom/clsx/zustand/dayjs 等）移到 `devDependencies`（被打进 `dist`）；`express` 与 `@deepseek-ai/*`、`dsh-providers-hub` 在 `dependencies`。

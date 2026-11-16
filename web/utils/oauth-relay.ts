@@ -5,21 +5,29 @@
  * loopback 地址会 ERR_CONNECTION_REFUSED。后端有 `/relay/<port>/<path>` 反代；这里负责：
  *  1) 把 loopback URL 改写为 `<origin>/relay/<port>/<path>`（供 window.open / 页面链接）；
  *  2) 把用户可能粘贴的 relay 地址还原成 loopback（供「回调修复」重放接口使用）。
+ *
+ * 端口范围与后端 `src/oauth-relay.ts` 的 parseLoopbackUrl 保持一致：**1024–65535**。
  */
 
 const LOOPBACK = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]):(\d{2,5})(\/[^\s]*)?$/i
 
-/** loopback URL → 本站 `/relay/<port>/<rest>`；非 loopback 原样返回。 */
+/** 端口是否在后端允许范围（1024–65535）。 */
+function isAllowedPort(portText: string): boolean {
+  const port = Number(portText)
+  return Number.isInteger(port) && port >= 1024 && port <= 65535
+}
+
+/** loopback URL → 本站 `/relay/<port>/<rest>`；非 loopback 或端口越界原样返回。 */
 export function relayLoopbackUrl(raw: string, origin?: string): string {
   if (typeof raw !== "string" || raw === "") return raw
   const base = origin ?? (typeof location !== "undefined" ? location.origin : "")
   const match = LOOPBACK.exec(raw.trim())
-  if (!match) return raw
+  if (!match || !isAllowedPort(match[2])) return raw
   const rest = match[3] || "/"
   return base + "/relay/" + match[2] + rest
 }
 
-/** 本站 `/relay/<port>/<rest>` → `http://127.0.0.1:<port><rest>`；其它原样返回。 */
+/** 本站 `/relay/<port>/<rest>` → `http://127.0.0.1:<port><rest>`；其它/越界原样返回。 */
 export function loopbackFromRelay(raw: string, origin?: string): string {
   if (typeof raw !== "string") return raw
   const base = origin ?? (typeof location !== "undefined" ? location.origin : "")
@@ -27,14 +35,15 @@ export function loopbackFromRelay(raw: string, origin?: string): string {
   const prefix = base.replace(/\/$/, "") + "/relay/"
   if (!text.startsWith(prefix)) return text
   const match = /^(\d{2,5})(\/.*)?$/.exec(text.slice(prefix.length))
-  if (!match) return text
+  if (!match || !isAllowedPort(match[1])) return text
   return "http://127.0.0.1:" + match[1] + (match[2] || "/")
 }
 
-/** 校验输入是否是「可重放」的地址（loopback 或本站 relay）。 */
+/** 校验输入是否是「可重放」的地址（端口合法范围内的 loopback，或本站 relay）。 */
 export function isReplayableUrl(raw: string, origin?: string): boolean {
   const text = raw.trim()
-  if (LOOPBACK.test(text)) return true
+  const m = LOOPBACK.exec(text)
+  if (m && isAllowedPort(m[2])) return true
   return loopbackFromRelay(text, origin) !== text
 }
 
@@ -62,33 +71,58 @@ export function installOAuthRelay(): void {
     }
   }
 
-  // 2) 改写页面上已渲染/后续新增的 loopback 链接与文本
-  const fixNode = (root: ParentNode) => {
-    root.querySelectorAll?.("a[href]").forEach((a) => {
-      const href = a.getAttribute("href") || ""
+  const LOOPBACK_TEXT = /https?:\/\/(127\.0\.0\.1|localhost|\[::1\]):(\d{2,5})(\/\S*)?/i
+
+  const fixElement = (el: Element) => {
+    const tag = el.tagName
+    if (tag === "A") {
+      const href = el.getAttribute("href") || ""
       const next = relayLoopbackUrl(href, window.location.origin)
       if (next !== href) {
-        a.setAttribute("href", next)
-        a.setAttribute("data-c2-relayed", "1")
+        el.setAttribute("href", next)
+        el.setAttribute("data-c2-relayed", "1")
       }
-    })
-    root.querySelectorAll?.("code, .dim-jh-loginLink").forEach((el) => {
+      return
+    }
+    if (tag === "CODE" || el.classList.contains("dim-jh-loginLink")) {
       const text = el.textContent || ""
       const next = relayLoopbackUrl(text, window.location.origin)
       if (next !== text) el.textContent = next
-    })
+    }
+  }
+
+  // 处理「节点自身 + 其后代」里的 loopback 链接/文本；覆盖 addedNode 自身被替换成链接的情况
+  const fixNode = (root: Node | null) => {
+    if (!root) return
+    if (root.nodeType === 1) fixElement(root as Element)
+    const scope = root.nodeType === 1 ? (root as Element) : null
+    scope?.querySelectorAll("a[href]").forEach(fixElement)
+    scope?.querySelectorAll("code, .dim-jh-loginLink").forEach(fixElement)
+  }
+
+  // 文本节点原地更新：把命中 loopback 的文本节点也改写
+  const fixTextNode = (node: Node) => {
+    const text = node.textContent || ""
+    if (!LOOPBACK_TEXT.test(text)) return
+    const next = relayLoopbackUrl(text.trim(), window.location.origin)
+    if (next !== text.trim()) node.textContent = next
   }
 
   const start = () => {
-    fixNode(document)
+    fixNode(document.body)
     const observer = new MutationObserver((mutations) => {
       for (const mu of mutations) {
+        if (mu.type === "characterData") {
+          fixTextNode(mu.target)
+          continue
+        }
         mu.addedNodes.forEach((node) => {
-          if (node.nodeType === 1) fixNode(node as Element)
+          if (node.nodeType === 1) fixNode(node)
+          else if (node.nodeType === 3) fixTextNode(node)
         })
       }
     })
-    observer.observe(document.body, { childList: true, subtree: true })
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start)

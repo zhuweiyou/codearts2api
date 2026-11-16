@@ -15,7 +15,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmitOnError": false,
+    "noEmitOnError": true,
     "declaration": false,
     "sourceMap": false
   },

@@ -40,7 +40,7 @@ docker exec codearts2api cat /data/admin-key
 
 ### 本机直跑
 
-**要求**：Node.js `^22.19.0 || >=24.0.0`（建议 24+），包管理器用 **pnpm 11**
+**要求**：Node.js `^22.19.0 || ^24.11.0 || >=26.0.0`（建议 24 LTS ≥24.11），包管理器用 **pnpm 11**
 （`corepack enable` 即可；项目已含 `pnpm-lock.yaml`）。
 
 ```bash

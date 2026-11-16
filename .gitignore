@@ -1,11 +1,9 @@
 # ── 依赖 ──
 node_modules
 
-# ── 上游代码的产物：**必须忽略** ──
-# 这两个文件是上游（github.com/zhuweiyou/dsh-providers-hub）代码的拷贝或
-# 打包结果，不是本仓库的代码。上游 README 明确要求「不要转发到 GitHub」，
-# 因此绝不能提交它们 —— 本仓库只通过 package.json 的 git 依赖引用上游。
-# 两者都由 `npm run build` 从 node_modules 现场生成，无需入库。
+# ── 上游代码不复制、不提交 ──
+# 本仓库只通过 package.json 的 git 依赖引用上游（github.com/iJetLi/dsh-providers-hub）；
+# 其浏览器产物由 vp build 从 node_modules 现场生成到 dist/（已忽略），不复制源码入库。
 
 # ── 运行时状态（切勿入库：含账号索引与凭据）──
 # 默认状态目录在 ~/.codearts2api，但如果有人把 CODEARTS2API_HOME 指到仓库内，

@@ -478,11 +478,10 @@ try {
 
 // ── ⑥ 测试与规范 ──
 //
-// ⚠️ 这里**不跑 `format:check`**：自动升级只要 lint + test 通过即可。
-//    格式化是开发者本地的事，不该成为升级流水线的硬门槛 —— README/CHANGELOG
-//    的排版差异会把每次自动升级都卡红。第 ⑦ 步仍会对刚生成的 CHANGELOG
-//    单独 `prettier --write`，但不做全仓校验。
+// ⚠️ 这里**不跑 `format:check`**：自动升级只要 类型检查 + lint + test 通过即可。
+//    格式化是开发者本地的事，不该成为升级流水线的硬门槛。
 for (const [label, command, commandArgs] of [
+  ["pnpm run typecheck", "pnpm", ["run", "typecheck"]],
   ["pnpm test", "pnpm", ["test"]],
   ["pnpm run lint", "pnpm", ["run", "lint"]],
 ]) {

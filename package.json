@@ -4,7 +4,7 @@
   "private": true,
   "description": "把 dsh-providers-hub 的 Jet Hub 多渠道管理 + OpenAI 网关搬到独立后端（不依赖 DSH 宿主）",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist-server/index.js",
   "engines": {
     "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
   },
