@@ -52,6 +52,9 @@ jobs:
         run: pnpm exec vp check
       - name: Type check (web)
         run: pnpm run typecheck
+      # 后端测试会访问 /admin（serveFrontend 需 dist/index.html，否则 503），先构建前端
+      - name: Build frontend (for /admin SPA tests)
+        run: pnpm run build:web
       - name: Unit / UI tests (vp test)
         run: pnpm exec vp test run
 
