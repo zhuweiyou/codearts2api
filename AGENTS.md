@@ -281,7 +281,7 @@ server {
 
 ## 安全边界
 
-1. **管理端受管理密钥保护**（`/admin`、静态子资源、`/api/jet-hub`）。它能看到并操作
+1. **管理端数据/动作 API 受管理密钥保护**（`/admin/*/api`、`/api/jet-hub`、`/relay/*`；页面与静态资源公开，未登录时前端展示登录框）。它能看到并操作
    你的全部账号凭据，也会**明文回传网关 API Key** —— 所以密钥务必当作密码保管，
    不要写进公开的 compose 文件或截图。
    - 密钥在 `<CODEARTS2API_HOME>/admin-key`（`0600`）或 `CODEARTS2API_ADMIN_KEY`；
