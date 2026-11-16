@@ -1,20 +1,20 @@
-/** 调用方管理 REST 控制器。业务全在 {@link CallersService}。 */
+/** 调用方管理 REST 控制器（挂在 /admin/callers/api 下）。业务全在 {@link CallersService}。 */
 import express from "express"
 
 import { readJsonBody, sendJson } from "../../http/respond.ts"
 import type { CallersService } from "./callers.service.ts"
 
-export const CALLERS_API_PREFIX = "/admin/callers/api"
+export const CALLERS_API_BASE = "/admin/callers/api"
 
 export function createCallersController({ service }: { service: CallersService }) {
   const router = express.Router()
 
-  router.get(`${CALLERS_API_PREFIX}/state`, async (request, response) => {
+  router.get("/state", async (request, response) => {
     const day = typeof request.query.day === "string" ? request.query.day : undefined
     sendJson(response, 200, await service.state(day))
   })
 
-  router.get(`${CALLERS_API_PREFIX}/records`, async (request, response) => {
+  router.get("/records", async (request, response) => {
     const days = typeof request.query.days === "string" && request.query.days ? request.query.days.split(",") : []
     const filter = {
       caller: String(request.query.caller ?? ""),
@@ -25,21 +25,21 @@ export function createCallersController({ service }: { service: CallersService }
     sendJson(response, 200, await service.records({ days, filter, limit }))
   })
 
-  router.post(`${CALLERS_API_PREFIX}/groups`, async (request, response) => {
+  router.post("/groups", async (request, response) => {
     const body = await readJsonBody(request)
     sendJson(response, 200, await service.saveGroup({ name: body.name, desc: body.desc, allow: body.allow }))
   })
 
-  router.delete(`${CALLERS_API_PREFIX}/groups/:name`, async (request, response) => {
+  router.delete("/groups/:name", async (request, response) => {
     sendJson(response, 200, await service.removeGroup(request.params.name))
   })
 
-  router.post(`${CALLERS_API_PREFIX}/keys`, async (request, response) => {
+  router.post("/keys", async (request, response) => {
     const body = await readJsonBody(request)
     sendJson(response, 200, await service.addKey({ name: body.name, group: body.group, enabled: body.enabled }))
   })
 
-  router.patch(`${CALLERS_API_PREFIX}/keys/:id`, async (request, response) => {
+  router.patch("/keys/:id", async (request, response) => {
     const body = await readJsonBody(request)
     sendJson(
       response,
@@ -48,7 +48,7 @@ export function createCallersController({ service }: { service: CallersService }
     )
   })
 
-  router.delete(`${CALLERS_API_PREFIX}/keys/:id`, async (request, response) => {
+  router.delete("/keys/:id", async (request, response) => {
     sendJson(response, 200, await service.removeKey(request.params.id))
   })
 

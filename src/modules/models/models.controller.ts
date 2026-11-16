@@ -1,16 +1,16 @@
-/** 模型清单 REST 控制器。业务在 {@link ModelsService}。 */
+/** 模型清单 REST 控制器（挂在 /admin/models/api 下）。业务在 {@link ModelsService}。 */
 import express from "express"
 
 import { AppError } from "../../core/errors.ts"
 import { readJsonBody, sendJson } from "../../http/respond.ts"
 import type { ModelsService } from "./models.service.ts"
 
-export const MODELS_API_PREFIX = "/admin/models/api"
+export const MODELS_API_BASE = "/admin/models/api"
 
 export function createModelsController({ service }: { service: ModelsService }) {
   const router = express.Router()
 
-  router.get(`${MODELS_API_PREFIX}/status`, async (request, response) => {
+  router.get("/status", async (request, response) => {
     const providers = String(request.query.providers ?? "")
       .split(",")
       .map((x) => x.trim())
@@ -19,16 +19,16 @@ export function createModelsController({ service }: { service: ModelsService }) 
     sendJson(response, 200, await service.status(providers))
   })
 
-  router.get(`${MODELS_API_PREFIX}/:provider`, async (request, response) => {
+  router.get("/:provider", async (request, response) => {
     const provider = request.params.provider
-    if (request.query.plain === "1") {
-      sendJson(response, 200, await service.list(provider))
-      return
-    }
-    sendJson(response, 200, await service.overview(provider))
+    sendJson(
+      response,
+      200,
+      request.query.plain === "1" ? await service.list(provider) : await service.overview(provider),
+    )
   })
 
-  router.patch(`${MODELS_API_PREFIX}/:provider/models/:modelId`, async (request, response) => {
+  router.patch("/:provider/models/:modelId", async (request, response) => {
     const body = await readJsonBody(request)
     sendJson(
       response,
@@ -41,7 +41,7 @@ export function createModelsController({ service }: { service: ModelsService }) 
     )
   })
 
-  router.patch(`${MODELS_API_PREFIX}/:provider/models`, async (request, response) => {
+  router.patch("/:provider/models", async (request, response) => {
     const body = await readJsonBody(request)
     const modelIds = Array.isArray(body.modelIds) ? body.modelIds.map((m: any) => String(m)).filter(Boolean) : []
     sendJson(
