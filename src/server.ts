@@ -17,7 +17,8 @@ import { readBody } from "./http/body.ts"
 import { serveFrontend } from "./http/frontend.ts"
 import { createGatewayProxy, providerIds, readGatewayState } from "./http/gateway.ts"
 import { needsAdminAuth, respondUnauthorized, send, sendAdmin, sendAdminJson } from "./http/security.ts"
-import { createModelsAdmin } from "./models-admin.ts"
+import { createModelsController } from "./modules/models/models.controller.ts"
+import { createModelsService } from "./modules/models/models.service.ts"
 import { createOAuthRelay } from "./oauth-relay.ts"
 import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./core/upstream.ts"
 
@@ -107,7 +108,8 @@ export async function createHttpServer(host, options: any = {}) {
     },
     logger,
   })
-  const modelsAdmin = createModelsAdmin({ rpc: (method, payload) => adminRpc(method, payload, "models"), logger })
+  const modelsService = createModelsService({ rpc: (method, payload) => adminRpc(method, payload, "models"), logger })
+  const modelsAdmin = createModelsController({ service: modelsService, logger })
 
   const throttle = new LoginThrottle()
   const { proxyToGateway } = createGatewayProxy({
