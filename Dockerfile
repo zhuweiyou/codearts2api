@@ -58,7 +58,7 @@ RUN PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 pnpm install --frozen-lockfile
 
 # ── 源码与前端构建 ──
 COPY . .
-# public/admin.js 是构建产物，不入库；每次镜像构建都重生成，
+# 前端由 Vite+（vp build）产出到 dist/，不入库；每次镜像构建都重生成，
 # 保证前端与所锁定的上游 commit 一致。
 RUN pnpm run build
 
@@ -87,4 +87,5 @@ VOLUME ["/data"]
 # 8326 不需要对外暴露。
 EXPOSE 8080
 
-CMD ["node", "src/index.js"]
+# 后端为 TypeScript，用 vite-plus/register 直接运行（镜像默认装 devDependencies，含 vite-plus）。
+CMD ["node", "--import", "vite-plus/register", "src/index.ts"]
