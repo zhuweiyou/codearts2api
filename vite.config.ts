@@ -49,6 +49,9 @@ export default defineConfig({
       "/admin/callers/api": "http://127.0.0.1:8080",
       "/admin/dashboard/api": "http://127.0.0.1:8080",
       "/admin/models/api": "http://127.0.0.1:8080",
+      // 回调修复：重放接口 + 中继（/relay/<port>/...）
+      "/admin/oauth-relay": "http://127.0.0.1:8080",
+      "/relay": "http://127.0.0.1:8080",
     },
   },
   build: {
