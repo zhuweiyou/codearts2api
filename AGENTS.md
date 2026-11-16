@@ -49,7 +49,10 @@
 `?url` 动态加载上游浏览器产物（`dsh-providers-hub/client`），最后渲染 `<App/>`（BrowserRouter，
 basename=`/admin`）。`web/api/upstream.tsx` 用**桩 ctx** 调上游 `apply()`，从 `slots` 里取
 `JetHubPage` 渲染进「渠道管理」；模型面板用 portal 注入上游 `.dim-jh-panel`。外壳/导航/主题/
-总览/调用方都是本仓库 React 组件（`web/pages/**`，显式路由见 `web/routes.tsx`），**界面布局与
+总览/调用方都是本仓库 React 组件（`web/pages/**`，显式路由见 `web/routes.tsx`）。**路由页面目前用
+同步 `import`（不做 `React.lazy` 分包）**：页面数量少、首屏一次性加载更简单直接，`App` 仍保留 `<Suspense>`
+占位；**将来页面变多时，只需把 `web/routes.tsx` 里的静态 import 改成 `React.lazy(() => import("./pages/xxx/index"))`
+即可按路由异步拆分，其余无需改动**。**界面布局与
 样式由本仓库维护**（全局壳 `App.less` + 组件 `*.module.less`），仅 `.dim-jh-*` 弹窗/按钮复用
 上游注入的全局样式。生产由 `vp build` 产出 `dist/`，后端 Express 托管 `/admin`（SPA 200 回退）
 与 `/admin/assets`。
