@@ -8,10 +8,10 @@ import { createServer } from "node:http"
 
 import express from "express"
 
-import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./admin-auth.ts"
+import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
 import { API_PATH as CALLER_API_PATH, createCallerAdmin } from "./caller-admin.ts"
 import { createDashboardAdmin } from "./dashboard-admin.ts"
-import { createAdminLoginRoutes } from "./http/admin-login.ts"
+import { createAdminLoginRoutes } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
 import { serveFrontend } from "./http/frontend.ts"
 import { createGatewayProxy, providerIds, readGatewayState } from "./http/gateway.ts"
@@ -61,7 +61,7 @@ export async function createHttpServer(host, options: any = {}) {
   /** 管理密钥（读到就不变；null 表示鉴权已关闭）。 */
   let adminKey = typeof options.adminKey === "string" && options.adminKey !== "" ? options.adminKey : null
   if (adminAuthEnabled && adminKey === null) {
-    const { loadOrCreateAdminKey } = await import("./admin-auth.ts")
+    const { loadOrCreateAdminKey } = await import("./modules/auth/auth.service.ts")
     const loaded = await loadOrCreateAdminKey(host.home)
     adminKey = loaded.value
     if (loaded.generated) {

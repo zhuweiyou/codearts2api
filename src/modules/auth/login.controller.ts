@@ -7,10 +7,10 @@ import {
   isAdminAuthorized,
   isSecureRequest,
   sessionCookie,
-} from "../admin-auth.ts"
-import { renderLoginPage, sanitizeNext } from "../admin-login-page.ts"
-import { readLoginForm } from "./body.ts"
-import { SECURITY_HEADERS, sendAdmin, sendAdminJson } from "./security.ts"
+} from "./auth.service.ts"
+import { renderLoginPage, sanitizeNext } from "./login-page.view.ts"
+import { readLoginForm } from "../../http/body.ts"
+import { SECURITY_HEADERS, sendAdmin, sendAdminJson } from "../../http/security.ts"
 
 /**
  * @param adminKeyEnabled - () => boolean（鉴权是否生效）

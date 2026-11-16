@@ -224,7 +224,7 @@ test("登录失败会限速，且 next 参数不能用于开放重定向", async
   assert.equal(correctDuringThrottle.status, 200, "限速期间即使密钥正确也应被挡")
 
   // ③ 开放重定向防护：`next` 只能是站内路径。
-  const { sanitizeNext } = await import("../src/admin-login-page.ts")
+  const { sanitizeNext } = await import("../src/modules/auth/login-page.view.ts")
   for (const evil of [
     "https://evil.com",
     "//evil.com",

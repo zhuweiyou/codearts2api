@@ -1,5 +1,5 @@
 /** 安全响应头、响应辅助函数、鉴权判定。与路由编排解耦，供各层复用。 */
-import { LOGIN_PATH, LOGOUT_PATH } from "../admin-auth.ts"
+import { LOGIN_PATH, LOGOUT_PATH } from "../modules/auth/auth.service.ts"
 import { CARRIER_PATH } from "../core/upstream.ts"
 
 /**
