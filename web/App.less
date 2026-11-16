@@ -360,6 +360,12 @@ body {
   box-shadow: var(--c2a-shadow, none);
 }
 
+/* 上游各类状态提示可能带内联 24px 左右 margin，统一拉齐到统计卡片的内容边界。 */
+#admin-root .dim-jh-probeNotice {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
 /* 账号管理头部也使用同样的浅灰底色，和可用模型头部保持一致。 */
 #admin-root .dim-jh-accountSection > .dim-jh-panelHead {
   margin-bottom: 16px;
