@@ -1,109 +1,39 @@
+/**
+ * 调用方管理控制器（`/admin/callers/api`）：单端点 RPC，按 `action` 用表驱动分发到 service。
+ * 只做 HTTP 适配；业务全在 {@link CallersService}。
+ */
 import express from "express"
 
-/**
- * 调用方管理控制器（`/admin/callers/api`）：只做 HTTP 适配 —— 解析 action/body、调用 service、写响应。
- * 业务全部在 {@link createCallersService}。
- */
-import { CallerAdminError, type CallersService } from "./callers.service.ts"
+import { readJsonBody, sendJson } from "../../http/respond.ts"
+import type { CallersService } from "./callers.service.ts"
 
 export const API_PATH = "/admin/callers/api"
 
-const BODY_LIMIT = 1 << 20
-
-function sendJson(response: any, status: number, payload: any) {
-  const body = Buffer.from(JSON.stringify(payload), "utf8")
-  response.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
-    "content-length": String(body.length),
-    "cache-control": "no-store",
-  })
-  response.end(body)
-}
-
-async function readJson(request: any, limit = BODY_LIMIT) {
-  const chunks: Buffer[] = []
-  let size = 0
-  for await (const chunk of request) {
-    size += chunk.length
-    if (size > limit) throw new Error("请求体过大")
-    chunks.push(chunk)
-  }
-  if (!chunks.length) return {}
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"))
-}
-
-export function createCallersController({ service, logger }: { service: CallersService; logger?: any }) {
-  async function handleApi(request: any, response: any) {
-    let payload: any
-    try {
-      payload = await readJson(request)
-    } catch (error) {
-      sendJson(response, 400, { error: `请求体无法解析：${String(error)}` })
-      return
-    }
-    const action = String(payload.action ?? "")
-    try {
-      switch (action) {
-        case "state":
-          sendJson(response, 200, await service.state(payload.day))
-          return
-        case "records":
-          sendJson(
-            response,
-            200,
-            await service.records({ days: payload.days, filter: payload.filter, limit: payload.limit }),
-          )
-          return
-        case "key.add":
-          sendJson(
-            response,
-            200,
-            await service.addKey({ name: payload.name, group: payload.group, enabled: payload.enabled }),
-          )
-          return
-        case "key.update":
-          sendJson(
-            response,
-            200,
-            await service.updateKey({
-              id: payload.id,
-              name: payload.name,
-              group: payload.group,
-              enabled: payload.enabled,
-            }),
-          )
-          return
-        case "key.rm":
-          sendJson(response, 200, await service.removeKey(String(payload.id ?? "")))
-          return
-        case "group.save":
-          sendJson(
-            response,
-            200,
-            await service.saveGroup({ name: payload.name, desc: payload.desc, allow: payload.allow }),
-          )
-          return
-        case "group.rm":
-          sendJson(response, 200, await service.removeGroup(String(payload.name ?? "")))
-          return
-        default:
-          sendJson(response, 400, { error: `未知操作 ${action || "（空）"}` })
-          return
-      }
-    } catch (error: any) {
-      const status = error instanceof CallerAdminError ? error.status : 500
-      if (status >= 500) logger?.error?.(`[callers] ${action} 失败：${String(error)}`)
-      sendJson(response, status, { error: String(error?.message ?? error) })
-    }
+export function createCallersController({ service }: { service: CallersService }) {
+  const actions: Record<string, (payload: any) => Promise<any>> = {
+    state: (p) => service.state(p.day),
+    records: (p) => service.records({ days: p.days, filter: p.filter, limit: p.limit }),
+    "key.add": (p) => service.addKey({ name: p.name, group: p.group, enabled: p.enabled }),
+    "key.update": (p) => service.updateKey({ id: p.id, name: p.name, group: p.group, enabled: p.enabled }),
+    "key.rm": (p) => service.removeKey(String(p.id ?? "")),
+    "group.save": (p) => service.saveGroup({ name: p.name, desc: p.desc, allow: p.allow }),
+    "group.rm": (p) => service.removeGroup(String(p.name ?? "")),
   }
 
   const router = express.Router()
-  router.all(API_PATH, (request: any, response: any, next: any) => {
+  router.all(API_PATH, async (request, response) => {
     if (request.method !== "POST") {
       sendJson(response, 405, { error: "只支持 POST" })
       return
     }
-    handleApi(request, response).catch(next)
+    const payload = await readJsonBody(request)
+    const action = String(payload.action ?? "")
+    const run = actions[action]
+    if (!run) {
+      sendJson(response, 400, { error: `未知操作 ${action || "（空）"}` })
+      return
+    }
+    sendJson(response, 200, await run(payload))
   })
 
   return { router }

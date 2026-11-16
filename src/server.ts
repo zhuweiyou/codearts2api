@@ -9,6 +9,7 @@ import { createServer } from "node:http"
 import express from "express"
 
 import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./modules/auth/auth.service.ts"
+import { createErrorHandler } from "./http/error.ts"
 import { createCallersController } from "./modules/callers/callers.controller.ts"
 import { createCallersService } from "./modules/callers/callers.service.ts"
 import { createDashboardController } from "./modules/dashboard/dashboard.controller.ts"
@@ -58,7 +59,7 @@ export async function createHttpServer(host, options: any = {}) {
   const callerGate = options.callerGate ?? null
   const logger = options.logger
   const callersService = createCallersService({ home: host.home, logger })
-  const callerAdmin = createCallersController({ service: callersService, logger })
+  const callerAdmin = createCallersController({ service: callersService })
   const oauthRelay = createOAuthRelay({ logger })
   const adminAuthEnabled = options.adminAuth !== false
 
@@ -110,7 +111,7 @@ export async function createHttpServer(host, options: any = {}) {
     logger,
   })
   const modelsService = createModelsService({ rpc: (method, payload) => adminRpc(method, payload, "models"), logger })
-  const modelsAdmin = createModelsController({ service: modelsService, logger })
+  const modelsAdmin = createModelsController({ service: modelsService })
 
   const throttle = new LoginThrottle()
   const { proxyToGateway } = createGatewayController({
@@ -228,11 +229,7 @@ export async function createHttpServer(host, options: any = {}) {
   })
 
   // 统一错误处理
-  app.use((err, req, res, _next) => {
-    logger?.error?.(`[http] ${req.method} ${req.originalUrl} 处理失败：${String(err)}`)
-    if (!res.headersSent) sendAdminJson(res, 500, { error: String(err) })
-    else res.end()
-  })
+  app.use(createErrorHandler(logger))
 
   return createServer(app)
 }

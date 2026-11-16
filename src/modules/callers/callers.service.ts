@@ -8,18 +8,18 @@ import { createHash, randomBytes } from "node:crypto"
 import { readFile, readdir, rename, stat, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 
+import { AppError } from "../../core/errors.ts"
+
 const KEY_PREFIX = "p_"
 const STORE_VERSION = 1
 const STORE_COMMENT =
   "groups[].allow / deny 支持 `*`、`provider/*`、完整模型名。" +
   "aggregate/* 与 jet-hub-auto/* 在白名单不是 * 时必须显式列出才可用。"
 
-/** 业务校验错误（status 供控制器映射到 HTTP）。 */
-export class CallerAdminError extends Error {
-  status: number
+/** 业务校验错误（status 供统一错误中间件转成 HTTP）。 */
+export class CallerAdminError extends AppError {
   constructor(status: number, message: string) {
-    super(message)
-    this.status = status
+    super(status, "caller_admin", message)
   }
 }
 

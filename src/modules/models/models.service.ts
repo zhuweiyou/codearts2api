@@ -1,14 +1,14 @@
+import { AppError } from "../../core/errors.ts"
+
 /**
  * 供应商「可用模型」领域服务。
  *
  * 上游只有两个原始事实源（model.list 目录 / account.list 的 modelRateLimits），
  * “模型能不能用”必须按账号聚合 —— 这是本模块唯一的业务判断。
  */
-export class ModelsError extends Error {
-  status: number
+export class ModelsError extends AppError {
   constructor(status: number, message: string) {
-    super(message)
-    this.status = status
+    super(status, "models", message)
   }
 }
 
