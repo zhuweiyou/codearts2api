@@ -5,7 +5,7 @@
 
 ## 快速规则（先看这里）
 
-- **运行环境**：Node.js `^22.19.0 || >=24.0.0`（建议 24+）；包管理器用 **pnpm 11**
+- **运行环境**：Node.js `^22.19.0 || ^24.11.0 || >=26.0.0`（与 vite-plus 等依赖 engines 取交集；建议 24 LTS ≥24.11）；包管理器用 **pnpm 11**
   （`corepack enable` 即可，仓库含 `pnpm-lock.yaml`）。⚠️ **不要用 npm 安装**：上游
   `dsh-providers-hub` 是 git 依赖、自带 pnpm-lock 锁定 `@deepseek-ai/dsh-*`；npm 不读上游
   lock 会解析到最新版，导致上游 prepare 的 tsc 失败。
