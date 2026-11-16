@@ -10,9 +10,11 @@ packages:
 
 # pnpm 11 默认禁止依赖执行构建脚本。这里放行：
 #   - dsh-providers-hub：上游 git 依赖，prepare 要跑 tsc 等。git 依赖的 key 只认精确
-#     URL（含 commit），升级上游 commit 时由 scripts/upgrade-upstream.mjs 自动改写本行。
+#     URL（含 commit），升级上游 commit 时由 scripts/upgrade-upstream.mjs 自动改写本行；
+#   - esbuild：vite-plus / vitest / @vitejs/plugin-react 的传递依赖，postinstall 要落平台二进制。
 allowBuilds:
   'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/664db471f2e1b0a5507a6039c16162c2b11a402b': true
+  esbuild: true
 
 # Vite+ 官方要求：把 vite 依赖别名到它捆绑的 core（与安装的 vite-plus 版本一致），
 # 否则顶层 `vite` 不存在，@vitejs/plugin-react 等 peer 无法解析。
