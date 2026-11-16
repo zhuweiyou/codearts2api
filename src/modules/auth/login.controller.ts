@@ -8,11 +8,6 @@ import { clientIp, isSecureRequest } from "../../core/request.ts"
 import { sendJson } from "../../http/respond.ts"
 import { constantTimeEquals, isAdminAuthorized, clearSessionCookie, sessionCookie } from "./auth.service.ts"
 
-export const AUTH_BASE = "/admin"
-const SESSION_PATH = "/api/session"
-const LOGIN_PATH = "/login"
-const LOGOUT_PATH = "/logout"
-
 const CREDENTIAL_LIMIT = 8 * 1024
 
 async function readCredentials(request: any): Promise<{ key: string; next: string }> {
@@ -36,12 +31,12 @@ async function readCredentials(request: any): Promise<{ key: string; next: strin
 export function createAuthRouter({ adminKeyEnabled, adminKey, throttle, logger }: any) {
   const router = express.Router()
 
-  router.get(SESSION_PATH, (request, response) => {
+  router.get("/api/session", (request, response) => {
     const authenticated = adminKeyEnabled() ? isAdminAuthorized(request, adminKey) : true
     sendJson(response, 200, { authenticated })
   })
 
-  router.post(LOGIN_PATH, async (request, response) => {
+  router.post("/login", async (request, response) => {
     if (!adminKeyEnabled()) {
       sendJson(response, 200, { ok: true, next: "/admin/overview" })
       return
@@ -71,7 +66,7 @@ export function createAuthRouter({ adminKeyEnabled, adminKey, throttle, logger }
     sendJson(response, 401, { error: "访问密钥不正确，请重试。" })
   })
 
-  router.all(LOGOUT_PATH, (_request, response) => {
+  router.all("/logout", (_request, response) => {
     response.setHeader("set-cookie", clearSessionCookie())
     sendJson(response, 200, { ok: true })
   })

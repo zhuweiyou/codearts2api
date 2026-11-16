@@ -27,8 +27,7 @@ import { MIN_PORT, MAX_PORT, parseLoopbackUrl, loopbackOf } from "./oauth-relay.
 
 import { SESSION_COOKIE } from "../auth/auth.service.ts"
 
-export const RELAY_BASE = "/relay"
-export const REPLAY_BASE = "/admin/oauth-relay"
+const RELAY_BASE = "/relay"
 
 const RELAY_PREFIX = RELAY_BASE + "/"
 

@@ -5,8 +5,6 @@ import { AppError } from "../../core/errors.ts"
 import { readJsonBody, sendJson } from "../../http/respond.ts"
 import type { ModelsService } from "./models.service.ts"
 
-export const MODELS_API_BASE = "/admin/models/api"
-
 export function createModelsController({ service }: { service: ModelsService }) {
   const router = express.Router()
 

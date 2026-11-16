@@ -4,8 +4,6 @@ import express from "express"
 import { readJsonBody, sendJson } from "../../http/respond.ts"
 import type { CallersService } from "./callers.service.ts"
 
-export const CALLERS_API_BASE = "/admin/callers/api"
-
 export function createCallersController({ service }: { service: CallersService }) {
   const router = express.Router()
 

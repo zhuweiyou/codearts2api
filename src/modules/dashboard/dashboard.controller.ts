@@ -4,8 +4,6 @@ import express from "express"
 import { sendJson } from "../../http/respond.ts"
 import { createDashboard } from "./dashboard.service.ts"
 
-export const DASHBOARD_API_BASE = "/admin/dashboard/api"
-
 export function createDashboardController(options: any) {
   const dashboard = createDashboard(options)
   const router = express.Router()
