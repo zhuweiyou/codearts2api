@@ -3,6 +3,7 @@ import { BrowserRouter } from "react-router-dom"
 
 import App from "./App"
 import { getUpstreamPage } from "./api/upstream"
+import { installOAuthRelay } from "./utils/oauth-relay"
 import "./App.less"
 // 上游浏览器 bundle 作为 Vite 资产引入（?url）：构建时原样产出到 dist/assets 并返回 URL，
 // 无需仓库 public/。它是 classic 脚本（首句调用 window.__ModuleLoader__.load），故用 <script> 注入。
@@ -13,6 +14,9 @@ import upstreamUrl from "dsh-providers-hub/client?url"
     ;(window as any).__JET_HUB_ROW__ = row
   },
 }
+
+// 尽早安装 OAuth 中继：改写 window.open 与页面上的 loopback 链接，远程部署时回调不再打不开。
+installOAuthRelay()
 
 function loadUpstream(): Promise<void> {
   return new Promise((resolve, reject) => {
