@@ -75,8 +75,9 @@ web/                       # 前端（Vite root，源码根）
   api/                     # rpc / callers / providers / upstream（装载上游 JetHubPage）
   hooks/                   # useOverviewData / useCallersData / useAdminAuthVisible / useMeasureGutter
   store/theme.ts           # zustand 主题
-  utils/                   # time(dayjs, zh-cn) / callers-format / clipboard
+  utils/                   # time(dayjs, zh-cn) / callers-format / callers-prefs / clipboard / oauth-relay
   routes.tsx               # 显式路由表（react-router useRoutes；/ → /overview 重定向在这里）
+  components/              # 全局复用组件（OAuthRelayFix：顶栏「回调修复」）
   pages/                   # 页面组件（仅 index.tsx 为页面，页面私有组件与 index 同级内聚）
     overview/   index.tsx · sections.tsx · Card/Cards/Section/ProviderHead.tsx · format.ts · Overview.module.less
     callers/    index.tsx · Section · GroupsTab/KeysTab/UsageTab/RecordsTab · DaysDropdown/FormModal/SecretModal · Callers.module.less
@@ -91,7 +92,7 @@ src/                       # 后端（Node / Express，TypeScript）
   home.ts logger.ts admin-auth.ts admin-login-page.ts connection.ts
   caller-gate.ts caller-admin.ts （已移除 caller-cli） dashboard-admin.ts models-admin.ts oauth-relay.ts
 
-tests/                     # 后端行为测试（Vitest，*.test.ts）
+tests/                     # 行为/UI 测试（Vitest，*.test.{ts,tsx}；组件用 jsdom）
 vite.config.ts             # vp 配置：root=web、全局 fmt/lint/test/build、alias（路由为显式 routes.tsx）
 tsconfig.json
 scripts/                   升级上游等脚本
@@ -425,9 +426,11 @@ pnpm start
 
 - `vp fmt`：双引号 / 无分号 / 120 宽；忽略 `dist/`、`node_modules/`、以及文档/配置/脚本（`*.md/*.yml/*.json/.github/docs/scripts`）。
 - `vp lint`：Oxlint；忽略 `dist/`、`node_modules/`。
-- `vp test`：Vitest（`tests/**/*.test.ts`，`environment: node`）。
+- `vp test`：Vitest（`tests/**/*.test.{ts,tsx}`；全局 `environment: node`，组件测试文件内用 `// @vitest-environment jsdom`）；`hookTimeout`/`testTimeout` = 30s。
 - `vp check`：格式 + lint（Oxlint，非类型感知）；**类型检查**单独用 `pnpm run typecheck`（`tsc -p tsconfig.json --noEmit`，覆盖 web）。
 - 前端源码全 `.ts/.tsx`；组件样式为 `*.module.less`（`styles.驼峰` + `clsx`），全局壳在 `App.less`（前缀 `c2a-`）。
+- 组件/交互测试用 `// @vitest-environment jsdom`（全局 `test.environment` 仍是 `node`）；测试期依赖（jsdom、@testing-library 等）只在 devDependencies。
+- 类型检查：web 用 `pnpm run typecheck`（tsc）；**后端由 `pnpm run build:server`（tsc）覆盖**。
 
 > ⚠️ 前端产物 `dist/` 由 `vp build` 生成、被 `.gitignore` 排除，**不要**提交。
 
@@ -437,9 +440,12 @@ pnpm start
 备份往返、网关启停（含端口真实释放）、模型 / 供应商开关、`/v1/*` 反代（含鉴权不被绕过、
 网关不可达时的错误信封）、SSE 流式、状态目录隔离（不污染 `~/.dsh`）、凭据可读性、
 关闭后无残留文件监听、**图片输入**（附件服务装配、落盘往返与内容寻址、mime 硬校验、
-外部链接被拒、坏图报可读错），以及 `tests/oauth-relay-rewrite.test.ts` 覆盖的中继改写；旧外壳/UI 测试已移除（导航/主题/弹窗等改由手测）：
-视图 mount 与 onShow/onHide、主题持久化、弹窗 Esc 与焦点归还、回调修复的校验与三态结果、
-总览积分明细折叠状态跨刷新保持、调用记录明细渲染与增量自动刷新（含各暂停条件）；`caller-gate.test.ts` 覆盖用量日志耗时从请求进入时算起。
+外部链接被拒、坏图报可读错）。
+**前端 UI（jsdom + @testing-library）**：OAuth 中继改写（window.open / anchor href / `.dim-jh-loginLink` 文本 /
+addedNode / characterData / 端口越界 / 幂等）、「回调修复」交互（loopback 提交、relay→loopback 还原、
+越界端口禁用、Esc 关闭、busy 时 Esc 不关）、日期下拉外部点击关闭、「查询」不吞点击、FormModal（Esc / 遮罩 / 首焦）、
+SecretModal（Esc 不关且 onClose 不被调用）、主题与自动刷新**存储 key 迁移**（c2→c2a）；以及 callers/overview 格式化纯逻辑测试；
+`caller-gate.test.ts` 覆盖用量日志耗时从请求进入时算起。
 
 ### 设计决策：外部图片 URL 为什么被拒
 
@@ -625,14 +631,13 @@ pnpm run format:check  # 确认代码风格一致
 | 失败的是                                               | 说明                     | 怎么办                                                    |
 | ------------------------------------------------------ | ------------------------ | --------------------------------------------------------- |
 | `host.test.ts` 的「provider 不见了」                  | 上游**删除/改名**了渠道  | 按报错给出的实际列表更新 `EXPECTED_PROVIDERS`（只改测试） |
-| `（UI 测试已移除）` 的「只请求我们 shim 能提供的模块」 | 上游引入**新的外部依赖** | 在 `web/api/upstream.tsx` 的 `captured.factory()` 里补上该模块   |
+| 前端测试报「只请求我们 shim 能提供的模块」 | 上游引入**新的外部依赖** | 在 `web/api/upstream.tsx` 的 `captured.factory()` 里补上该模块   |
 | `home-isolation.test.ts`                              | 存储格式/隔离被改坏      | 看具体断言，通常与 `src/home.ts` 或凭据服务有关           |
 | `format:check` 报**已有文件**（不是本次改的）          | 工作区行尾漂移           | 见下方「行尾」；**不要**用 `format` 去「修」代码          |
 | 其它                                                   | 契约漂移                 | 对照 `src/upstream.ts` 顶部契约表                         |
 
-> ⚠️ **行尾陷阱**：Git `core.autocrlf=true` 时工作区会被检成 CRLF，而 Prettier 默认
-> `endOfLine: "lf"` ⇒ 一批**本来没动过**的文件也会报格式错误（`format` 还会把它们整份
-> 重写）。先确认是不是这个原因：
+> ⚠️ **行尾陷阱**：Git `core.autocrlf=true` 时工作区会被检成 CRLF，而 vp fmt（Oxfmt）默认 LF
+> ⇒ 一批**本来没动过**的文件也会报格式错误（`vp fmt` 还会把它们整份重写）。先确认是不是这个原因：
 >
 > ```powershell
 > git ls-files --eol | Select-String 'w/crlf'
@@ -681,7 +686,8 @@ node -e "console.log(require('./package.json').dependencies['dsh-providers-hub']
 Node 进程运行期只读取 `dist/` 静态产物，**不会 `require`** 这些包。
 
 - **devDependencies（构建/测试期）**：`react` `react-dom` `react-router-dom` `clsx` `zustand` `dayjs`
-  `vite-plus` `@vitejs/plugin-react` `less` `typescript` `@types/react(-dom)`。
+  `vite-plus` `@vitejs/plugin-react` `less` `typescript` `@types/react(-dom)` `@types/node`
+  `jsdom` `@testing-library/react` `@testing-library/dom`。
 - **dependencies（运行期，Node 真正 import）**：`express`（HTTP）、`@deepseek-ai/*`、`dsh-providers-hub`。
 
 判定标准：`src/**` 里 `import` 的 → dependencies；只在 `web/**` 被 Vite 打进产物、或仅构建/测试用的 → devDependencies。

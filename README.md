@@ -45,8 +45,8 @@ docker exec codearts2api cat /data/admin-key
 
 ```bash
 pnpm install
-pnpm run build
-pnpm start
+pnpm run build   # 前端(dist/) + 后端(dist-server/) 一起构建
+pnpm start       # 运行后端编译产物 dist-server/index.js
 ```
 
 启动后打开 <http://127.0.0.1:8080/admin>。首次启动会在日志里打印一次管理密钥
