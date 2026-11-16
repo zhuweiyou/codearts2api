@@ -82,7 +82,7 @@ pnpm start
 
 | 路径                                                                | 说明                                             |
 | ------------------------------------------------------------------- | ------------------------------------------------ |
-| `GET /admin`                                                        | 管理界面（登录页 → 上游 Jet Hub 设置页）         |
+| `GET /admin`                                                        | 管理界面（登录页 → 默认「总览」；渠道页复用上游 Jet Hub） |
 | `POST /api/jet-hub`                                                 | Jet Hub 管理 RPC（上游实现原样透传，需管理密钥） |
 | `GET /v1/models`、`POST /v1/chat/completions`、`POST /v1/responses` | OpenAI 兼容接口（上游网关，需网关 Key）          |
 | `GET /healthz`                                                      | 健康检查（不含密钥，可给监控用）                 |

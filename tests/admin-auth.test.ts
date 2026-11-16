@@ -3,7 +3,7 @@
  *
  * ## 为什么这组测试很重要
  *
- * 在它之前，`/admin`、`/admin.js`、`/api/jet-hub` **全部无鉴权**。而
+ * 在它之前，`/admin`、`/api/jet-hub` **全部无鉴权**。而
  * `/api/jet-hub` 的 `backup.export` 能导出全部账号凭据、`gateway.getEnabled`
  * 能明文取回网关 Key —— 也就是说「公网可达」等于「账号全送」。
  *
@@ -29,7 +29,7 @@ const BROWSER_ACCEPT = { accept: "text/html,application/xhtml+xml" }
  * ⚠️ `/` 与 `/admin/` 必须在内：前者是**默认入口**（很多人直接访问根路径），
  *    后者是尾斜杠形态 —— 漏掉任何一个都等于「换个地址就绕过」。
  */
-const PROTECTED_PATHS = ["/", "/admin", "/admin/", "/admin.css", "/admin-boot.js", "/admin.js", "/upstream-jet-hub.js"]
+const PROTECTED_PATHS = ["/", "/admin", "/admin/", "/admin/overview", "/api/jet-hub"]
 
 test("未登录时管理页面与静态资源全部被拦（含根路径 /）", async (t) => {
   const app = await startTestApp()

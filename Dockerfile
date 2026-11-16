@@ -38,10 +38,10 @@ WORKDIR /app
 # ⚠️ 用 pnpm 安装（不是 npm）：上游 `dsh-providers-hub` 是 git 依赖，它自带
 #    pnpm-lock.yaml 锁定 `@deepseek-ai/dsh-*` 到编译验证过的版本；npm 不读上游
 #    lock，会解析到 registry 上最新版（失败码枚举改名），导致上游 prepare 的 tsc 失败。
-#    `pnpm-workspace.yaml` 的 allowBuilds 放行上游 prepare 与 esbuild 的构建脚本。
+#    `pnpm-workspace.yaml` 的 allowBuilds 放行上游 prepare 与 Vite+ 的构建脚本。
 #
-# ⚠️ 必须装 devDependencies：前端 `public/admin.js` 由 esbuild + react 在镜像
-#    构建期产出，`pnpm run build` 需要 esbuild 二进制与 react 源码作为输入。
+# ⚠️ 必须装 devDependencies：前端 `dist/(前端产物)` 由 Vite+ + react 在镜像
+#    构建期产出，`pnpm run build` 需要 Vite+ 二进制与 react 源码作为输入。
 #    pnpm 默认安装 devDependencies（不加 `--prod`）。
 #
 # 💡 `sharp`（附件服务用来校验/缩放图片）是**原生包**，靠 optionalDependencies
@@ -72,7 +72,7 @@ ENV PORT=8080
 # 插件网关的**监听地址**被上游硬编码为 127.0.0.1（不可经 env 改），所以容器外
 # 无法直达它 —— 必须让本服务把 /v1/* 转发进来，对外只需一个端口。
 #
-# ⚠️ 这行现在是**冗余**的：产品默认已开启（见 src/index.js 的 resolveProxyGateway）。
+# ⚠️ 这行现在是**冗余**的：产品默认已开启（见 src/index.ts 的 resolveProxyGateway）。
 #    保留它是为了「将来默认值再变时，镜像行为不跟着漂」。
 ENV PROXY_GATEWAY=1
 # 管理端鉴权默认开启：独立于网关 Key 的管理密钥会自动生成到 /data/admin-key。

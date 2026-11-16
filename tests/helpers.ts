@@ -3,8 +3,8 @@
  *
  * ## 为什么要动态 import
  *
- * `src/host.js` 在装载时会读环境变量决定 state home（`pinHome()`），而
- * `src/index.js` 更是直接起服务。ESM 的 import 是提升的，所以必须在设置
+ * `src/host.ts` 在装载时会读环境变量决定 state home（`pinHome()`），而
+ * `src/index.ts` 更是直接起服务。ESM 的 import 是提升的，所以必须在设置
  * 环境变量**之后**再 `await import(...)` —— 否则测试会污染真实 `~/.dsh`。
  *
  * ## 为什么每个测试用独立的 home 与网关端口

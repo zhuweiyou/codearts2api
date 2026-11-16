@@ -376,6 +376,3 @@ function sendJson(response, status, value) {
   })
   response.end(body)
 }
-
-// 面板里的小挂件：①自动把 window.open / 手动链接改到中继 ②粘贴回调链接一键重放
-// 注意：本段整体包在 String.raw 里，**内部不允许出现反引号**

@@ -234,7 +234,7 @@ export async function createHost() {
     const registered = [...connection.routes.keys()]
     throw new Error(
       `上游插件未注册预期的管理端点 ${JET_HUB_PATH}（实际注册：${registered.join(", ") || "无"}）。` +
-        "这通常意味着上游改了端点路径或装配方式 —— 请对照 src/upstream.js 顶部的契约表逐条核对，" +
+        "这通常意味着上游改了端点路径或装配方式 —— 请对照 src/upstream.ts 顶部的契约表逐条核对，" +
         "并把该文件里的常量改成上游的新值。",
     )
   }

@@ -1,7 +1,7 @@
 /**
  * /admin/callers/api 的入参契约测试。
  *
- * 为什么必须有这组测试：调用方弹窗（src/callers-ui.js）与后端（src/caller-admin.js）
+ * 为什么必须有这组测试：调用方弹窗（web/pages/callers（React 组件））与后端（src/caller-admin.ts）
  * 之间没有共享的类型定义，前端发什么就是什么。曾经出现过一次真实事故——前端把
  * 参数各自包了一层（{action:"group.save", group:{...}}），而后端只读顶层字段，
  * 于是「新建分组」「新建 key」直接 400 报空名，而「编辑 key」因为三处 typeof 守卫

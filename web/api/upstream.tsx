@@ -161,7 +161,9 @@ function Menu({
 function loadUpstreamPage(): React.ComponentType<any> {
   const captured: any = (globalThis as any).__JET_HUB_ROW__
   if (captured === null || typeof captured !== "object" || typeof captured.factory !== "function") {
-    throw new Error("上游 jet-hub 客户端 bundle 未先加载（upstream-jet-hub.js 缺失或加载失败）")
+    throw new Error(
+      "上游 jet-hub 客户端 bundle 未先加载（上游 jet-hub 客户端 bundle（dist/assets/jet-hub-*.js）缺失或加载失败）",
+    )
   }
 
   const upstream = captured.factory((name: string) => {

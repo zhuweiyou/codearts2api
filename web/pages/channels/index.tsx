@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 
 import { hostRpcCall } from "../../api/rpc"
 import { getUpstreamPage } from "../../api/upstream"
-import { ModelsPanelHost } from "../../components/channels/ModelsPanelHost"
+import { ModelsPanelHost } from "./ModelsPanelHost"
 
 function ChannelsView() {
   const [Page, setPage] = useState<React.ComponentType<any> | null>(null)

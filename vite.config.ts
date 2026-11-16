@@ -2,7 +2,6 @@ import { fileURLToPath } from "node:url"
 
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite-plus"
-import Pages from "vite-plugin-pages"
 
 /**
  * Vite+（vp）配置 —— 前端自足在 `web/`，`vp build` 一次产出到仓库 `dist/`，不再依赖仓库 `public/`。
@@ -34,12 +33,8 @@ export default defineConfig({
       ),
     },
   },
-  plugins: [
-    react(),
-    // 文件路由：约定 pages/<route>/index.tsx 才是页面；内部组件一律放 web/components/**（不在 pages 下）。
-    // 这样无需 exclude 白名单，新增组件也不会被误注册成路由。
-    Pages({ dirs: "pages", extensions: ["tsx"], importMode: "async" }),
-  ],
+  // 路由为显式声明（web/routes.tsx），不用文件路由插件。
+  plugins: [react()],
   server: {
     // dev：仅把这些后端接口反代到 127.0.0.1:8080；其余路径走 SPA 回退到 index.html。
     proxy: {

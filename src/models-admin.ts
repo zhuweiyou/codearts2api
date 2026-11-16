@@ -250,7 +250,7 @@ export function createModelsAdmin(options) {
 /**
  * UI 脚本。注入点选择（**右侧**）：
  *
- *   `main.dim-jh-panel` 是右侧面板容器（`public/upstream-jet-hub.js:13052`
+ *   `main.dim-jh-panel` 是右侧面板容器（`上游客户端 bundle（dist/assets/jet-hub-*.js）`
  *   的 `div.dim-jh-layout > main.dim-jh-panel`）。它内部按当前选中供应商渲染
  *   `ProviderPanel`（内含 `.dim-jh-accountSection`「XX 账号管理」+ 账号卡片）。
  *

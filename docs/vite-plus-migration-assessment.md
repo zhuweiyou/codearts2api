@@ -1,3 +1,5 @@
+> 历史评估文档（迁移已完成，实际实现以 CHANGELOG 与 AGENTS 为准）。
+
 # 迁移到 Vite+（vp）可行性 / 复杂度评估
 
 > 分支：`refactor/vite-plus-migration-assessment`（基于 `main` @ `541a121`，未提交）

@@ -1,10 +1,11 @@
 /**
- * /admin 外壳（React Router + vite-plugin-pages 文件路由，basename=/admin）。
- * 全局状态用 zustand（store/theme），横切逻辑抽成 hooks；路由按文件分块（web/pages）。
+ * /admin 外壳（React Router 显式路由，basename=/admin）。
+ * 全局状态用 zustand（store/theme），横切逻辑抽成 hooks；路由表见 ./routes.tsx。
  */
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate, useRoutes } from "react-router-dom"
-import routes from "~react-pages"
+
+import { routes } from "./routes"
 
 import { useAdminAuthVisible } from "./hooks/useAdminAuthVisible"
 import { useMeasureGutter } from "./hooks/useMeasureGutter"

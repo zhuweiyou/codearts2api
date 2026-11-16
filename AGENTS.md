@@ -36,7 +36,7 @@
 | `credentials` | **复用官方** `@deepseek-ai/dsh-credentials-local` | 写 `<home>/.credentials.yaml`；自实现要重担格式 / 权限 / 原子写 / 锁，偏差表现为**静默读不到凭据** |
 | `attachments` | **复用官方** `@deepseek-ai/dsh-attachment-local`  | 图片输入的地基（入站落盘 + 出站内联）。插件用 `ctx.get` 取它，**缺了不报错**、只静默失去图片能力   |
 | `commands`    | 空对象                                            | 插件把它列在 `inject` 里但代码零调用；缺了会永久 pending                                           |
-| `connection`  | 自实现注册表（`src/connection.js`）               | Jet Hub 管理端点经此接入，请求原样透传                                                             |
+| `connection`  | 自实现注册表（`src/connection.ts`）               | Jet Hub 管理端点经此接入，请求原样透传                                                             |
 | `llm`         | **真实** `@deepseek-ai/dsh-llm` 的 `LlmRuntime`   | 网关与各渠道适配器都通过它发请求，不能替身                                                         |
 
 > ⚠️ 凭据服务**必须走 `ctx.plugin()`**，不能 `new LocalCredentialProvider(...)`：载入既有
@@ -49,7 +49,7 @@
 `?url` 动态加载上游浏览器产物（`dsh-providers-hub/client`），最后渲染 `<App/>`（BrowserRouter，
 basename=`/admin`）。`web/api/upstream.tsx` 用**桩 ctx** 调上游 `apply()`，从 `slots` 里取
 `JetHubPage` 渲染进「渠道管理」；模型面板用 portal 注入上游 `.dim-jh-panel`。外壳/导航/主题/
-总览/调用方都是本仓库 React 组件（`web/pages/**`，文件路由 `vite-plugin-pages`），**界面布局与
+总览/调用方都是本仓库 React 组件（`web/pages/**`，显式路由见 `web/routes.tsx`），**界面布局与
 样式由本仓库维护**（全局壳 `App.less` + 组件 `*.module.less`），仅 `.dim-jh-*` 弹窗/按钮复用
 上游注入的全局样式。生产由 `vp build` 产出 `dist/`，后端 Express 托管 `/admin`（SPA 200 回退）
 与 `/admin/assets`。
@@ -73,8 +73,8 @@ web/                       # 前端（Vite root，源码根）
   hooks/                   # useOverviewData / useCallersData / useAdminAuthVisible / useMeasureGutter
   store/theme.ts           # zustand 主题
   utils/                   # time(dayjs, zh-cn) / callers-format / clipboard
-  pages/                   # 文件路由（vite-plugin-pages）
-    index.tsx              # / → 重定向到 /overview
+  routes.tsx               # 显式路由表（react-router useRoutes；/ → /overview 重定向在这里）
+  pages/                   # 页面组件（仅 index.tsx 为页面，页面私有组件与 index 同级内聚）
     overview/   index.tsx · sections.tsx · Card/Cards/Section/ProviderHead.tsx · format.ts · Overview.module.less
     callers/    index.tsx · Section · GroupsTab/KeysTab/UsageTab/RecordsTab · DaysDropdown/FormModal/SecretModal · Callers.module.less
     channels/   index.tsx · ModelsPanel · ModelsPanelHost · ModelsPanel.module.less
@@ -86,10 +86,10 @@ src/                       # 后端（Node / Express，TypeScript）
   server.ts                Express 路由编排（健康检查 / 登录 / /v1 反代 / 鉴权 / 前端 / RPC）
   http/                    security · body · admin-login · gateway · frontend 分层
   home.ts logger.ts admin-auth.ts admin-login-page.ts connection.ts
-  caller-gate.ts caller-admin.ts caller-cli.ts dashboard-admin.ts models-admin.ts oauth-relay.ts
+  caller-gate.ts caller-admin.ts （已移除 caller-cli） dashboard-admin.ts models-admin.ts oauth-relay.ts
 
 tests/                     # 后端行为测试（Vitest，*.test.ts）
-vite.config.ts             # vp 配置：root=web、文件路由、fmt/lint、test、build、alias
+vite.config.ts             # vp 配置：root=web、全局 fmt/lint/test/build、alias（路由为显式 routes.tsx）
 tsconfig.json
 scripts/                   升级上游等脚本
 Dockerfile  CHANGELOG.md  README.md  AGENTS.md
@@ -108,7 +108,7 @@ pnpm run dev:web                               # = vp dev（前端 dev server + 
 pnpm run lint                                  # = vp lint（Oxlint）
 pnpm run format                                # = vp fmt --write .
 pnpm run format:check                          # = vp fmt --check .
-# vp check 一把过：格式 + lint + 类型
+# 类型检查用 pnpm run typecheck（tsc）；vp check = 格式 + lint
 ```
 
 > ⚠️ **必须用 pnpm 安装**：上游 `dsh-providers-hub` 是 git 依赖，其自带 `pnpm-lock.yaml`
@@ -415,12 +415,12 @@ pnpm start
 
 ### 测试与规范
 
-代码风格统一由 **vp（Oxfmt + Oxlint + 类型检查）** 管理，配置在 `vite.config.ts` 的 `fmt`/`lint`/`test` 段：
+代码风格统一由 **vp（Oxfmt + Oxlint）** 管理；类型检查用 `pnpm run typecheck`，配置在 `vite.config.ts` 的 `fmt`/`lint`/`test` 段：
 
 - `vp fmt`：双引号 / 无分号 / 120 宽；忽略 `dist/`、`node_modules/`、以及文档/配置/脚本（`*.md/*.yml/*.json/.github/docs/scripts`）。
 - `vp lint`：Oxlint；忽略 `dist/`、`node_modules/`。
 - `vp test`：Vitest（`tests/**/*.test.ts`，`environment: node`）。
-- `vp check`：格式 + lint + 类型 一把过（CI 用）。
+- `vp check`：格式 + lint（Oxlint，非类型感知）；**类型检查**单独用 `pnpm run typecheck`（`tsc -p tsconfig.json --noEmit`，覆盖 web）。
 - 前端源码全 `.ts/.tsx`；组件样式为 `*.module.less`（`styles.驼峰` + `clsx`），全局壳在 `App.less`（前缀 `c2a-`）。
 
 > ⚠️ 前端产物 `dist/` 由 `vp build` 生成、被 `.gitignore` 排除，**不要**提交。
@@ -431,9 +431,9 @@ pnpm start
 备份往返、网关启停（含端口真实释放）、模型 / 供应商开关、`/v1/*` 反代（含鉴权不被绕过、
 网关不可达时的错误信封）、SSE 流式、状态目录隔离（不污染 `~/.dsh`）、凭据可读性、
 关闭后无残留文件监听、**图片输入**（附件服务装配、落盘往返与内容寻址、mime 硬校验、
-外部链接被拒、坏图报可读错），以及 `admin-shell.test.mjs` 覆盖的外壳：导航 / hash 路由、
+外部链接被拒、坏图报可读错），以及 `tests/oauth-relay-rewrite.test.ts` 覆盖的中继改写；旧外壳/UI 测试已移除（导航/主题/弹窗等改由手测）：
 视图 mount 与 onShow/onHide、主题持久化、弹窗 Esc 与焦点归还、回调修复的校验与三态结果、
-总览积分明细折叠状态跨刷新保持、调用记录明细渲染与增量自动刷新（含各暂停条件）；`caller-gate.test.mjs` 覆盖用量日志耗时从请求进入时算起。
+总览积分明细折叠状态跨刷新保持、调用记录明细渲染与增量自动刷新（含各暂停条件）；`caller-gate.test.ts` 覆盖用量日志耗时从请求进入时算起。
 
 ### 设计决策：外部图片 URL 为什么被拒
 
@@ -455,7 +455,7 @@ if (typeof url === "string" && !url.trim().startsWith("data:")) {
   同机是否跑着别的内部服务），而不是「自用」这个词本身。
 
 **将来若要支持（方案 B）**：在本项目的 `/v1/*` 反代层拦一道
-（`src/server.js` 的 `proxyToGateway`）—— 检测 http(s) `image_url` → 下载 → 转 base64
+（`src/server.ts` 的 `proxyToGateway`）—— 检测 http(s) `image_url` → 下载 → 转 base64
 data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 
 | 防护                                                                                  | 原因                    |
@@ -493,7 +493,7 @@ data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 我们与上游的**代码**耦合只有一处：
 
 ```js
-import * as plugin from "dsh-providers-hub" // src/host.js 唯一的一行
+import * as plugin from "dsh-providers-hub" // src/host.ts 唯一的一行
 ```
 
 其余全靠 cordis 的注入机制与 HTTP 转发。因此上游常见的改动类型（新增渠道、修协议、
@@ -506,11 +506,11 @@ import * as plugin from "dsh-providers-hub" // src/host.js 唯一的一行
 | 改界面布局 / 样式                 | **0 行**（只需 `pnpm run build`） | 界面是上游产物的原样复用                                  |
 | 改网关行为（/v1/\*）              | **0 行**                          | 网关是上游的，我们只转发                                  |
 | 加 RPC 方法                       | **0 行**                          | 我们的转发是通用透传，不枚举方法                          |
-| **改管理端点路径**                | 1 个常量                          | `src/upstream.js`                                         |
-| **改 RPC 信封 / 线协议**          | 1 个函数                          | `src/upstream.js` 的 `rpcEnvelope()`                      |
-| **改客户端 loader 形态**          | 可能 1~2 处                       | `public/admin.html` + `web/admin.jsx`                     |
-| **改 slot 名 `settings.section`** | 1 个常量                          | `src/upstream.js`                                         |
-| **改插件 `inject` 列表**          | `src/host.js` 的 provide          | 少了服务插件会永久 pending                                |
+| **改管理端点路径**                | 1 个常量                          | `src/upstream.ts`                                         |
+| **改 RPC 信封 / 线协议**          | 1 个函数                          | `src/upstream.ts` 的 `rpcEnvelope()`                      |
+| **改客户端 loader 形态**          | 可能 1~2 处                       | `web/index.html` + `web/pages 组件`                     |
+| **改 slot 名 `settings.section`** | 1 个常量                          | `src/upstream.ts`                                         |
+| **改插件 `inject` 列表**          | `src/host.ts` 的 provide          | 少了服务插件会永久 pending                                |
 
 ### 自动升级（GitHub Actions）
 
@@ -562,7 +562,7 @@ GitHub Actions 因此会发失败通知邮件。
 | `DSH 基础包整族同版本` 自检            | 装了两套不同版本（版本不一致）                                     | 同上；修完 `rm -rf node_modules pnpm-lock.yaml && pnpm install`                             |
 | `pnpm-lock.yaml` 核对                  | lock 未更新到新 commit                                             | 脚本会自动回滚，重跑 `pnpm install --no-frozen-lockfile`                                    |
 | `pnpm run build`                       | 上游产物形态变了（`./client` 导出路径不同）                        | 对照[升级时需要改多少代码](#升级时需要改多少代码) 的契约表                                  |
-| `pnpm test`                            | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                   | 按报错改 `src/upstream.js` 的常量或 `web/admin.jsx` 的 shim                                 |
+| `pnpm test`                            | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                   | 按报错改 `src/upstream.ts` 的常量或 `web/pages 组件` 的 shim                                 |
 | `pnpm run lint` / `format`             | 本仓库代码风格问题                                                 | `pnpm run format` 修                                                                        |
 | `git commit`                           | 权限或并发冲突                                                     | 看 Actions 日志                                                                             |
 
@@ -618,11 +618,11 @@ pnpm run format:check  # 确认代码风格一致
 
 | 失败的是                                               | 说明                     | 怎么办                                                    |
 | ------------------------------------------------------ | ------------------------ | --------------------------------------------------------- |
-| `host.test.mjs` 的「provider 不见了」                  | 上游**删除/改名**了渠道  | 按报错给出的实际列表更新 `EXPECTED_PROVIDERS`（只改测试） |
-| `admin-ui.test.mjs` 的「只请求我们 shim 能提供的模块」 | 上游引入**新的外部依赖** | 在 `web/admin.jsx` 的 `captured.factory()` 里补上该模块   |
-| `home-isolation.test.mjs`                              | 存储格式/隔离被改坏      | 看具体断言，通常与 `src/home.js` 或凭据服务有关           |
+| `host.test.ts` 的「provider 不见了」                  | 上游**删除/改名**了渠道  | 按报错给出的实际列表更新 `EXPECTED_PROVIDERS`（只改测试） |
+| `（UI 测试已移除）` 的「只请求我们 shim 能提供的模块」 | 上游引入**新的外部依赖** | 在 `web/pages 组件` 的 `captured.factory()` 里补上该模块   |
+| `home-isolation.test.ts`                              | 存储格式/隔离被改坏      | 看具体断言，通常与 `src/home.ts` 或凭据服务有关           |
 | `format:check` 报**已有文件**（不是本次改的）          | 工作区行尾漂移           | 见下方「行尾」；**不要**用 `format` 去「修」代码          |
-| 其它                                                   | 契约漂移                 | 对照 `src/upstream.js` 顶部契约表                         |
+| 其它                                                   | 契约漂移                 | 对照 `src/upstream.ts` 顶部契约表                         |
 
 > ⚠️ **行尾陷阱**：Git `core.autocrlf=true` 时工作区会被检成 CRLF，而 Prettier 默认
 > `endOfLine: "lf"` ⇒ 一批**本来没动过**的文件也会报格式错误（`format` 还会把它们整份
@@ -647,7 +647,7 @@ pnpm start
 ```
 
 **没有这行、或直接抛错**，就说明上游改了端点路径或装配方式 —— 错误信息会告诉你去
-`src/upstream.js` 改哪个常量。
+`src/upstream.ts` 改哪个常量。
 
 **6. 真机点一下（建议）** —— 打开 `/admin`，确认：左侧导航里各个渠道都在、账号列表能读出
 source、页头「网关」开关能开关。
@@ -659,7 +659,7 @@ pnpm add "dsh-providers-hub@github:iJetLi/dsh-providers-hub#<旧commit>"
 pnpm run build && pnpm test
 ```
 
-> 💡 升级只改 `package.json` / `pnpm-lock.yaml` / `public/*.js`（产物）。
+> 💡 升级只改 `package.json` / `pnpm-lock.yaml` / `dist/`（前端产物）。
 > **账号数据在 `~/.codearts2api`，与升级无关**。想稳妥可以升级前在 `/admin` 里导出一份备份。
 
 查当前锁定版本：
@@ -675,7 +675,7 @@ node -e "console.log(require('./package.json').dependencies['dsh-providers-hub']
 Node 进程运行期只读取 `dist/` 静态产物，**不会 `require`** 这些包。
 
 - **devDependencies（构建/测试期）**：`react` `react-dom` `react-router-dom` `clsx` `zustand` `dayjs`
-  `vite-plus` `@vitejs/plugin-react` `vite-plugin-pages` `less` `typescript` `@types/react(-dom)`。
+  `vite-plus` `@vitejs/plugin-react` `less` `typescript` `@types/react(-dom)`。
 - **dependencies（运行期，Node 真正 import）**：`express`（HTTP）、`@deepseek-ai/*`、`dsh-providers-hub`。
 
 判定标准：`src/**` 里 `import` 的 → dependencies；只在 `web/**` 被 Vite 打进产物、或仅构建/测试用的 → devDependencies。
