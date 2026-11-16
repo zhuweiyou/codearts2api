@@ -118,6 +118,62 @@ export const UI_SRC = String.raw`
     return [x.ts, x.caller, x.model, x.status, x.ms, x.in_tokens, x.out_tokens].join("|");
   }
 
+  /* ── 复制到剪贴板 ──────────────────────────────────────────────────
+     navigator.clipboard 只在**安全上下文**里存在：https、localhost、
+     127.0.0.1。NAS 上绝大多数人是拿 http://192.168.x.x:端口 打开的，那里
+     navigator.clipboard 是 undefined —— 旧代码直接 .writeText() 会抛
+     TypeError，而且没人接 reject，于是「点复制一点反应都没有」（用户报的
+     「key 创建完点复制无法在浏览器复制」）。
+
+     三级兜底：
+       ① 异步 Clipboard API（安全上下文才有）；
+       ② 隐藏 textarea + document.execCommand('copy')（http 下仍然可用）；
+       ③ 都失败时把明文全选，提示用户手动 Ctrl+C —— 这串 Key 只显示一次，
+          绝不能让用户空手关掉弹窗。 */
+  function copyText(text) {
+    var value = String(text == null ? "" : text);
+    return new Promise(function (resolve, reject) {
+      function legacy() {
+        var ta = null;
+        try {
+          ta = document.createElement("textarea");
+          ta.value = value;
+          ta.setAttribute("readonly", "");
+          ta.style.cssText = "position:fixed;top:0;left:-9999px;width:1px;height:1px;opacity:0;";
+          document.body.appendChild(ta);
+          ta.select();
+          ta.setSelectionRange(0, value.length); /* iOS Safari 不认 select() */
+          var ok = document.execCommand("copy");
+          if (ok) resolve();
+          else reject(new Error("execCommand('copy') 返回 false"));
+        } catch (error) {
+          reject(error);
+        } finally {
+          if (ta && ta.parentNode) ta.parentNode.removeChild(ta);
+        }
+      }
+      if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(resolve, legacy);
+        return;
+      }
+      legacy();
+    });
+  }
+
+  /* 选中某个元素的全部文本（复制失败时的兜底，也用于点一下就全选）。 */
+  function selectAllText(el) {
+    if (!el) return;
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (error) {
+      /* 忽略：老浏览器上没选中也不影响用户手动拖选 */
+    }
+  }
+
   /* ── 日期选择器（下拉多选，替换原生 select multiple）──────────────
      原生的 <select multiple size=3> 有两个硬伤：多选必须按 Ctrl 点
      （点第二个就把第一个丢掉），且固定占三行高把筛选行撑得很高。
@@ -425,8 +481,13 @@ export const UI_SRC = String.raw`
       ".c2m-scope .c2m-form input,.c2m-scope .c2m-form textarea,.c2m-scope .c2m-form select{width:100%;box-sizing:border-box;border:1px solid var(--c2-border);border-radius:4px;padding:6px 10px;font:inherit;font-size:13px;color:var(--c2-text-2);outline:none}",
       ".c2m-scope .c2m-form input:focus,.c2m-scope .c2m-form textarea:focus,.c2m-scope .c2m-form select:focus{border-color:var(--c2-brand)}",
       ".c2m-scope .c2m-form .err{color:var(--c2-err);font-size:12px;min-height:16px}",
-      ".c2m-scope .c2m-secret{background:var(--c2-ok-soft);border:1px solid color-mix(in srgb,var(--c2-ok) 30%,var(--c2-border));border-radius:4px;padding:10px 12px;font-family:ui-monospace,monospace;font-size:12.5px;word-break:break-all;color:var(--c2-ok);margin:10px 0}",
+      ".c2m-scope .c2m-secret{background:var(--c2-ok-soft);border:1px solid color-mix(in srgb,var(--c2-ok) 30%,var(--c2-border));border-radius:4px;padding:10px 12px;font-family:ui-monospace,monospace;font-size:12.5px;word-break:break-all;color:var(--c2-ok);margin:10px 0;cursor:text;user-select:all;-webkit-user-select:all}",
+      /* 复制结果提示：默认红色（失败要显眼），成功切绿 */
+      ".c2m-scope .c2m-copyhint{font-size:12px;line-height:18px;color:var(--c2-err);min-height:18px}",
+      ".c2m-scope .c2m-copyhint[data-ok]{color:var(--c2-ok)}",
       ".c2m-scope .c2m-row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}",
+      /* 表单弹窗左下角的关闭提示（说明「点外面不会关」） */
+      ".c2m-scope .c2m-rowhint{margin-right:auto;align-self:center;font-size:11.5px;color:var(--c2-text-3)}",
     ].join("\n");
     document.head.appendChild(st);
   }
@@ -1150,7 +1211,8 @@ export const UI_SRC = String.raw`
           (f.hint ? '<div class="c2d-muted" style="font-size:11px">' + esc(f.hint) + "</div>" : "") + "</div>";
       }).join("") +
       '<div class="err"></div></div>' +
-      '<div class="c2m-row"><button class="dim-jh-btn" data-x="cancel">取消</button>' +
+      '<div class="c2m-row"><span class="c2m-rowhint">Esc 或「取消」关闭</span>' +
+      '<button class="dim-jh-btn" data-x="cancel">取消</button>' +
       '<button class="dim-jh-btn" data-x="ok" style="border-color:var(--dsw-alias-brand-primary,#1677ff);color:var(--dsw-alias-brand-primary,#1677ff)">确定</button></div>' +
       "</div></div>";
     document.body.appendChild(wrap);
@@ -1160,10 +1222,61 @@ export const UI_SRC = String.raw`
       wrap.querySelectorAll("[data-k]").forEach(function (el) { out[el.getAttribute("data-k")] = el.value; });
       return out;
     }
-    function done() { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }
+
+    /* ── 关闭策略（2026-11-16 用户报「点弹窗外就自动关，容易误触」）────
+       默认**点遮罩不关**，只认「取消 / 确定 / Esc」三个明确动作。
+       为什么不是「点遮罩关」：这是表单弹窗，一点空白就把刚填的内容全丢掉，
+       触控板、触摸屏、以及手抖一下都会中招 —— 正是用户抱怨的场景。
+       想恢复旧行为：在控制台执行 window.__c2FormBackdropClose = true。
+       即便打开该开关，也只认「按下和松开都落在遮罩上」的干净点击 ——
+       在输入框里拖选文字、拖到弹窗外松手，不会再把弹窗误关。 */
+    var backdropDown = false;
+
+    function backdropCloseEnabled() {
+      return window.__c2FormBackdropClose === true;
+    }
+
+    function onKey(e) {
+      var k = e.key;
+      if (k !== "Escape" && k !== "Esc") return;
+      /* 捕获阶段拦下，避免同时把底下页面的弹窗/面板一起关掉。 */
+      e.preventDefault();
+      e.stopPropagation();
+      done();
+    }
+
+    function done() {
+      document.removeEventListener("keydown", onKey, true);
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    }
 
     wrap.querySelector('[data-x="cancel"]').addEventListener("click", done);
-    wrap.addEventListener("click", function (e) { if (e.target === wrap) done(); });
+    wrap.addEventListener("mousedown", function (e) {
+      backdropDown = e.target === wrap;
+    });
+    wrap.addEventListener("click", function (e) {
+      if (e.target !== wrap) return;
+      var clean = backdropDown;
+      backdropDown = false;
+      if (!clean || !backdropCloseEnabled()) return;
+      done();
+    });
+    document.addEventListener("keydown", onKey, true);
+
+    /* 打开就把光标放到第一个输入框（分组名 / 名字），省一次点击。
+       textarea 不做全选，否则一敲键就把默认的 * 覆盖掉。 */
+    setTimeout(function () {
+      if (!wrap.parentNode) return;
+      var first = wrap.querySelector(".c2m-form input, .c2m-form textarea");
+      if (first) {
+        first.focus();
+        try {
+          var n = first.value.length;
+          first.setSelectionRange(n, n);
+        } catch (error) { /* 忽略 */ }
+      }
+    }, 30);
+
     wrap.querySelector('[data-x="ok"]').addEventListener("click", async function () {
       var errEl = wrap.querySelector(".err");
       errEl.textContent = "";
@@ -1246,20 +1359,48 @@ export const UI_SRC = String.raw`
             shown.className = "dim-jh-modalOverlay";
             shown.style.zIndex = 3300;
             shown.innerHTML =
-              '<div role="dialog" aria-modal="true" class="dim-jh-modal c2m-scope" style="width:560px">' +
+              '<div role="dialog" aria-modal="true" class="dim-jh-modal c2m-scope" style="width:min(560px,calc(100vw - 24px))">' +
               '<div class="dim-jh-modalHead"><div class="dim-jh-modalTitle"><strong>新 Key 已创建</strong>' +
               '<span class="dim-jh-modalSubtitle">这串明文只显示这一次</span></div></div>' +
-              '<div class="dim-jh-modalBody"><p class="dim-jh-modalHint">复制给调用方，关掉就再也看不到了（服务端只存哈希）。</p>' +
-              '<div class="c2m-secret">' + esc(out.secret) + "</div>" +
-              '<div class="c2m-row"><button class="dim-jh-btn" data-x="copy">复制</button>' +
+              '<div class="dim-jh-modalBody"><p class="dim-jh-modalHint">复制给调用方，关掉就再也看不到了（服务端只存哈希）。点一下下面这串可以全选。</p>' +
+              '<div class="c2m-secret" data-x="secret">' + esc(out.secret) + "</div>" +
+              '<div class="c2m-copyhint" data-x="hint"></div>' +
+              '<div class="c2m-row"><button class="dim-jh-btn" data-x="copy">复制 Key</button>' +
               '<button class="dim-jh-btn" data-x="close">关闭</button></div></div></div>';
             document.body.appendChild(shown);
-            shown.querySelector('[data-x="close"]').addEventListener("click", function () { shown.remove(); });
-            shown.querySelector('[data-x="copy"]').addEventListener("click", function () {
-              navigator.clipboard.writeText(out.secret).then(function () {
-                shown.querySelector('[data-x="copy"]').textContent = "已复制";
+
+            var secretEl = shown.querySelector('[data-x="secret"]');
+            var copyBtn = shown.querySelector('[data-x="copy"]');
+            var hintEl = shown.querySelector('[data-x="hint"]');
+
+            /* 明文只显示一次，所以 Esc 一律不关，只提示 —— 避免手快按掉就永久丢 Key。 */
+            var guardKey = function (e) {
+              if (e.key !== "Escape" && e.key !== "Esc") return;
+              e.preventDefault();
+              e.stopPropagation();
+              hintEl.removeAttribute("data-ok");
+              hintEl.textContent = "这串 Key 只显示一次，请先复制再点「关闭」。";
+            };
+            var closeShown = function () {
+              document.removeEventListener("keydown", guardKey, true);
+              if (shown.parentNode) shown.parentNode.removeChild(shown);
+            };
+            document.addEventListener("keydown", guardKey, true);
+
+            secretEl.addEventListener("click", function () { selectAllText(secretEl); });
+            copyBtn.addEventListener("click", function () {
+              copyText(out.secret).then(function () {
+                copyBtn.textContent = "已复制";
+                hintEl.setAttribute("data-ok", "1");
+                hintEl.textContent = "已复制到剪贴板。关掉这个窗口后就再也看不到这串 Key 了。";
+              }).catch(function () {
+                /* 兜底：选中明文 + 明确告诉用户按什么键。绝不静默失败。 */
+                selectAllText(secretEl);
+                hintEl.removeAttribute("data-ok");
+                hintEl.textContent = "当前浏览器不允许自动复制（http 页面常见），已帮你全选，请按 Ctrl+C（Mac 为 ⌘+C）手动复制。";
               });
             });
+            shown.querySelector('[data-x="close"]').addEventListener("click", closeShown);
           }
         });
       } else if (act === "key-edit") {

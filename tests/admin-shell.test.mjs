@@ -623,3 +623,179 @@ test("总览：区分到期未知、周期重置、部分临期、失效余额�
   assert.equal(credentialExpiry("qoder").textContent, "到期时间未知")
   assert.match(credentialExpiry("buddy").textContent, /^(\d+) 小时$/)
 })
+
+/* ── 调用方：弹窗关闭策略与「复制 Key」────────────────────────────────
+ *
+ * 回归的 bug（2026-11-16，真机反馈）：
+ *   1. 新建分组 / 新建 Key 的弹窗**点外面就关**，表单内容直接丢；
+ *   2. Key 建好后点「复制」毫无反应 —— `navigator.clipboard` 只在安全上下文
+ *      （https / localhost）存在，NAS 上多用 http://ip:port 打开，那里它是
+ *      undefined，`.writeText()` 抛 TypeError 且没人接 reject。
+ */
+
+/** 打开「调用方」视图，并接管 `/admin/callers/api`。 */
+async function openCallers(options = {}) {
+  const window = await makePage({ hash: "#callers" })
+  window.fetch = async (url, init) => {
+    if (String(url) !== "/admin/callers/api") {
+      return { ok: true, status: 200, json: async () => ({ adminAuth: true }) }
+    }
+    const body = JSON.parse(init.body)
+    if (body.action === "key.add") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => options.keyAdd ?? { ok: true, key: "k_new", group: body.group, secret: SECRET },
+      }
+    }
+    if (body.action === "records") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ days: [], total: 0, shown: 0, rows: [], byModel: [], availableDays: [] }),
+      }
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        groups: [{ name: "full", desc: "全部", allow: ["*"] }],
+        keys: [],
+        usage: { day: "2026-11-10", rows: [] },
+        storePath: "",
+      }),
+    }
+  }
+  window.eval(CALLERS_UI)
+  window.__c2Shell.go("callers")
+  await until(() => window.document.querySelector('[data-act="group-new"]') !== null)
+  return window
+}
+
+const SECRET = "sk-live-TEST-SECRET-0001"
+const callersOverlay = (document) => document.querySelector(".dim-jh-modalOverlay")
+
+/** 走完「新建 Key」流程，返回明文窗口里的元素。 */
+async function createKey(window) {
+  const { document } = window
+  document.querySelector('[data-tab="keys"]').click()
+  await until(() => document.querySelector('[data-act="key-new"]') !== null)
+  document.querySelector('[data-act="key-new"]').click()
+  await until(() => document.querySelector('.c2m-form [data-k="name"]') !== null)
+  document.querySelector('.c2m-form [data-k="name"]').value = "调用方A"
+  document.querySelector('[data-x="ok"]').click()
+  const shown = await until(() => document.querySelector('[data-x="secret"]') !== null)
+  assert.ok(shown, "创建成功后应弹出明文窗口")
+  return {
+    document,
+    secretEl: document.querySelector('[data-x="secret"]'),
+    copyBtn: document.querySelector('[data-x="copy"]'),
+    hint: document.querySelector('[data-x="hint"]'),
+  }
+}
+
+test("调用方：新建分组的弹窗点遮罩不关（防误触），Esc 才关", async () => {
+  const window = await openCallers()
+  const { document } = window
+
+  document.querySelector('[data-act="group-new"]').click()
+  await until(() => callersOverlay(document) !== null)
+  const overlay = callersOverlay(document)
+  assert.ok(overlay?.querySelector(".c2m-form"), "应弹出带表单的新建分组弹窗")
+  assert.match(overlay.textContent, /Esc 或「取消」关闭/, "要明确告诉用户「点外面不会关」")
+
+  // 一次干净的背景点击：mousedown 与 click 都落在遮罩上
+  overlay.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true }))
+  overlay.dispatchEvent(new window.MouseEvent("click", { bubbles: true }))
+  await tick(20)
+  assert.ok(callersOverlay(document), "点遮罩不应关闭表单弹窗（原来一点就关，填的内容全丢）")
+
+  // 点弹窗内部当然更不该关
+  const input = overlay.querySelector(".c2m-form input")
+  input.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true }))
+  input.dispatchEvent(new window.MouseEvent("click", { bubbles: true }))
+  await tick(20)
+  assert.ok(callersOverlay(document), "点弹窗内部不应关闭")
+
+  // Esc 是明确的关闭动作
+  document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
+  await tick(20)
+  assert.equal(callersOverlay(document), null, "Esc 应关闭弹窗")
+})
+
+test("调用方：显式开启遮罩关闭后，只有干净的背景点击才关（拖选拖到外面不算）", async () => {
+  const window = await openCallers()
+  const { document } = window
+  window.__c2FormBackdropClose = true
+
+  document.querySelector('[data-act="group-new"]').click()
+  await until(() => callersOverlay(document) !== null)
+  const overlay = callersOverlay(document)
+
+  // 在输入框里按下、拖到遮罩上松手 —— 这是选文字，不是想关弹窗
+  const input = overlay.querySelector(".c2m-form input")
+  input.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true }))
+  overlay.dispatchEvent(new window.MouseEvent("click", { bubbles: true }))
+  await tick(20)
+  assert.ok(callersOverlay(document), "拖选文字拖到外面松手不应误关")
+
+  // 干净的背景点击 → 关（恢复旧行为）
+  overlay.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true }))
+  overlay.dispatchEvent(new window.MouseEvent("click", { bubbles: true }))
+  await tick(20)
+  assert.equal(callersOverlay(document), null, "开关打开后，干净的遮罩点击应关闭")
+})
+
+test("调用方：http 页面（无 navigator.clipboard）复制 Key 走 execCommand 兜底", async () => {
+  const window = await openCallers()
+  const { document } = window
+  assert.equal(window.navigator.clipboard, undefined, "前提：jsdom / http 页面没有异步剪贴板 API")
+
+  const copied = []
+  document.execCommand = (cmd) => {
+    if (cmd !== "copy") return false
+    const ta = document.querySelector("body > textarea")
+    copied.push(ta ? ta.value : null)
+    return true
+  }
+
+  const { secretEl, copyBtn, hint } = await createKey(window)
+  assert.equal(secretEl.textContent, SECRET)
+
+  copyBtn.click()
+  await until(() => copyBtn.textContent === "已复制")
+  assert.equal(copyBtn.textContent, "已复制", "按钮要给出成功反馈")
+  assert.deepEqual(copied, [SECRET], "应真的用 execCommand('copy') 复制了明文 Key")
+  assert.equal(hint.getAttribute("data-ok"), "1", "成功提示用绿色")
+})
+
+test("调用方：安全上下文下优先用 navigator.clipboard", async () => {
+  const window = await openCallers()
+  let written = null
+  Object.defineProperty(window, "isSecureContext", { value: true, configurable: true })
+  Object.defineProperty(window.navigator, "clipboard", {
+    value: { writeText: async (text) => void (written = text) },
+    configurable: true,
+  })
+
+  const { copyBtn } = await createKey(window)
+  copyBtn.click()
+  await until(() => copyBtn.textContent === "已复制")
+  assert.equal(written, SECRET, "有异步剪贴板时不该退回 execCommand")
+})
+
+test("调用方：复制彻底失败时全选明文并提示手动复制；Esc 不关明文窗口", async () => {
+  const window = await openCallers()
+  const { document } = window
+  document.execCommand = () => false
+
+  const { secretEl, copyBtn, hint } = await createKey(window)
+  copyBtn.click()
+  const hinted = await until(() => /Ctrl\+C/.test(hint.textContent))
+  assert.ok(hinted, "自动复制失败必须给出可操作的手动复制提示")
+  assert.equal(window.getSelection().toString(), secretEl.textContent, "应已全选明文，用户可直接 Ctrl+C")
+
+  document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
+  await tick(20)
+  assert.ok(document.querySelector('[data-x="secret"]'), "明文只显示一次，Esc 不应关掉它")
+})
