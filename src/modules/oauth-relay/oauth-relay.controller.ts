@@ -1,3 +1,5 @@
+import express from "express"
+
 // OAuth 回调中继：把上游硬绑 127.0.0.1:<随机端口> 的登录页/回调，搬到公网域名下。
 //
 // 背景：上游 provider 的 OAuth 回调服务器一律 server.listen(0, "127.0.0.1")，
@@ -21,10 +23,13 @@
 
 import { Readable } from "node:stream"
 
-import { SESSION_COOKIE } from "./admin-auth.ts"
+import { MIN_PORT, MAX_PORT, parseLoopbackUrl, loopbackOf } from "./oauth-relay.service.ts"
 
-export const RELAY_PREFIX = "/relay/"
-export const REPLAY_PATH = "/admin/oauth-relay/replay"
+import { SESSION_COOKIE } from "../auth/auth.service.ts"
+
+const RELAY_BASE = "/relay"
+
+const RELAY_PREFIX = RELAY_BASE + "/"
 
 const HOP_BY_HOP = new Set([
   "host",
@@ -39,38 +44,10 @@ const HOP_BY_HOP = new Set([
 ])
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "HEAD"])
-const HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"])
-const MIN_PORT = 1024
-const MAX_PORT = 65535
 const REPLAY_BODY_LIMIT = 8 * 1024
 const REPLAY_TIMEOUT_MS = 30_000
 const PROXY_TIMEOUT_MS = 120_000
 const HTML_LIMIT = 2 * 1024 * 1024
-
-// 解析 "http://127.0.0.1:41451/auth/callback?code=..&state=.."
-// 也接受裸的 "127.0.0.1:41451/auth/callback"（用户从地址栏复制时常常丢掉协议头）
-export function parseLoopbackUrl(raw) {
-  if (typeof raw !== "string") return null
-  const text = raw.trim()
-  if (text === "") return null
-  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `http://${text}`
-  let url
-  try {
-    url = new URL(candidate)
-  } catch {
-    return null
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null
-  if (!HOSTS.has(url.hostname)) return null
-  const port = Number(url.port)
-  if (!Number.isInteger(port) || port < MIN_PORT || port > MAX_PORT) return null
-  return { host: url.hostname, port, path: url.pathname || "/", search: url.search || "", href: url.href }
-}
-
-// 把浏览器地址栏里那个 https://api.321ds.cn/relay/<port>/... 还原成 loopback 地址
-export function loopbackOf(parsed) {
-  return `http://${parsed.host}:${parsed.port}${parsed.path}${parsed.search}`
-}
 
 // 页面里的根相对路径补丁。fetcht/XHR 的 '/astudio/gee-captcha' 在浏览器里解析成
 // https://<域名>/astudio/gee-captcha，不会自动带上 /relay/<port> 前缀，必须运行时补。
@@ -344,30 +321,21 @@ export function createOAuthRelay(options: any = {}) {
     sendJson(response, 200, { ok: upstream.ok, status: upstream.status, port: parsed.port, target, snippet })
   }
 
-  async function handle(request, response, url) {
-    try {
-      if (url.pathname.startsWith(RELAY_PREFIX)) {
-        await proxy(request, response, url)
-        return true
-      }
-      if (url.pathname === REPLAY_PATH) {
-        await replay(request, response)
-        return true
-      }
-      return false
-    } catch (error) {
-      // 异常不能外溢：server.js 外层兜底会把它变成 500 并丢掉中继语义
-      logger?.error?.(`[oauth-relay] 处理 ${url.pathname} 失败：${String(error)}`)
-      if (!response.headersSent) sendJson(response, 500, { error: String(error) })
-      else response.end()
-      return true
-    }
-  }
+  const relayRouter = express.Router()
+  relayRouter.use("/", (request: any, response: any, next: any) => {
+    const url = new URL(request.originalUrl ?? request.url ?? "/", "http://127.0.0.1")
+    proxy(request, response, url).catch(next)
+  })
 
-  return { handle }
+  const replayRouter = express.Router()
+  replayRouter.all("/replay", (request: any, response: any, next: any) => {
+    replay(request, response).catch(next)
+  })
+
+  return { relayRouter, replayRouter }
 }
 
-function sendJson(response, status, value) {
+function sendJson(response: any, status: number, value: any) {
   const body = Buffer.from(JSON.stringify(value), "utf8")
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",

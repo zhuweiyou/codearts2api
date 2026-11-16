@@ -1,10 +1,9 @@
-/** `/v1/*` 透明反代到本机插件网关 + 网关状态查询。与路由编解耦。 */
+/** `/v1/*` 透明反代控制器（HTTP 边界）：SSE 流式回写，鉴权交给 callerGate。 */
 import { Readable } from "node:stream"
 
-import { JET_HUB_PATH, rpcEnvelope } from "../upstream.ts"
-import { sendAdminJson } from "./security.ts"
+import { sendAdminJson } from "../../http/security.ts"
+import { createGatewayTargetResolver } from "./gateway.service.ts"
 
-/** 逐跳头：不应转发。 */
 const HOP_BY_HOP = new Set([
   "host",
   "connection",
@@ -17,70 +16,10 @@ const HOP_BY_HOP = new Set([
   "upgrade",
 ])
 
-/** 网关目标地址缓存时长（网关可启停、端口可能变）。 */
-const TARGET_TTL_MS = 5_000
+export function createGatewayController({ host, callerGate, logger, upstreamTimeoutMs }: any) {
+  const resolveGatewayTarget = createGatewayTargetResolver({ host })
 
-/** 读网关状态（供 /healthz 与反代目标解析）；失败返回 null。 */
-export async function readGatewayState(host) {
-  try {
-    const route = host.routes.get(JET_HUB_PATH)
-    if (route === undefined) return null
-    const web = await route.fetch(
-      new Request(`http://127.0.0.1${JET_HUB_PATH}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(rpcEnvelope("gateway.getEnabled", {}, "healthz")),
-      }),
-    )
-    const parsed = await web.json()
-    const value = parsed?.result?.value
-    if (value === undefined) return null
-    return {
-      enabled: value.enabled,
-      running: value.running,
-      blockedByEnv: value.blockedByEnv,
-      address: value.address,
-      modelsSource: value.modelsSource,
-      modelCount: Array.isArray(value.models) ? value.models.length : 0,
-    }
-  } catch {
-    return null
-  }
-}
-
-/** 已注册的 llm provider id（读不到就空数组）。 */
-export function providerIds(host) {
-  try {
-    const llm = host.ctx.get("llm")
-    const listed = llm?.listProviders?.()
-    return Array.isArray(listed) ? listed.map((entry) => entry.id) : []
-  } catch {
-    return []
-  }
-}
-
-/**
- * 构造 `/v1/*` 反代器。返回 `{ proxyToGateway }`。
- * 透明转发：不碰 Authorization；SSE 流式回写。
- */
-export function createGatewayProxy({ host, callerGate, logger, upstreamTimeoutMs }) {
-  let targetCache = { at: 0, host: undefined, port: undefined }
-
-  async function resolveGatewayTarget() {
-    if (Date.now() - targetCache.at < TARGET_TTL_MS) return targetCache
-    let resolved
-    const state = await readGatewayState(host).catch(() => null)
-    if (state?.address?.port !== undefined) resolved = { host: state.address.host, port: state.address.port }
-    else {
-      const raw = process.env.DSH_OPENAI_GATEWAY_PORT
-      const port = raw === undefined || raw.trim() === "" ? 8326 : Number.parseInt(raw, 10)
-      resolved = { host: "127.0.0.1", port: Number.isInteger(port) ? port : 8326 }
-    }
-    targetCache = { at: Date.now(), ...resolved }
-    return targetCache
-  }
-
-  async function proxyToGateway(request, response, url) {
+  async function proxyToGateway(request: any, response: any, url: any) {
     const startedAt = Date.now()
     const target = await resolveGatewayTarget()
     const headers = new Headers()
@@ -93,7 +32,7 @@ export function createGatewayProxy({ host, callerGate, logger, upstreamTimeoutMs
     const method = request.method ?? "GET"
     const hasBody = method !== "GET" && method !== "HEAD"
 
-    let gateEntry = null
+    let gateEntry: any = null
     let gateModel
     let gateBody
     if (callerGate) {
@@ -112,7 +51,7 @@ export function createGatewayProxy({ host, callerGate, logger, upstreamTimeoutMs
       }
     }
 
-    let upstream
+    let upstream: any
     try {
       upstream = await fetch(`http://${target.host}:${target.port}${url.pathname}${url.search}`, {
         method,
@@ -120,7 +59,7 @@ export function createGatewayProxy({ host, callerGate, logger, upstreamTimeoutMs
         body: gateBody ?? (hasBody ? request : undefined),
         ...(hasBody ? { duplex: "half" } : {}),
         signal: AbortSignal.timeout(upstreamTimeoutMs ?? 600_000),
-      })
+      } as any)
     } catch (error) {
       logger?.warn?.(`[proxy] 网关不可达（${target.host}:${target.port}）：${String(error)}`)
       sendAdminJson(response, 502, {
@@ -143,8 +82,8 @@ export function createGatewayProxy({ host, callerGate, logger, upstreamTimeoutMs
       }
     }
 
-    const outHeaders = {}
-    upstream.headers.forEach((value, key) => {
+    const outHeaders: any = {}
+    upstream.headers.forEach((value: string, key: string) => {
       if (HOP_BY_HOP.has(key.toLowerCase())) return
       outHeaders[key] = value
     })

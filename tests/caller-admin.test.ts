@@ -22,21 +22,32 @@ import { startTestApp } from "./helpers"
  * 一律带管理员 key：这个接口挂在鉴权门之后，匿名会被重定向到登录页，
  * 那样测到的就不是入参契约了。
  */
-async function callApi(app, payload) {
-  const response = await fetch(`${app.origin}/admin/callers/api`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${app.adminKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
+async function request(app: any, method: string, path: string, body?: any) {
+  const headers: any = { authorization: `Bearer ${app.adminKey}` }
+  if (body) headers["content-type"] = "application/json"
+  const response = await fetch(`${app.origin}/admin/callers/api${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
   })
   return { status: response.status, body: await response.json() }
 }
 
+const api = {
+  state: (app: any) => request(app, "GET", "/state"),
+  saveGroup: (app: any, body: any) => request(app, "POST", "/groups", body),
+  removeGroup: (app: any, name: string) => request(app, "DELETE", "/groups/" + encodeURIComponent(name)),
+  addKey: (app: any, body: any) => request(app, "POST", "/keys", body),
+  updateKey: (app: any, body: any) => {
+    const { id, ...rest } = body
+    return request(app, "PATCH", "/keys/" + encodeURIComponent(id), rest)
+  },
+  removeKey: (app: any, id: string) => request(app, "DELETE", "/keys/" + encodeURIComponent(id)),
+}
+
 /** 取一次页面状态，用来验证写操作是否真的落盘（而不是只看 200）。 */
 async function readState(app) {
-  const { status, body } = await callApi(app, { action: "state" })
+  const { status, body } = await api.state(app)
   assert.equal(status, 200)
   return body
 }
@@ -45,8 +56,7 @@ test("group.save 接受顶层扁平字段", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  const saved = await callApi(app, {
-    action: "group.save",
+  const saved = await api.saveGroup(app, {
     name: "team-a",
     desc: "甲组",
     allow: ["vendor/model-1", "vendor/model-2", "vendor/model-1"],
@@ -68,10 +78,7 @@ test("group.save 拒绝旧的嵌套 payload（不再静默忽略）", async (t) 
 
   // 这是修复前的真实形态。后端只读顶层 name，嵌套里写了也不认 ⇒ 必须报错，
   // 而不是「200 但什么都没存」。
-  const nested = await callApi(app, {
-    action: "group.save",
-    group: { name: "team-b", desc: "乙组", allow: ["*"] },
-  })
+  const nested = await api.saveGroup(app, { group: { name: "team-b", desc: "乙组", allow: ["*"] } })
   assert.equal(nested.status, 400)
   assert.match(nested.body.error, /分组名不能为空/)
 
@@ -83,14 +90,9 @@ test("key.add 接受顶层扁平字段并透传 enabled=false", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
 
-  const added = await callApi(app, {
-    action: "key.add",
-    name: "调用方-1",
-    group: "team-a",
-    enabled: false,
-  })
+  const added = await api.addKey(app, { name: "调用方-1", group: "team-a", enabled: false })
   assert.equal(added.status, 200)
   assert.match(added.body.key, /^k_[0-9a-f]{6}$/)
   assert.equal(added.body.group, "team-a")
@@ -110,8 +112,8 @@ test("key.add 缺省 enabled 时默认为启用", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
-  const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
+  const added = await api.addKey(app, { name: "调用方-1", group: "team-a" })
   assert.equal(added.status, 200)
 
   const state = await readState(app)
@@ -122,11 +124,8 @@ test("key.add 拒绝旧的嵌套 payload", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
-  const nested = await callApi(app, {
-    action: "key.add",
-    key: { name: "调用方-1", group: "team-a", enabled: true },
-  })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
+  const nested = await api.addKey(app, { key: { name: "调用方-1", group: "team-a", enabled: true } })
   assert.equal(nested.status, 400)
   assert.match(nested.body.error, /名字不能为空/)
 
@@ -138,18 +137,12 @@ test("key.update 用顶层字段改名换组（旧写法会静默不生效）", 
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
-  await callApi(app, { action: "group.save", name: "team-b", allow: ["*"] })
-  const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
+  await api.saveGroup(app, { name: "team-b", allow: ["*"] })
+  const added = await api.addKey(app, { name: "调用方-1", group: "team-a" })
   const id = added.body.key
 
-  const updated = await callApi(app, {
-    action: "key.update",
-    id,
-    name: "调用方-renamed",
-    group: "team-b",
-    enabled: false,
-  })
+  const updated = await api.updateKey(app, { id, name: "调用方-renamed", group: "team-b", enabled: false })
   assert.equal(updated.status, 200)
   assert.equal(updated.body.ok, true)
   assert.equal(updated.body.key.name, "调用方-renamed")
@@ -166,17 +159,13 @@ test("key.update 的嵌套 patch 形态不会改动任何字段", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
-  const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
+  const added = await api.addKey(app, { name: "调用方-1", group: "team-a" })
   const id = added.body.key
 
   // 修复前前端就是这么发的：顶层只有 id，改名换组全在 patch 里。
   // 后端读不到任何可改字段 ⇒ 返回 200 但条目分毫未变，这就是那条「静默」缺陷。
-  const nested = await callApi(app, {
-    action: "key.update",
-    id,
-    patch: { name: "调用方-renamed", enabled: false },
-  })
+  const nested = await api.updateKey(app, { id, patch: { name: "调用方-renamed", enabled: false } })
   assert.equal(nested.status, 200)
   assert.equal(nested.body.key.name, "调用方-1")
   assert.equal(nested.body.key.enabled, true)
@@ -190,11 +179,11 @@ test("key.update 换到不存在的分组会报错且不落盘", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
-  const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
+  const added = await api.addKey(app, { name: "调用方-1", group: "team-a" })
   const id = added.body.key
 
-  const moved = await callApi(app, { action: "key.update", id, group: "no-such-group" })
+  const moved = await api.updateKey(app, { id, group: "no-such-group" })
   assert.equal(moved.status, 400)
   assert.match(moved.body.error, /分组 no-such-group 不存在/)
 
@@ -206,10 +195,10 @@ test("group.rm 在分组仍被 key 使用时拒绝删除", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
-  await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
+  await api.addKey(app, { name: "调用方-1", group: "team-a" })
 
-  const removed = await callApi(app, { action: "group.rm", name: "team-a" })
+  const removed = await api.removeGroup(app, "team-a")
   assert.equal(removed.status, 400)
   assert.match(removed.body.error, /仍被 1 把 key 使用（调用方-1）/)
 
@@ -221,15 +210,15 @@ test("key.rm 之后 group.rm 可以正常删组", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  await callApi(app, { action: "group.save", name: "team-a", allow: ["*"] })
-  const added = await callApi(app, { action: "key.add", name: "调用方-1", group: "team-a" })
+  await api.saveGroup(app, { name: "team-a", allow: ["*"] })
+  const added = await api.addKey(app, { name: "调用方-1", group: "team-a" })
   const id = added.body.key
 
-  const keyGone = await callApi(app, { action: "key.rm", id })
+  const keyGone = await api.removeKey(app, id)
   assert.equal(keyGone.status, 200)
   assert.deepEqual(keyGone.body, { ok: true })
 
-  const groupGone = await callApi(app, { action: "group.rm", name: "team-a" })
+  const groupGone = await api.removeGroup(app, "team-a")
   assert.equal(groupGone.status, 200)
   assert.deepEqual(groupGone.body, { ok: true })
 
@@ -255,14 +244,35 @@ test("state 附带模型清单且不阻塞", async (t) => {
   assert.deepEqual(state.usage.rows, [])
 })
 
-test("只接受 POST", async (t) => {
+test("REST 路由按方法匹配（POST /state 不存在）", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  const response = await fetch(`${app.origin}/admin/callers/api`, {
-    method: "GET",
+  const response = await fetch(`${app.origin}/admin/callers/api/state`, {
+    method: "POST",
     headers: { authorization: `Bearer ${app.adminKey}` },
   })
-  assert.equal(response.status, 405)
-  assert.deepEqual(await response.json(), { error: "只支持 POST" })
+  assert.equal(response.status, 404)
+})
+
+test("旧版 POST action 协议仍可用（迁移兼容）", async (t) => {
+  const app = await startTestApp()
+  t.onTestFinished(() => app.close())
+
+  const headers = { authorization: `Bearer ${app.adminKey}`, "content-type": "application/json" }
+  const state = await fetch(`${app.origin}/admin/callers/api`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ action: "state" }),
+  })
+  assert.equal(state.status, 200)
+  assert.deepEqual((await state.json()).usage.rows, [])
+
+  const saved = await fetch(`${app.origin}/admin/callers/api`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ action: "group.save", name: "legacy", allow: ["*"] }),
+  })
+  assert.equal(saved.status, 200)
+  assert.deepEqual(await saved.json(), { ok: true })
 })

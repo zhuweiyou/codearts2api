@@ -3,12 +3,13 @@ import { readFile } from "node:fs/promises"
 import { extname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { CONTENT_TYPES, sendAdmin, sendAdminJson } from "./security.ts"
+import { CONTENT_TYPES, sendAdmin, sendAdminJson } from "../../http/security.ts"
 
 const here = fileURLToPath(new URL(".", import.meta.url))
-/** 仓库 dist/（src/http → ../../dist）。 */
-const DIST_DIR = join(here, "..", "..", "dist")
+/** 仓库根 dist/（src 下与 dist-server 下相对层级一致：../../../dist）。 */
+const DIST_DIR = join(here, "..", "..", "..", "dist")
 const ASSET_PREFIX = "/admin/assets/"
+const API_PATH = /^\/(?:api(?:\/|$)|relay(?:\/|$)|admin\/(?:[^/]+\/)*api(?:\/|$)|admin\/oauth-relay(?:\/|$))/
 
 /**
  * 尝试用 dist 响应前端请求；命中返回 true，否则 false。
@@ -17,6 +18,8 @@ const ASSET_PREFIX = "/admin/assets/"
  */
 export async function serveFrontend(request, response, path) {
   if (request.method !== "GET" && request.method !== "HEAD") return false
+  // API 路径绝不回退到 SPA HTML（未知接口应 404 JSON，而不是 200 页面）
+  if (API_PATH.test(path)) return false
 
   if (path.startsWith(ASSET_PREFIX)) {
     const name = path.slice(ASSET_PREFIX.length)
@@ -32,6 +35,12 @@ export async function serveFrontend(request, response, path) {
       if (error?.code !== "ENOENT") throw error
       sendAdmin(response, 404, "asset not found", { "content-type": "text/plain; charset=utf-8" })
     }
+    return true
+  }
+
+  // `/admin/assets`（无尾斜杠）不是 SPA 路由，避免把 index.html 当静态目录返回。
+  if (path === "/admin/assets") {
+    sendAdminJson(response, 404, { error: "not found" })
     return true
   }
 

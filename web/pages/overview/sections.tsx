@@ -237,8 +237,8 @@ export function AccountsSection({ data }: { data: any }) {
                     <ProviderHead provider={a.provider} />
                   </td>
                   <td>{a.nickname || a.id}</td>
-                  <td>{state}</td>
-                  <td>{expCell}</td>
+                  <td className={styles.nowrap}>{state}</td>
+                  <td className={styles.nowrap}>{expCell}</td>
                   <td>{rl}</td>
                   <td className={styles.num}>{total !== undefined ? <strong>{fmt(total)}</strong> : "—"}</td>
                   <td>{balCell}</td>
@@ -520,7 +520,7 @@ export function CreditsSection({ data }: { data: any }) {
                         </span>
                       </td>
                       <td>{dl === null ? "日期未知" : when(p.endAt)}</td>
-                      <td>
+                      <td className={styles.nowrap}>
                         <span className={clsx(styles.dot, styles[tone])} />
                         {dl !== null ? dl + " 天" : "—"}
                       </td>

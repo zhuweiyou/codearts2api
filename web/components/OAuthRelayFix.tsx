@@ -82,13 +82,13 @@ export function OAuthRelayFix() {
       </button>
       {open ? (
         <div
-          className="c2a-overlay"
+          className="c2a-overlay c2a-overlay--relay"
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) close()
           }}
         >
-          <div className="c2a-modal" role="dialog" aria-modal="true" aria-label="回调修复">
+          <div className="c2a-modal c2a-modal--relay" role="dialog" aria-modal="true" aria-label="回调修复">
             <div className="c2a-modal-head">
               <h3 className="c2a-modal-title">
                 回调修复

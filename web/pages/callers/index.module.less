@@ -2,18 +2,44 @@
   composes: empty from "./shared.module.less";
 }
 
+.scope {
+  box-sizing: border-box;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--c2a-border);
+  border-radius: var(--c2a-radius);
+  background: var(--c2a-surface);
+  box-shadow: var(--c2a-shadow, none);
+}
+
+.scope.body {
+  gap: 14px;
+}
+
 .scope .tabs {
   display: flex;
-  gap: 32px;
+  gap: 0;
+  background: var(--c2a-surface);
   border-bottom: 1px solid var(--c2a-border);
-  margin: 0 0 14px;
+  margin: 0;
+}
+
+.scope .tabItem {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 16px;
+  cursor: pointer;
 }
 
 .scope .tab {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   appearance: none;
+  position: relative;
+  height: 31px;
   border: 0;
   background: none;
-  padding: 0 0 9px;
+  padding: 0;
   font: inherit;
   font-size: 13px;
   line-height: 20px;
@@ -48,8 +74,8 @@
 }
 
 @media (max-width: 720px) {
-  .scope .tabs {
-    gap: 18px;
+  .scope .tabItem {
+    padding: 0 9px;
   }
 }
 

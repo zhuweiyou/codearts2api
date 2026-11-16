@@ -6,22 +6,25 @@
  */
 import { createServer } from "node:http"
 
+import cookieParser from "cookie-parser"
 import express from "express"
 
-import { LOGIN_PATH, LOGOUT_PATH, LoginThrottle, isAdminAuthorized } from "./admin-auth.ts"
-import { API_PATH as CALLER_API_PATH, createCallerAdmin } from "./caller-admin.ts"
-import { createDashboardAdmin } from "./dashboard-admin.ts"
-import { createAdminLoginRoutes } from "./http/admin-login.ts"
+import { LoginThrottle } from "./modules/auth/auth.service.ts"
+import { createErrorHandler } from "./http/error.ts"
+import { createCallersController } from "./modules/callers/callers.controller.ts"
+import { createCallersService } from "./modules/callers/callers.service.ts"
+import { createDashboardController } from "./modules/dashboard/dashboard.controller.ts"
+import { createAdminGuard } from "./http/admin-guard.ts"
+import { createAuthRouter } from "./modules/auth/login.controller.ts"
 import { readBody } from "./http/body.ts"
-import { serveFrontend } from "./http/frontend.ts"
-import { createGatewayProxy, providerIds, readGatewayState } from "./http/gateway.ts"
-import { needsAdminAuth, respondUnauthorized, send, sendAdmin, sendAdminJson } from "./http/security.ts"
-import { createModelsAdmin } from "./models-admin.ts"
-import { createOAuthRelay } from "./oauth-relay.ts"
-import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./upstream.ts"
-
-// 兼容旧引用。
-export { needsAdminAuth } from "./http/security.ts"
+import { serveFrontend } from "./modules/frontend/frontend.controller.ts"
+import { createGatewayController } from "./modules/gateway/gateway.controller.ts"
+import { providerIds, readGatewayState } from "./modules/gateway/gateway.service.ts"
+import { send, sendAdmin, sendAdminJson } from "./http/security.ts"
+import { createModelsController } from "./modules/models/models.controller.ts"
+import { createModelsService } from "./modules/models/models.service.ts"
+import { createOAuthRelay } from "./modules/oauth-relay/oauth-relay.controller.ts"
+import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./core/upstream.ts"
 
 /** node req/res ↔ WHATWG Request/Response 适配。 */
 async function toWebRequest(request, href) {
@@ -54,14 +57,15 @@ export async function createHttpServer(host, options: any = {}) {
   const proxyGateway = options.proxyGateway === true
   const callerGate = options.callerGate ?? null
   const logger = options.logger
-  const callerAdmin = createCallerAdmin({ home: host.home, logger })
+  const callersService = createCallersService({ home: host.home, logger })
+  const callerAdmin = createCallersController({ service: callersService })
   const oauthRelay = createOAuthRelay({ logger })
   const adminAuthEnabled = options.adminAuth !== false
 
   /** 管理密钥（读到就不变；null 表示鉴权已关闭）。 */
   let adminKey = typeof options.adminKey === "string" && options.adminKey !== "" ? options.adminKey : null
   if (adminAuthEnabled && adminKey === null) {
-    const { loadOrCreateAdminKey } = await import("./admin-auth.ts")
+    const { loadOrCreateAdminKey } = await import("./modules/auth/auth.service.ts")
     const loaded = await loadOrCreateAdminKey(host.home)
     adminKey = loaded.value
     if (loaded.generated) {
@@ -96,7 +100,7 @@ export async function createHttpServer(host, options: any = {}) {
     return parsed.result.value
   }
 
-  const dashboardAdmin = createDashboardAdmin({
+  const dashboardAdmin = createDashboardController({
     dataDir: host.home,
     rpc: (method, payload) => adminRpc(method, payload, "dashboard"),
     gateway: async () => {
@@ -105,34 +109,30 @@ export async function createHttpServer(host, options: any = {}) {
     },
     logger,
   })
-  const modelsAdmin = createModelsAdmin({ rpc: (method, payload) => adminRpc(method, payload, "models"), logger })
+  const modelsService = createModelsService({ rpc: (method, payload) => adminRpc(method, payload, "models"), logger })
+  const modelsAdmin = createModelsController({ service: modelsService })
 
   const throttle = new LoginThrottle()
-  const { proxyToGateway } = createGatewayProxy({
+  const { proxyToGateway } = createGatewayController({
     host,
     callerGate,
     logger,
     upstreamTimeoutMs: options.upstreamTimeoutMs,
   })
-  const { handleLogin, handleLogout } = createAdminLoginRoutes({ adminKeyEnabled, adminKey, throttle, logger })
+  const authRouter = createAuthRouter({ adminKeyEnabled, adminKey, throttle, logger })
+  const adminGuard = createAdminGuard({ adminKeyEnabled, adminKey, throttle })
 
   const app = express()
   app.disable("x-powered-by")
+  // 大小写敏感：防止 /API/JET-HUB、/ADMIN/... 之类的变体绕过路由级鉴权；
+  // 受保护前缀另有 caseSensitive:false 的兜底中间件（见下方 protectedApi）。
+  app.set("case sensitive routing", true)
+  app.use(cookieParser())
 
   const urlOf = (req) => new URL(req.originalUrl ?? req.url ?? "/", `http://${req.headers.host ?? "127.0.0.1"}`)
   const a = (fn) => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next)
   }
-  /** 把 (req,res,url)->boolean 的旧 handler 包成 Express 中间件。 */
-  const mount = (handler) => async (req, res, next) => {
-    try {
-      if (await handler.handle(req, res, urlOf(req))) return
-      next()
-    } catch (err) {
-      next(err)
-    }
-  }
-
   // 健康检查（无鉴权）
   app.get(
     "/healthz",
@@ -150,12 +150,8 @@ export async function createHttpServer(host, options: any = {}) {
     }),
   )
 
-  // 登录 / 登出
-  app.all(
-    LOGIN_PATH,
-    a((req, res) => handleLogin(req, res, urlOf(req))),
-  )
-  app.all(LOGOUT_PATH, (req, res) => handleLogout(req, res))
+  // 登录 / 登出 / 会话（公开）
+  app.use("/admin", authRouter)
 
   // 首页与 /admin 等价 → /admin/
   app.get("/", (req, res) => sendAdmin(res, 302, "", { location: "/admin/" }))
@@ -189,32 +185,29 @@ export async function createHttpServer(host, options: any = {}) {
     }),
   )
 
-  // 管理端鉴权门（其余一切）
-  app.use((req, res, next) => {
-    const url = urlOf(req)
-    if (adminKeyEnabled() && needsAdminAuth(url.pathname) && !isAdminAuthorized(req, adminKey)) {
-      respondUnauthorized(req, res, url)
-      return
-    }
-    next()
-  })
+  // 受保护前缀的大小写不敏感兜底：Express 路由 case-sensitive 后，大写变体不会被下面的小写
+  // 路由命中，但也绝不能落到 SPA；这里统一按前缀跑鉴权中间件（仍返回 401/302，而不是 200 页面）。
+  const protectedApi = express.Router({ caseSensitive: false })
+  protectedApi.use(
+    ["/api/jet-hub", "/relay", "/admin/callers/api", "/admin/dashboard/api", "/admin/models/api", "/admin/oauth-relay"],
+    adminGuard,
+  )
+  app.use(protectedApi)
 
   // 调用方管理：只路由 API（/admin/callers/api）。页面由前端 SPA 提供，
   // 避免 caller-admin 里的旧独立页（PAGE_PATH=/admin/callers）抢先响应 SPA 路由。
-  app.use(
-    a(async (req, res, next) => {
-      if (urlOf(req).pathname !== CALLER_API_PATH) return next()
-      const handled = await callerAdmin.handle(req, res, urlOf(req))
-      if (!handled) next()
-    }),
-  )
-  app.use(mount(dashboardAdmin))
-  app.use(mount(modelsAdmin))
-  app.use(mount(oauthRelay))
+  const adminApi = express.Router()
+  adminApi.use("/callers/api", adminGuard, callerAdmin.router)
+  adminApi.use("/dashboard/api", adminGuard, dashboardAdmin.router)
+  adminApi.use("/models/api", adminGuard, modelsAdmin.router)
+  adminApi.use("/oauth-relay", adminGuard, oauthRelay.replayRouter)
+  app.use("/admin", adminApi)
+  app.use("/relay", adminGuard, oauthRelay.relayRouter)
 
   // Jet Hub 管理 RPC
   app.all(
     JET_HUB_PATH,
+    adminGuard,
     a(async (req, res) => {
       const outcome = await host.handleRpc(JET_HUB_PATH, await toWebRequest(req, urlOf(req).href))
       if (outcome === undefined) {
@@ -239,11 +232,7 @@ export async function createHttpServer(host, options: any = {}) {
   })
 
   // 统一错误处理
-  app.use((err, req, res, _next) => {
-    logger?.error?.(`[http] ${req.method} ${req.originalUrl} 处理失败：${String(err)}`)
-    if (!res.headersSent) sendAdminJson(res, 500, { error: String(err) })
-    else res.end()
-  })
+  app.use(createErrorHandler(logger))
 
   return createServer(app)
 }

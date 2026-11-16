@@ -1,17 +1,35 @@
 /**
  * 装载上游浏览器 bundle（`dsh-providers-hub/client`）里的整页组件 `JetHubPage`。
- * 自 `web/admin.jsx` 迁移，逻辑不变：先截留 `__ModuleLoader__.load({id,factory})` 的那一行，
+ * 逻辑：先截留 `__ModuleLoader__.load({id,factory})` 的那一行，
  * 再用桩 ctx 调 `apply()`，从 slots 里捞整页组件。
  *
  * ⚠️ 上游 bundle 只 external 了 react / react-dom 与宿主 UI 原子库
- * （`@deepseek-ai/dsh-client-ui-primitives`，这里用最小替身顶上，理由见 web/admin.jsx 文件头）。
+ * （`@deepseek-ai/dsh-client-ui-primitives`，这里用最小替身顶上，理由见本文件说明）。
  */
 import * as React from "react"
 import { createPortal } from "react-dom"
 
+import upstreamUrl from "dsh-providers-hub/client?url"
+
 import { hostRpcCall } from "./rpc"
 
 const UPSTREAM_UI_PRIMITIVES = "@deepseek-ai/dsh-client-ui-primitives"
+
+/** 上游客户端 bundle 的单次加载（失败也缓存 Promise，避免并发重复注入脚本）。 */
+let loadPromise: Promise<void> | null = null
+
+export function loadUpstreamClient(): Promise<void> {
+  if (loadPromise) return loadPromise
+  loadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script")
+    script.src = upstreamUrl
+    script.async = false
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error("上游 bundle 加载失败（dsh-providers-hub/client）"))
+    document.head.appendChild(script)
+  })
+  return loadPromise
+}
 
 function IconChevronDownOutlineRegular({ className, size = 14 }: { className?: string; size?: number }) {
   return (
@@ -223,4 +241,13 @@ export function getUpstreamPage(): React.ComponentType<any> {
     cachedError = error
     throw error
   }
+}
+
+/**
+ * 登录后才需要上游界面：先加载浏览器 bundle，再取整页组件。
+ * 登录页不依赖它，避免上游资源故障时连登录框都出不来。
+ */
+export async function ensureUpstreamPage(): Promise<React.ComponentType<any>> {
+  await loadUpstreamClient()
+  return getUpstreamPage()
 }

@@ -154,22 +154,15 @@ body {
 .c2a-topbar-inner {
   box-sizing: border-box;
   height: 100%;
-  max-width: var(--c2a-content-max);
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   padding: 0 var(--c2a-content-pad);
   display: flex;
   align-items: center;
   gap: 20px;
 }
 
-:root[data-c2a-view="channels"] .c2a-topbar {
-  padding-right: 0;
-}
-
-:root[data-c2a-view="channels"] .c2a-topbar-inner {
-  max-width: none;
-  padding: 0 24px;
-}
+/* 顶栏在所有视图都使用同一套宽度与内边距，避免切页时 logo / 导航左右跳动。 */
 
 .c2a-brand {
   flex: none;
@@ -335,8 +328,8 @@ body {
 .c2a-view {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 
 #admin-root {
@@ -352,10 +345,83 @@ body {
   min-height: 0;
 }
 
+/* 统计区上方留白收紧，避免顶部空太多。 */
+#admin-root .dim-jh-panelHost {
+  padding-top: 8px;
+}
+
+/* 渠道详情面板统一白底，避免 Tab 栏、模型卡片、账号区之间出现白/灰/白色块拼接。 */
+#admin-root .dim-jh-panel {
+  box-sizing: border-box;
+  margin-left: 12px;
+  border: 1px solid var(--c2a-border);
+  border-radius: var(--c2a-radius);
+  background: var(--c2a-surface);
+  box-shadow: var(--c2a-shadow, none);
+}
+
+/* 上游各类状态提示可能带内联 24px 左右 margin，统一拉齐到统计卡片的内容边界。 */
+#admin-root .dim-jh-probeNotice {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* 账号管理头部也使用同样的浅灰底色，和可用模型头部保持一致。 */
+#admin-root .dim-jh-accountSection > .dim-jh-panelHead {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--c2a-radius);
+  background: var(--dsw-alias-bg-layer-2, #f4f5f7);
+}
+
+/* 手机端把上游横向滚动的 provider rail 换成「当前渠道 + 左侧抽屉」。 */
+.c2a-mobile-provider {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  #admin-root .dim-jh-railScroll {
+    display: none !important;
+  }
+
+  #admin-root .c2a-mobile-provider {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* 渠道页上游自带 28/24 + 14/12 的两层 padding；手机端收紧到 10px 级别，
+     避免内容区四周被大留白吃掉。 */
+  #admin-root .dim-jh-panelHost {
+    padding: 8px 10px 12px;
+  }
+
+  #admin-root .dim-jh-panel {
+    margin-left: 0;
+    padding: 10px 8px;
+  }
+
+  /* 账号管理页头：按钮组在移动端独占一行并靠左，避免被上游的贴右规则推到右边。 */
+  #admin-root .dim-jh-panelHead > .dim-jh-headerActions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  /* 上游 rail 在移动端带 10px 横向 padding；这里去掉，让渠道按钮行
+     与上下方统计卡片/面板使用同一条左右基准线。 */
+  #admin-root .dim-jh-rail {
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-bottom: 0;
+  }
+}
+
 .c2a-page {
   box-sizing: border-box;
-  max-width: var(--c2a-content-max);
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   padding: 20px var(--c2a-content-pad) 40px;
 }
 
@@ -665,16 +731,43 @@ body {
   }
 
   .c2a-topbar-inner {
-    gap: 10px;
+    gap: 6px;
+    padding: 0 10px;
+  }
+
+  :root[data-c2a-view="channels"] .c2a-topbar-inner {
+    padding: 0 10px;
+  }
+
+  .c2a-brand {
+    gap: 0;
+  }
+
+  .c2a-brand-mark {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
   }
 
   .c2a-brand-text {
     display: none;
   }
 
+  .c2a-nav {
+    gap: 2px;
+  }
+
   .c2a-nav-item {
-    padding: 0 9px;
-    font-size: 13.5px;
+    padding: 0 7px;
+    font-size: 13px;
+  }
+
+  .c2a-actions {
+    gap: 4px;
+  }
+
+  .c2a-actions .c2a-btn {
+    padding: 0 8px;
   }
 
   .c2a-action-label {
@@ -701,6 +794,19 @@ body {
     max-height: none;
     border: 0;
     border-radius: 0;
+  }
+
+  /* 回调修复是普通操作弹窗，不应在手机端铺满全屏。 */
+  .c2a-overlay--relay {
+    padding: 16px;
+    align-items: center;
+  }
+
+  .c2a-modal--relay {
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    border: 1px solid var(--c2a-border);
+    border-radius: var(--c2a-radius);
   }
 }
 
@@ -767,6 +873,8 @@ body {
    但上游 .dim-jh-globalStats 额外又加了 0 24px 的左右 margin ⇒ 三格统计卡比下方内容多缩进 24px。
    这里把左右 margin 归零，使其与下方 provider 列表 / 面板左缘对齐（保留 12px 顶部间距）。 */
 #admin-root .dim-jh-globalStats {
+  margin-top: 8px;
   margin-left: 0;
   margin-right: 0;
+  margin-bottom: 16px;
 }

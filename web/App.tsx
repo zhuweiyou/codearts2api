@@ -5,11 +5,13 @@
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate, useRoutes } from "react-router-dom"
 
+import { ensureUpstreamPage } from "./api/upstream"
 import { routes } from "./routes"
 
 import { useAdminAuthVisible } from "./hooks/useAdminAuthVisible"
 import { useMeasureGutter } from "./hooks/useMeasureGutter"
 import { OAuthRelayFix } from "./components/OAuthRelayFix"
+import { logout } from "./api/auth"
 import { THEMES, useThemeStore } from "./store/theme"
 
 type ViewId = "overview" | "channels" | "callers"
@@ -27,6 +29,18 @@ export default function App() {
   const { theme, setTheme } = useThemeStore()
   const showLogout = useAdminAuthVisible()
   useMeasureGutter()
+
+  // 登录成功后再预加载上游界面，触发 apply() 注入 dim-jh-* 全局样式。
+  // 登录页不依赖上游 bundle；即使这里失败，也只是渠道视图报错，不影响登录。
+  useEffect(() => {
+    let alive = true
+    void ensureUpstreamPage().catch((error) => {
+      if (alive) console.warn("[admin] 上游界面预加载失败：", String(error))
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const [menuOpen, setMenuOpen] = useState(false)
   const themeWrapRef = useRef<HTMLSpanElement | null>(null)
@@ -122,9 +136,18 @@ export default function App() {
               ) : null}
             </span>
             {showLogout ? (
-              <a className="c2a-btn c2a-btn--ghost" id="c2a-logout" href="/admin/logout" title="退出管理后台">
+              <button
+                type="button"
+                className="c2a-btn c2a-btn--ghost"
+                id="c2a-logout"
+                title="退出管理后台"
+                onClick={async () => {
+                  await logout()
+                  window.location.assign("/admin/login")
+                }}
+              >
                 退出
-              </a>
+              </button>
             ) : null}
           </div>
         </div>

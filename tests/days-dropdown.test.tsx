@@ -40,3 +40,12 @@ test("点切换按钮 → setOpen(false)（当前 daysOpen=true）", () => {
   assert.equal(props.setOpen.mock.calls.length, 1)
   assert.equal(props.setOpen.mock.calls[0][0], false)
 })
+
+test("没有可用日期时，preset 按钮禁用且不会被误触发成全选", () => {
+  const props = setup({ availableDays: [], days: [] })
+  const all = screen.getByRole("button", { name: "全部" })
+  assert.equal(all.hasAttribute("disabled"), true)
+  fireEvent.click(all)
+  assert.equal(props.applyPreset.mock.calls.length, 0)
+  assert.equal(all.className.includes("on"), false)
+})

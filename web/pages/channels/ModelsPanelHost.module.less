@@ -1,0 +1,66 @@
+.tabsHost {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex: none;
+  box-sizing: border-box;
+  padding-bottom: 14px;
+  background: var(--c2a-surface);
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  border-bottom: 1px solid var(--c2a-border);
+}
+
+.tabItem {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  cursor: pointer;
+}
+
+.tab {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  height: 31px;
+  padding: 0 1px;
+  border: 0;
+  background: transparent;
+  color: var(--c2a-text-3);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--c2a-brand);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--c2a-brand);
+  font-weight: 600;
+}
+
+.tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--c2a-brand);
+}
+
+.modelsHost {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}

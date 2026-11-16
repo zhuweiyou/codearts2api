@@ -1,5 +1,5 @@
 /**
- * Jet Hub RPC 封装（自 web/admin.jsx 迁移，协议不变）：
+ * Jet Hub RPC 封装（协议不变）：
  * 以 `{ method, payload }` 信封 POST `/api/jet-hub`，响应 `{ type, rpcId, result }`，
  * `result = { ok:true, value }` 或 `{ ok:false, error }`。ok 为假时抛带 code 的 Error。
  */

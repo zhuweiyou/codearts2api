@@ -11,14 +11,11 @@
  * ## 为什么需要 Cookie（而不是只用 Bearer）
  *
  * 浏览器里点开 `/admin` 是一次**文档导航**，导航请求**不可能**带 `Authorization`
- * 头（这是浏览器行为，不是我们的选择）；页面里的 `<script src="/admin.js">`
- * 同理。所以「页面本身也要拦住」只有两条路：
- *
- * 1. 页面公开、只拦 API（参考仓库 workbuddy2api-panel 的取舍）——
- *    代价是任何人都能确认「这台机器跑着 codearts2api」并看到后台长什么样；
- * 2. **登录表单换一个会话 Cookie**，之后的导航与子资源都自动带上。
- *
- * 这里选 **2**：既然要求是「进页面鉴权」，页面就得真的拦住。同时**仍然接受**
+ * 头（这是浏览器行为，不是我们的选择）；页面里的 `<script src="/admin/assets/*">`
+ * 同理。现在的取舍是 **页面公开、只拦数据/动作 API**：登录 UI 由前端 `AuthGate`
+ * 展示，页面与静态资源公开；`/api/jet-hub`、`/admin/<module>/api`、`/relay/*` 等数据接口
+ * 仍要求会话 Cookie 或 Bearer。这样登录页本身不依赖上游 bundle，也不会把
+ * “这台机器跑着 codearts2api”藏在一个假象后面。同时**仍然接受**
  * `Authorization: Bearer <admin-key>`，否则 curl / 脚本 / 监控就无法访问，
  * 而 README 里本来就有用 curl 调 RPC 的教程。
  *
@@ -52,12 +49,6 @@ export const ADMIN_KEY_FILE = "admin-key"
 
 /** 会话 Cookie 名。 */
 export const SESSION_COOKIE = "c2a_admin"
-
-/** 登录页路由（未鉴权可达，否则永远登不进去）。 */
-export const LOGIN_PATH = "/admin/login"
-
-/** 登出路由。 */
-export const LOGOUT_PATH = "/admin/logout"
 
 /**
  * 自动生成的密钥形态：`randomBytes(32).toString("base64url")` = 43 位。
@@ -154,25 +145,21 @@ export function sessionToken(key) {
 }
 
 /**
- * 解析 `Cookie` 头。
+ * 判断一条请求是否带有效的会话 Cookie。
  *
- * 只做够用的事：上游页面不需要完整的 RFC 6265（不涉及引号、转义、属性）。
+ * ⚠️ 只认 Cookie，不认 Bearer。`/admin/api/session` 是**公开**接口，如果它也
+ *    接受 Bearer，就会变成无限次猜管理密钥的判定口（响应直接告诉攻击者
+ *    `authenticated: true/false`，且不经过 adminGuard 的限速）。
  *
- * @returns `name → value` 的普通对象。
+ * @param request - node 的 `IncomingMessage`。
+ * @param key - 管理密钥。
+ * @returns 是否已通过 Cookie 鉴权。
  */
-export function parseCookies(header) {
-  const out = Object.create(null)
-  if (typeof header !== "string" || header === "") return out
-  for (const part of header.split(";")) {
-    const index = part.indexOf("=")
-    if (index < 0) continue
-    const name = part.slice(0, index).trim()
-    if (name === "") continue
-    const value = part.slice(index + 1).trim()
-    // 值里可能有 `=`（base64 填充）：只按第一个 `=` 切分，这里已做到。
-    out[name] = decodeURIComponent(value)
-  }
-  return out
+export function isSessionAuthorized(request, key) {
+  if (typeof key !== "string" || key === "") return false
+  const token = request.cookies?.[SESSION_COOKIE]
+  if (typeof token !== "string" || token === "") return false
+  return constantTimeEquals(token, sessionToken(key))
 }
 
 /**
@@ -194,13 +181,7 @@ export function isAdminAuthorized(request, key) {
     if (constantTimeEquals(authorization.slice("Bearer ".length), key)) return true
   }
 
-  const cookies = parseCookies(request.headers?.cookie)
-  const token = cookies[SESSION_COOKIE]
-  if (typeof token === "string" && token !== "") {
-    if (constantTimeEquals(token, sessionToken(key))) return true
-  }
-
-  return false
+  return isSessionAuthorized(request, key)
 }
 
 /**
@@ -209,7 +190,7 @@ export function isAdminAuthorized(request, key) {
  * - `HttpOnly`：JS 读不到（XSS 拿不走，也算不出）；
  * - `SameSite=Lax`：跨站 POST 不携带，挡住最简单的 CSRF；同时不影响用户从
  *   书签 / 外链点进 `/admin`（那是顶层 GET 导航，Lax 允许）；
- * - `Path=/`：`/api/jet-hub` 与 `/admin.js` 都要带；
+ * - `Path=/`：`/api/jet-hub` 与 `/admin/assets/*` 都要带；
  * - `Secure`：仅在 HTTPS 下加。**刻意不默认开启** —— 本服务自身只提供明文
  *   HTTP，若默认带 `Secure`，用户按 README 直连 `http://ip:8080` 时浏览器
  *   会**静默不存**这个 Cookie，表现为「密码输对了但还是让我登录」，极难排查。
@@ -232,21 +213,6 @@ export function sessionCookie(key, options: any = {}) {
 /** 让浏览器立刻丢弃会话 Cookie 的 `Set-Cookie` 值。 */
 export function clearSessionCookie() {
   return `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
-}
-
-/**
- * 判断请求是否走了 HTTPS。
- *
- * 只看连接本身是否加密（`socket.encrypted`，即 Node 的 `tls` server）。
- * **不看 `X-Forwarded-Proto`**：那个头客户端能随便写，采信它等于让别人
- * 决定我们给不给会话 Cookie 加 `Secure`；而不加 `Secure` 的后果只是
- * 「Cookie 在明文连接上也会被发送」这个已知前提，不是新暴露面。
- *
- * 反代终结 TLS 的部署下这里会返回 `false`，即会话 Cookie 不带 `Secure` 标志。
- * 这是**刻意的简化**：Cookie 仍能正常工作，只是少了这一层标记。
- */
-export function isSecureRequest(request) {
-  return request.socket?.encrypted === true
 }
 
 /**
@@ -284,6 +250,9 @@ export class LoginThrottle {
 
   /** 取某个 IP 的计数（顺手清掉过期窗口，避免 Map 无限膨胀）。 */
   entry(ip, now) {
+    if (this.entries.size > 1000) {
+      for (const [key, value] of this.entries) if (now >= value.resetAt) this.entries.delete(key)
+    }
     const found = this.entries.get(ip)
     if (found === undefined || now >= found.resetAt) {
       const fresh = { count: 0, resetAt: now + this.windowMs }
@@ -313,27 +282,4 @@ export class LoginThrottle {
   reset(ip) {
     this.entries.delete(ip)
   }
-}
-
-/**
- * 从请求里取来源 IP：**就是 TCP 对端地址**。
- *
- * 刻意不读 `X-Forwarded-For` / `X-Real-IP`：客户端能随手伪造，一换就是「一个
- * 全新的 IP」，登录限速直接失效。只有部署在自己控制的代理后面时它们才有意义，
- * 而本项目**不支持**那种形态 —— 需要反代时请让反代直接转发 TCP，别加这两类头。
- *
- * @param request - node 的 `IncomingMessage`。
- */
-export function clientIp(request) {
-  return request.socket?.remoteAddress ?? "unknown"
-}
-
-/** HTML 转义（登录页只需这一处，不引依赖）。 */
-export function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
 }

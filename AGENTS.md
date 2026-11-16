@@ -14,8 +14,8 @@
   `web/index.html` + `main.tsx` + `pages/**`）；**后端源码在 `src/**/*.ts`**：`pnpm run build` 会把它
   编译到 `dist-server/`，**生产用 `node dist-server/index.js` 运行**；`vite-plus/register` 仅用于 `pnpm dev`。
 - 改了前端后 `vp build` 验证打包（产出 `dist/`，后端 Express 托管 `/admin` + SPA 回退）。
-- 上游契约（端点路径、RPC 信封、slot 名、inject 列表）集中在 `src/upstream.ts` 与
-  `src/host.ts`，命中漂移时优先改这两处，而不是复制上游逻辑。
+- 上游契约（端点路径、RPC 信封、slot 名、inject 列表）集中在 `src/core/upstream.ts` 与
+  `src/host/host.ts`，命中漂移时优先改这两处，而不是复制上游逻辑。
 - 未经明确指示，**不要** `git commit` / `git push`。
 - 本项目是**薄胶水**：不复制上游业务逻辑、不 fork 上游。遇到「上游怎么做的」先看上游，
   本项目只负责把宿主环境就位与对外接口。
@@ -36,7 +36,7 @@
 | `credentials` | **复用官方** `@deepseek-ai/dsh-credentials-local` | 写 `<home>/.credentials.yaml`；自实现要重担格式 / 权限 / 原子写 / 锁，偏差表现为**静默读不到凭据** |
 | `attachments` | **复用官方** `@deepseek-ai/dsh-attachment-local`  | 图片输入的地基（入站落盘 + 出站内联）。插件用 `ctx.get` 取它，**缺了不报错**、只静默失去图片能力   |
 | `commands`    | 空对象                                            | 插件把它列在 `inject` 里但代码零调用；缺了会永久 pending                                           |
-| `connection`  | 自实现注册表（`src/connection.ts`）               | Jet Hub 管理端点经此接入，请求原样透传                                                             |
+| `connection`  | 自实现注册表（`src/core/connection.ts`）               | Jet Hub 管理端点经此接入，请求原样透传                                                             |
 | `llm`         | **真实** `@deepseek-ai/dsh-llm` 的 `LlmRuntime`   | 网关与各渠道适配器都通过它发请求，不能替身                                                         |
 
 > ⚠️ 凭据服务**必须走 `ctx.plugin()`**，不能 `new LocalCredentialProvider(...)`：载入既有
@@ -55,7 +55,7 @@ basename=`/admin`）。`web/api/upstream.tsx` 用**桩 ctx** 调上游 `apply()`
 即可按路由异步拆分，其余无需改动**。**界面布局与
 样式由本仓库维护**（全局壳 `App.less` + 组件 `*.module.less`），仅 `.dim-jh-*` 弹窗/按钮复用
 上游注入的全局样式。生产由 `vp build` 产出 `dist/`，后端 Express 托管 `/admin`（SPA 200 回退）
-与 `/admin/assets`。
+与 `/admin/assets`。**登录界面在前端**（`web/components/Login` + `AuthGate`）：页面/静态资源公开，未登录由前端展示登录框；后端只提供 `POST /admin/login`、`GET /admin/api/session`，数据/动作 API 仍受管理密钥保护。
 
 ### 依赖划分
 
@@ -72,25 +72,33 @@ basename=`/admin`）。`web/api/upstream.tsx` 用**桩 ctx** 调上游 `apply()`
 ```
 web/                       # 前端（Vite root，源码根）
   index.html  main.tsx  App.tsx  App.less  vite-env.d.ts
-  api/                     # rpc / callers / providers / upstream（装载上游 JetHubPage）
+  api/                     # rpc / auth / callers / providers / upstream（装载上游 JetHubPage）
   hooks/                   # useOverviewData / useCallersData / useAdminAuthVisible / useMeasureGutter
   store/theme.ts           # zustand 主题
   utils/                   # time(dayjs, zh-cn) / callers-format / callers-prefs / clipboard / oauth-relay
   routes.tsx               # 显式路由表（react-router useRoutes；/ → /overview 重定向在这里）
-  components/              # 全局复用组件（OAuthRelayFix：顶栏「回调修复」）
+  components/              # 全局组件（OAuthRelayFix、Login、AuthGate）
   pages/                   # 页面组件（仅 index.tsx 为页面，页面私有组件与 index 同级内聚）
     overview/   index.tsx · sections.tsx · Card/Cards/Section/ProviderHead.tsx · format.ts · Overview.module.less
     callers/    index.tsx · Section · GroupsTab/KeysTab/UsageTab/RecordsTab · DaysDropdown/FormModal/SecretModal · Callers.module.less
     channels/   index.tsx · ModelsPanel · ModelsPanelHost · ModelsPanel.module.less
 
-src/                       # 后端（Node / Express，TypeScript）
-  index.ts                 进程入口：装配 → 监听 → 优雅退出
-  host.ts                  宿主装配（五服务 + 装插件 + 契约核对）★核心
-  upstream.ts              对上游的契约常量 + RPC 信封
-  server.ts                Express 路由编排（健康检查 / 登录 / /v1 反代 / 鉴权 / 前端 / RPC）
-  http/                    security · body · admin-login · gateway · frontend 分层
-  home.ts logger.ts admin-auth.ts admin-login-page.ts connection.ts
-  caller-gate.ts caller-admin.ts （已移除 caller-cli） dashboard-admin.ts models-admin.ts oauth-relay.ts
+src/                       # 后端（Node / Express，TypeScript，按职责分层）
+  index.ts                 进程入口：配置 → 装配 → 监听 → 信号退出
+  server.ts                Express 应用装配（路由挂载）
+  config/env.ts            环境变量解析（PORT/HOST/PROXY_GATEWAY/ADMIN_AUTH）
+  core/                    home · logger · upstream(契约) · connection · errors · types · fs-store
+  host/host.ts             上游宿主装配（五服务 + 装插件 + 契约核对）★核心
+  http/                    body · security · request · respond · error（HTTP 基础设施/适配）
+  modules/                 领域模块（controller=HTTP 适配，service=业务）
+    auth/                  auth.service · login.controller
+    callers/               callers.service · callers.controller
+    caller-gate/           caller-gate.service（鉴权/白名单） · usage-recorder.service（用量记账）
+    dashboard/             dashboard.service · dashboard.controller
+    models/                models.service · models.controller
+    oauth-relay/           oauth-relay.service · oauth-relay.controller
+    gateway/               gateway.service · gateway.controller · gateway-key.service
+    frontend/              frontend.controller
 
 tests/                     # 行为/UI 测试（Vitest，*.test.{ts,tsx}；组件用 jsdom）
 vite.config.ts             # vp 配置：root=web、全局 fmt/lint/test/build、alias（路由为显式 routes.tsx）
@@ -272,7 +280,7 @@ server {
 
 ## 安全边界
 
-1. **管理端受管理密钥保护**（`/admin`、静态子资源、`/api/jet-hub`）。它能看到并操作
+1. **管理端数据/动作 API 受管理密钥保护**（`/admin/*/api`、`/api/jet-hub`、`/relay/*`；页面与静态资源公开，未登录时前端展示登录框）。它能看到并操作
    你的全部账号凭据，也会**明文回传网关 API Key** —— 所以密钥务必当作密码保管，
    不要写进公开的 compose 文件或截图。
    - 密钥在 `<CODEARTS2API_HOME>/admin-key`（`0600`）或 `CODEARTS2API_ADMIN_KEY`；
@@ -467,7 +475,7 @@ if (typeof url === "string" && !url.trim().startsWith("data:")) {
   同机是否跑着别的内部服务），而不是「自用」这个词本身。
 
 **将来若要支持（方案 B）**：在本项目的 `/v1/*` 反代层拦一道
-（`src/server.ts` 的 `proxyToGateway`）—— 检测 http(s) `image_url` → 下载 → 转 base64
+（`src/modules/gateway/gateway.controller.ts` 的 `proxyToGateway`）—— 检测 http(s) `image_url` → 下载 → 转 base64
 data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 
 | 防护                                                                                  | 原因                    |
@@ -505,7 +513,7 @@ data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 我们与上游的**代码**耦合只有一处：
 
 ```js
-import * as plugin from "dsh-providers-hub" // src/host.ts 唯一的一行
+import * as plugin from "dsh-providers-hub" // src/host/host.ts 唯一的一行
 ```
 
 其余全靠 cordis 的注入机制与 HTTP 转发。因此上游常见的改动类型（新增渠道、修协议、
@@ -518,11 +526,11 @@ import * as plugin from "dsh-providers-hub" // src/host.ts 唯一的一行
 | 改界面布局 / 样式                 | **0 行**（只需 `pnpm run build`） | 界面是上游产物的原样复用                                  |
 | 改网关行为（/v1/\*）              | **0 行**                          | 网关是上游的，我们只转发                                  |
 | 加 RPC 方法                       | **0 行**                          | 我们的转发是通用透传，不枚举方法                          |
-| **改管理端点路径**                | 1 个常量                          | `src/upstream.ts`                                         |
-| **改 RPC 信封 / 线协议**          | 1 个函数                          | `src/upstream.ts` 的 `rpcEnvelope()`                      |
+| **改管理端点路径**                | 1 个常量                          | `src/core/upstream.ts`                                         |
+| **改 RPC 信封 / 线协议**          | 1 个函数                          | `src/core/upstream.ts` 的 `rpcEnvelope()`                      |
 | **改客户端 loader 形态**          | 可能 1~2 处                       | `web/index.html` + `web/api/upstream.tsx`                     |
-| **改 slot 名 `settings.section`** | 1 个常量                          | `src/upstream.ts`                                         |
-| **改插件 `inject` 列表**          | `src/host.ts` 的 provide          | 少了服务插件会永久 pending                                |
+| **改 slot 名 `settings.section`** | 1 个常量                          | `src/core/upstream.ts`                                         |
+| **改插件 `inject` 列表**          | `src/host/host.ts` 的 provide          | 少了服务插件会永久 pending                                |
 
 ### 自动升级（GitHub Actions）
 
@@ -574,7 +582,7 @@ GitHub Actions 因此会发失败通知邮件。
 | `DSH 基础包整族同版本` 自检            | 装了两套不同版本（版本不一致）                                     | 同上；修完 `rm -rf node_modules pnpm-lock.yaml && pnpm install`                             |
 | `pnpm-lock.yaml` 核对                  | lock 未更新到新 commit                                             | 脚本会自动回滚，重跑 `pnpm install --no-frozen-lockfile`                                    |
 | `pnpm run build`                       | 上游产物形态变了（`./client` 导出路径不同）                        | 对照[升级时需要改多少代码](#升级时需要改多少代码) 的契约表                                  |
-| `pnpm test`                            | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                   | 按报错改 `src/upstream.ts` 的常量或 `web/api/upstream.tsx` 的 shim                                 |
+| `pnpm test`                            | 上游改了契约（端点路径 / 删了渠道 / 新外部依赖）                   | 按报错改 `src/core/upstream.ts` 的常量或 `web/api/upstream.tsx` 的 shim                                 |
 | `pnpm run lint` / `format`             | 本仓库代码风格问题                                                 | `pnpm run format` 修                                                                        |
 | `git commit`                           | 权限或并发冲突                                                     | 看 Actions 日志                                                                             |
 
@@ -632,9 +640,9 @@ pnpm run format:check  # 确认代码风格一致
 | ------------------------------------------------------ | ------------------------ | --------------------------------------------------------- |
 | `host.test.ts` 的「provider 不见了」                  | 上游**删除/改名**了渠道  | 按报错给出的实际列表更新 `EXPECTED_PROVIDERS`（只改测试） |
 | 前端测试报「只请求我们 shim 能提供的模块」 | 上游引入**新的外部依赖** | 在 `web/api/upstream.tsx` 的 `captured.factory()` 里补上该模块   |
-| `home-isolation.test.ts`                              | 存储格式/隔离被改坏      | 看具体断言，通常与 `src/home.ts` 或凭据服务有关           |
+| `home-isolation.test.ts`                              | 存储格式/隔离被改坏      | 看具体断言，通常与 `src/core/home.ts` 或凭据服务有关           |
 | `format:check` 报**已有文件**（不是本次改的）          | 工作区行尾漂移           | 见下方「行尾」；**不要**用 `format` 去「修」代码          |
-| 其它                                                   | 契约漂移                 | 对照 `src/upstream.ts` 顶部契约表                         |
+| 其它                                                   | 契约漂移                 | 对照 `src/core/upstream.ts` 顶部契约表                         |
 
 > ⚠️ **行尾陷阱**：Git `core.autocrlf=true` 时工作区会被检成 CRLF，而 vp fmt（Oxfmt）默认 LF
 > ⇒ 一批**本来没动过**的文件也会报格式错误（`vp fmt` 还会把它们整份重写）。先确认是不是这个原因：
@@ -658,7 +666,7 @@ pnpm start
 ```
 
 **没有这行、或直接抛错**，就说明上游改了端点路径或装配方式 —— 错误信息会告诉你去
-`src/upstream.ts` 改哪个常量。
+`src/core/upstream.ts` 改哪个常量。
 
 **6. 真机点一下（建议）** —— 打开 `/admin`，确认：左侧导航里各个渠道都在、账号列表能读出
 source、页头「网关」开关能开关。
