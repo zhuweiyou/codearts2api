@@ -1,7 +1,7 @@
 /** `/v1/*` 透明反代到本机插件网关 + 网关状态查询。与路由编解耦。 */
 import { Readable } from "node:stream"
 
-import { JET_HUB_PATH, rpcEnvelope } from "../upstream.ts"
+import { JET_HUB_PATH, rpcEnvelope } from "../core/upstream.ts"
 import { sendAdminJson } from "./security.ts"
 
 /** 逐跳头：不应转发。 */

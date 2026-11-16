@@ -1,6 +1,6 @@
 /** 安全响应头、响应辅助函数、鉴权判定。与路由编排解耦，供各层复用。 */
 import { LOGIN_PATH, LOGOUT_PATH } from "../admin-auth.ts"
-import { CARRIER_PATH } from "../upstream.ts"
+import { CARRIER_PATH } from "../core/upstream.ts"
 
 /**
  * 管理相关的安全响应头（CSP 按页面能力定：script-src 'self' / style 'unsafe-inline' /

@@ -18,7 +18,7 @@ import { createGatewayProxy, providerIds, readGatewayState } from "./http/gatewa
 import { needsAdminAuth, respondUnauthorized, send, sendAdmin, sendAdminJson } from "./http/security.ts"
 import { createModelsAdmin } from "./models-admin.ts"
 import { createOAuthRelay } from "./oauth-relay.ts"
-import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./upstream.ts"
+import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./core/upstream.ts"
 
 // 兼容旧引用。
 export { needsAdminAuth } from "./http/security.ts"
