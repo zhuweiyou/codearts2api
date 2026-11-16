@@ -379,6 +379,9 @@ function writeAllowBuilds(hashes) {
     ...[...new Set(hashes)].map(
       (h) => `  'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/${h}': true`,
     ),
+    // esbuild 是 vite-plus / vitest / @vitejs/plugin-react 的传递依赖，需保留放行，
+    // 否则 pnpm install 报 ERR_PNPM_IGNORED_BUILDS。重建 allowBuilds 时不能丢。
+    "  esbuild: true",
   ].join("\n")
   const re = /^allowBuilds:\n(?:[ \t]+.*\n?)*/m
   const next = re.test(text) ? text.replace(re, `${block}\n`) : `${text}${text.endsWith("\n") ? "" : "\n"}${block}\n`
