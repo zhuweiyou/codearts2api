@@ -14,6 +14,9 @@ import { SecretModal } from "./SecretModal"
 import { UsageTab } from "./UsageTab"
 import styles from "./index.module.less"
 
+/** 手动刷新时的最小可视时长：接口再快也至少让“正在刷新…”显示这么久，避免闪一下就没。 */
+const MIN_REFRESH_MS = 600
+
 /* ── 主组件 ───────────────────────────────────────────────────── */
 
 type ModalState =
@@ -26,6 +29,21 @@ export default function Callers({ active = true }: { active?: boolean }) {
   const [modal, setModal] = useState<ModalState>(null)
   const [secret, setSecret] = useState<string | null>(null)
   const d = useCallersData(active, tab)
+  const [manualBusy, setManualBusy] = useState(false)
+
+  // 仅“手动点刷新”才显示按钮 loading：进入页面/增删改触发的自动 refresh 不显示，
+  // 避免切到本页时莫名闪一下“正在刷新…”。
+  async function manualRefresh() {
+    setManualBusy(true)
+    const startedAt = Date.now()
+    try {
+      await d.refresh()
+    } finally {
+      const remaining = MIN_REFRESH_MS - (Date.now() - startedAt)
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
+      setManualBusy(false)
+    }
+  }
 
   const TABS: { key: CallersTab; label: string; count?: (s: CallerState) => number }[] = [
     { key: "groups", label: "分组", count: (s) => (s.groups || []).length },
@@ -141,6 +159,17 @@ export default function Callers({ active = true }: { active?: boolean }) {
               <span>{sub}</span> · 分组决定能用哪些模型，Key 决定谁在调；用量与调用记录按 Key / 模型实时汇总，超管 Key
               一并统计。
             </p>
+          </div>
+          <div className="c2a-page-actions">
+            <button
+              type="button"
+              className="c2a-btn"
+              onClick={manualRefresh}
+              disabled={manualBusy}
+              aria-busy={manualBusy}
+            >
+              {manualBusy ? "正在刷新…" : "刷新"}
+            </button>
           </div>
         </div>
 

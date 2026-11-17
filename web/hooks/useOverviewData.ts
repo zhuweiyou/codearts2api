@@ -4,6 +4,8 @@ import { ago } from "../utils/time"
 
 const API = "/admin/dashboard/api"
 const REFRESH_MS = 30000
+/** 手动刷新时的最小可视时长：接口再快也至少让“正在刷新…”显示这么久，避免闪一下就没。 */
+const MIN_REFRESH_MS = 600
 
 /**
  * 总览数据层：拉取快照、30s 轮询、手动刷新。让 Overview 视图保持“只渲染”。
@@ -50,9 +52,12 @@ export function useOverviewData(active: boolean) {
 
   async function refresh() {
     setBusy(true)
+    const startedAt = Date.now()
     try {
       await load(true)
     } finally {
+      const remaining = MIN_REFRESH_MS - (Date.now() - startedAt)
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
       setBusy(false)
     }
   }

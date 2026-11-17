@@ -16,7 +16,7 @@ import styles from "./index.module.less"
 /* ── 主组件 ───────────────────────────────────────────────────── */
 
 export default function Overview({ active = true }: { active?: boolean }) {
-  const { snapshot, summary, error } = useOverviewData(active)
+  const { snapshot, summary, error, busy, refresh } = useOverviewData(active)
 
   return (
     <section className="c2a-view" id="c2a-view-overview" data-view="overview" role="tabpanel" aria-label="总览">
@@ -25,6 +25,18 @@ export default function Overview({ active = true }: { active?: boolean }) {
           <div>
             <h1 className="c2a-page-title">总览</h1>
             <p className="c2a-page-sub">{summary}</p>
+          </div>
+          <div className="c2a-page-actions">
+            <button
+              type="button"
+              className="c2a-btn"
+              title="重新读取全部数据（余额会绕过 5 分钟缓存）。"
+              onClick={refresh}
+              disabled={busy}
+              aria-busy={busy}
+            >
+              {busy ? "正在刷新…" : "刷新"}
+            </button>
           </div>
         </div>
         <div className={styles.body}>
