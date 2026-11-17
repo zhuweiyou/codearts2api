@@ -7,6 +7,34 @@
 ---
 
 <details open>
+<summary><b>2026-11-17 · 上游升级 <code>594ea70</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `c44f6ffb545f726da8c9add9b8173c3faa1062ce` 更新到 `594ea70ef4b3dad6a955ae72c02590b40242331b`。
+
+### 上游改动
+
+- fix(promo): 双审计返工 —— 时间字段换形 fail-closed + 两腿同判 + 三处边界统一（GitHub PR #104）
+- fix(marvis): 会话分散返工 —— 抽纯函数补行为级守卫 + 如实收窄承诺（Gitee PR #190）
+- feat(promo): 移植上游活动徽标到模型目录（GitHub #101）
+- feat(marvis): 账号池按会话分散 —— 11 个号不再「1 主 10 备」（Issue 用户报障 2026-11-17）
+- fix(codearts,marvis): 双审计返工 —— 文案按通道分流 + 三条判据腿各自独立 + 两条过宽豁免（Gitee PR #189）
+- fix(marvis): 3000101 视为上游瞬时抖动 —— 换号重发，别一口咬死
+- fix(doc): 双审计返工 —— 打包通道补详情文档 + 三条对用户说谎的措辞 + 守卫补牙（GitHub #98）
+- fix(doc): 声明 meta.detail，详情页不再回落渲染 1205 行 README（GitHub #98）
+- fix(astudio): 断流不再补假终态 + 三条边角加固（PR #99 双审计返工第二轮）
+- fix(astudio): 去掉累积差量包装器（会静默吞重复正文）+ 删死代码 + 审计纠错（GitHub PR #99 返工）
+- fix(astudio): 推理改成 Responses 协议 —— /chat/completions 恒 404 不等于前缀下线
+- fix(providers): 返工 PR #188 —— 补接线层守卫 + fold 三条运行时守卫 + 审计纠错（GitHub #97）
+- fix(providers): system 折进 messages[]，不再放请求体顶层（GitHub #97）
+- fix(marvis): 只换身份句本体，不再吞掉 system 里的约束（IKVRNK 双审计返工）
+- fix(marvis): 换掉已被上游拉黑的身份句（Gitee IKVRNK）
+- fix(codearts): 账号积分耗尽时换号 —— 判据补上真实业务码 TM.00001050
+
+</details>
+
+<details>
 <summary><b>2026-11-16 · 后端分层重构 + 管理端登录前端化</b></summary>
 
 ## 变更
