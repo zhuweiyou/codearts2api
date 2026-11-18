@@ -7,6 +7,51 @@
 ---
 
 <details open>
+<summary><b>2026-11-18 · 上游升级 <code>d393816</code>（自动升级）</b></summary>
+
+## 上游升级
+
+依赖从 `594ea70ef4b3dad6a955ae72c02590b40242331b` 更新到 `d393816f254b704d5f6e46f2ee05c157cf36ea36`。
+
+### 上游改动
+
+- fix(gateway): 缓存读取量浮点漏算 + 记账层三态 + 五家适配器守卫（GitHub PR #122 双审计返工）
+- fix(codearts): 模型介绍在主入口也能到面板 —— 修法落 RPC 层 + 零宽按类别与填充符（GitHub PR #115 双审计返工）
+- fix(gateway): 区分缓存读取量未上报与零命中
+- fix(raccoon): 活动徽标四条腿补齐 —— 空白状态 / 单边窗口 / 边界播报 / e2e 静默跳过（GitHub PR #120 双审计返工）
+- fix(qoder): 活动文案守卫补齐正反向 + e2e 停用静默跳过（GitHub PR #119 正向审计返工）
+- fix(assets): 图标守卫补构建期 fail-fast 与四处假绿（GitHub PR #118 双审计返工）
+- fix(promo): raccoon 活动腿补三处**静默**缺口（未知状态 / 无时区时间戳 / 多条 active 取错）
+- test(qoder): 活动文案判据补上 app 场景 + 自审三处取舍登记
+- feat(promo): raccoon 接上计费活动徽标 —— chip + 悬停 + 时间窗口（issue #101 第五家）
+- fix(qoder): 活动文案按官方四键口径读，并把上游 `description` 接成悬停原话
+- feat(assets): 插件图标补上 —— 此前三条安装通道都没有它
+- fix(lobsterai): 限免单边窗口退回快照 + presetId 未采纳如实登记（GitHub PR #114 对抗审计晚到回执）
+- docs(lobsterai): 补 README 的限免四件套与订阅闸门两段 + 三处措辞诚实化
+- fix(promo): 活动徽标悬停链双审计返工 —— placement 顺序 + tooltip 两腿补测（GitHub PR #110）
+- fix(raccoon): 目录漂移审计返工 —— 保留旧 id 别名 + e2e 判据三处失效修复（GitHub PR #109）
+- fix(codearts-model-desc): 自审返工 —— 跨端点补齐介绍 / 零宽字符判据 / wrap 作用域
+- test(lobsterai): 探针此前根本跑不起来 —— 类型检查纳入 e2e，并补两条报警
+- feat(codearts): 接出上游模型介绍 model_desc，落在插件模型列表第二行
+- fix(lobsterai): 限免的倍率与徽标合到一个判据上（自审抓出的三处边界）
+- feat(lobsterai): 限时免费徽标与倍率归零（判据取自官方客户端 asar）
+- feat(lobsterai): 读入订阅闸门三件套（accessible / subscriptionPriority / restrictionHint）
+- fix(raccoon): 同日第二次漂移 —— kimi-k3 换成 -1-pro，并补三条「取值域」守卫
+- fix(promo): TRAE 闲时折扣双审计返工 —— 六条必修 + 一条实现与文档矛盾
+- feat(promo): 活动徽标补上悬停出口 —— 占住 model.label 槽位交出上游长说明与有效期
+- fix(raccoon): 兜底表清掉已腐坏的折扣 —— glm-5-3-flash 回基线 x0.2（自审补记）
+- fix(raccoon): 修目录漂移 —— 兜底表补 Qwen4-Max、deepseek 换 -1017，e2e 判据改双差集
+- fix(raccoon): 浏览器授权链双审计返工 —— 来源闸门 + 八处落地守卫（GitHub PR #107）
+- chore: 移出误入的临时提交说明文件
+- fix(raccoon): 回环接收端必须在流程落定时关掉 + 换码失败必须落定
+- docs(promo): §8b 结案补录 —— 腾讯 /v3/config 的 UA 裁剪是**三档**，本仓真实 UA 落在最全那档
+- docs(pr): 入账 PR #107 描述 —— 浏览器授权取代已死的 /login/mp
+- feat(raccoon): 扫码登录改浏览器授权 —— 官方那条链取代已死的 /login/mp
+- feat(promo): TRAE 闲时折扣徽标 —— 上游只给数字的那第三条腿（issue #101 续）
+
+</details>
+
+<details>
 <summary><b>2026-11-18 · 修复聚合模型搜索后列表高度塌缩</b></summary>
 
 - 渠道 Tab 切换时同时识别普通账号区与聚合设置区，查看可用模型时隐藏对应设置区，避免搜索结果变少后两个内容区争抢高度。
