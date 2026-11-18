@@ -12,10 +12,12 @@ const TAB_META: Array<{ id: Tab; label: string }> = [
   { id: "models", label: "可用模型" },
 ]
 
-function directAccountSection(panel: HTMLElement): HTMLElement | null {
-  return Array.from(panel.children).find((child) =>
-    child.classList.contains("dim-jh-accountSection"),
-  ) as HTMLElement | null
+function directProviderSection(panel: HTMLElement): HTMLElement | null {
+  return (
+    (Array.from(panel.children).find(
+      (child) => child.classList.contains("dim-jh-accountSection") || child.classList.contains("dim-jh-aggPanel"),
+    ) as HTMLElement | undefined) ?? null
+  )
 }
 
 function selectedProviderId(): string {
@@ -41,7 +43,7 @@ export function ModelsPanelHost() {
     const sync = () => {
       const panel = document.querySelector<HTMLElement>("main.dim-jh-panel")
       if (!panel) return
-      const account = directAccountSection(panel)
+      const section = directProviderSection(panel)
 
       // 切换渠道时回到默认的账号管理 Tab。
       const provider = selectedProviderId()
@@ -51,13 +53,12 @@ export function ModelsPanelHost() {
         setActive("account")
       }
 
-      // 聚合等没有账号区的面板不显示这两个 Tab，保持模型面板原行为。
-      const showTabs = account !== null
+      const showTabs = section !== null
       // Tab 栏固定时由面板内部的内容区滚动，禁止整块 panel 自己滚，
       // 否则滚动会把 Tab 顶到内容上方（移动端会看到列表行从 Tab 上方穿出）。
       panel.style.overflow = showTabs ? "hidden" : ""
       if (tabEl) tabEl.style.display = showTabs ? "" : "none"
-      if (account) account.style.display = activeRef.current === "models" ? "none" : ""
+      if (section) section.style.display = activeRef.current === "models" ? "none" : ""
       if (modelEl) modelEl.style.display = showTabs && activeRef.current === "models" ? "" : "none"
     }
 
@@ -100,10 +101,10 @@ export function ModelsPanelHost() {
   useEffect(() => {
     const panel = document.querySelector<HTMLElement>("main.dim-jh-panel")
     if (!panel) return
-    const account = directAccountSection(panel)
-    panel.style.overflow = account !== null ? "hidden" : ""
-    if (account) account.style.display = active === "models" ? "none" : ""
-    if (modelHost) modelHost.style.display = account !== null && active === "models" ? "" : "none"
+    const section = directProviderSection(panel)
+    panel.style.overflow = section !== null ? "hidden" : ""
+    if (section) section.style.display = active === "models" ? "none" : ""
+    if (modelHost) modelHost.style.display = section !== null && active === "models" ? "" : "none"
   }, [active, modelHost])
 
   return (
