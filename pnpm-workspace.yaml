@@ -13,7 +13,7 @@ packages:
 #     URL（含 commit），升级上游 commit 时由 scripts/upgrade-upstream.mjs 自动改写本行；
 #   - esbuild：vite-plus / vitest / @vitejs/plugin-react 的传递依赖，postinstall 要落平台二进制。
 allowBuilds:
-  'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/d393816f254b704d5f6e46f2ee05c157cf36ea36': true
+  'dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/c9dcd9c87932226b8068fbba9ad79865063d1e3f': true
   esbuild: true
 
 # Vite+ 官方要求：把 vite 依赖别名到它捆绑的 core（与安装的 vite-plus 版本一致），
