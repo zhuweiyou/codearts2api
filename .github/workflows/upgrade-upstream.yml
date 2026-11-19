@@ -151,3 +151,16 @@ jobs:
     with:
       ref: ${{ needs.upgrade.outputs.ref }}
       publish_latest: ${{ github.ref_name == github.event.repository.default_branch }}
+
+  # 自动同步上游也要发一个小版本：升级提交是 GITHUB_TOKEN 推的，不会触发
+  # on:push 的 release-tag，故这里显式用 workflow_call 调它（RELEASE_PAT 经
+  # secrets: inherit 传入，用于推 tag 触发 publish-image）。
+  tag:
+    needs: upgrade
+    if: needs.upgrade.outputs.changed == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-tag.yml
+    with:
+      ref: ${{ needs.upgrade.outputs.ref }}
+    secrets: inherit

@@ -1,0 +1,136 @@
+name: Release tag
+
+# 每次 main 拿到新提交（合并 PR、或自动同步上游）就发一个小版本：
+# 计算 v0.1.<N+1>，给该提交打 tag 并推送 → 触发 publish-image.yml 构建版本镜像（0.1.N / 0.1）；
+# 然后创建一条 GitHub Release，**更新记录写在 Release 正文里**（由 --generate-notes
+# 从「上个 tag → 本次」的提交/PR 自动生成），不再需要手改 CHANGELOG.md。
+#
+# 两条来源：
+#   ① 合并 PR → 真实 push main → 本工作流被 on:push 触发；
+#   ② 自动同步上游（upgrade-upstream.yml）用的是 GITHUB_TOKEN push，
+#      **不会**触发 on:push 工作流，故由它在 push 之后用 workflow_call 显式调本工作流。
+#
+# ⚠️ 为什么打 tag 用 PAT（RELEASE_PAT）而不是 GITHUB_TOKEN：
+#    GitHub 安全限制 —— 用 GITHUB_TOKEN 推的 ref **不会**触发其它工作流，
+#    那样打出来的 tag 唤不醒 publish-image，版本镜像就不会产出。
+#    （与 upgrade-upstream.yml 里「GITHUB_TOKEN 推送不触发 push 工作流、改用
+#    workflow_call 桥接」是同一类坑。）
+on:
+  push:
+    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to tag (defaults to the pushed commit)
+        type: string
+        default: ""
+    secrets:
+      RELEASE_PAT:
+        required: true
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 串行发版：两次合并几乎同时到达时，避免都读到同一个 last tag 而撞号。
+# （上游 LESSONS 记过 "two sessions tagged one commit twice" 的教训。）
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  # 测试门禁：绿了才 tag（magpie 做法）。publish-image 在 tag 触发的构建里还会
+  # 再跑一次测试；这里多跑一遍，是为了让 tag 绝不指向一个没通过测试的提交。
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PNPM_CONFIG_MINIMUM_RELEASE_AGE: "0"
+      PNPM_CONFIG_STORE_DIR: /home/runner/pnpm-store
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Format & lint (vp check)
+        run: pnpm exec vp check
+      - name: Type check (web)
+        run: pnpm run typecheck
+      - name: Build frontend (for /admin SPA tests)
+        run: pnpm run build:web
+      - name: Unit / UI tests (vp test)
+        run: pnpm exec vp test run
+
+  tag:
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
+          # PAT：推 tag 要能触发 publish-image 工作流
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Resolve target version
+        id: version
+        # 幂等：HEAD 若已带 v0.1.N tag（重跑 / 同一提交多次触发），就沿用该版本，
+        # 不再 +1；否则取现有最大 v0.1.N 再加一（首个版本 v0.1.1）。
+        run: |
+          git fetch --tags --force
+          EXISTING=$(git describe --tags --exact-match HEAD 2>/dev/null || true)
+          if echo "$EXISTING" | grep -qE '^v0\.1\.[0-9]+$'; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "version=$EXISTING" >> "$GITHUB_OUTPUT"
+            echo "HEAD already tagged $EXISTING"
+          else
+            LAST=$(git tag -l 'v0.1.*' --sort=-v:refname | head -n1)
+            if [ -z "$LAST" ]; then NEXT=1; else N=${LAST#v0.1.}; NEXT=$((N + 1)); fi
+            echo "already=false" >> "$GITHUB_OUTPUT"
+            echo "version=v0.1.$NEXT" >> "$GITHUB_OUTPUT"
+            echo "Releasing v0.1.$NEXT (previous: ${LAST:-none})"
+          fi
+
+      - name: Tag and push
+        if: steps.version.outputs.already == 'false'
+        env:
+          NEW: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEW" -m "release $NEW"
+          git push origin "$NEW"
+          echo "Pushed $NEW — publish-image will build the versioned image"
+
+      - name: Build release notes
+        # 正文由 scripts/release-notes.mjs 生成：区间内每个 commit 取标题；
+        # 只有「自动升级」那条，把 commit body 里的「上游改动」逐条缩进展开（PR 合并的只留标题）。
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          node scripts/release-notes.mjs > /tmp/notes.md
+          echo "----- release notes -----"; cat /tmp/notes.md
+
+      - name: Create GitHub Release (notes in the body)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW: ${{ steps.version.outputs.version }}
+        # 正文来自上一步生成的 /tmp/notes.md。想补充说明，直接到 GitHub 编辑这条 Release。
+        # 已存在则跳过（幂等）。
+        run: |
+          set -euo pipefail
+          if gh release view "$NEW" >/dev/null 2>&1; then
+            echo "Release $NEW already exists, nothing to do"
+          else
+            gh release create "$NEW" --title "$NEW" --verify-tag --notes-file /tmp/notes.md
+            echo "Created GitHub Release $NEW"
+          fi
