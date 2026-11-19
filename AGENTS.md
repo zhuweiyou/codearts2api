@@ -506,7 +506,7 @@ data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 1. 先跑测试门禁（`vp check` / `typecheck` / `build:web` / `vp test`）—— **绿了才继续**；
 2. 计算下一个版本号 `v0.1.<N+1>`（现有最大 `v0.1.N` 加一；首版 `v0.1.1`），给该提交打 tag 并推送；
 3. tag 触发 `publish-image.yml` 构建版本镜像（`:0.1.N` / `:0.1` / `:sha-…`）；
-4. 创建一条 GitHub Release，**正文由 `--generate-notes` 从「上个 tag → 本次」的提交/PR 自动生成**。
+4. 创建一条 GitHub Release：正文按「上个 tag → 本次」的提交生成 —— **PR 合并只取标题；自动升级那条会把它 commit body 里的「上游改动」逐条缩进展开**（效果同旧 CHANGELOG）。
 
 > ⚠️ 推 tag 用的是仓库 Secret **`RELEASE_PAT`**（PAT），不是 `GITHUB_TOKEN` ——
 > `GITHUB_TOKEN` 推的 ref 不会触发其它工作流，那样 tag 唤不醒 `publish-image`。

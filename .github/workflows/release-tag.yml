@@ -111,18 +111,26 @@ jobs:
           git push origin "$NEW"
           echo "Pushed $NEW — publish-image will build the versioned image"
 
+      - name: Build release notes
+        # 正文由 scripts/release-notes.mjs 生成：区间内每个 commit 取标题；
+        # 只有「自动升级」那条，把 commit body 里的「上游改动」逐条缩进展开（PR 合并的只留标题）。
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          node scripts/release-notes.mjs > /tmp/notes.md
+          echo "----- release notes -----"; cat /tmp/notes.md
+
       - name: Create GitHub Release (notes in the body)
         env:
           GH_TOKEN: ${{ github.token }}
           NEW: ${{ steps.version.outputs.version }}
-        # 更新记录写在 Releases 正文：--generate-notes 自动汇总「上个 tag → 本次」的
-        # 提交/PR。想补充说明，直接到 GitHub 编辑这条 Release 的正文即可。
-        # 已存在则跳过（幂等），避免重跑报错。
+        # 正文来自上一步生成的 /tmp/notes.md。想补充说明，直接到 GitHub 编辑这条 Release。
+        # 已存在则跳过（幂等）。
         run: |
           set -euo pipefail
           if gh release view "$NEW" >/dev/null 2>&1; then
             echo "Release $NEW already exists, nothing to do"
           else
-            gh release create "$NEW" --title "$NEW" --verify-tag --generate-notes
+            gh release create "$NEW" --title "$NEW" --verify-tag --notes-file /tmp/notes.md
             echo "Created GitHub Release $NEW"
           fi
