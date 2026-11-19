@@ -407,7 +407,7 @@ function DetailRow({ x, maxMs, isNew }: { x: any; maxMs: number; isNew: boolean 
           命中 {cacheRate ?? "—"}
         </span>
       </td>
-      <td className={clsx(styles.cOut, styles.num)}>
+      <td className={clsx(styles.cOut, styles.num)} data-l="输出">
         <span className={styles.rectok}>{outTok}</span>
       </td>
       <td className={styles.cWay}>
