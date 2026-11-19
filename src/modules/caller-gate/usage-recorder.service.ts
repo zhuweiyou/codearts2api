@@ -2,6 +2,15 @@ import { appendFile, mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import { Transform } from "node:stream"
 
+function cachedInputTokens(usage: any, input: unknown): number | null {
+  if (usage?.cache_read_reported === false || typeof input !== "number" || !Number.isSafeInteger(input)) return null
+  const cached =
+    usage?.input_tokens_details?.cached_tokens ??
+    usage?.prompt_tokens_details?.cached_tokens ??
+    usage?.prompt_cache_hit_tokens
+  return Number.isSafeInteger(cached) && cached >= 0 && cached <= input ? cached : null
+}
+
 /** 用量记录：把一次调用的结果异步写入 caller-usage/<UTC+8 日期>.jsonl，并在响应流上边转发边采集 usage。 */
 export function createUsageRecorder({
   logDir,
@@ -38,12 +47,6 @@ export function createUsageRecorder({
 
   /**
    * 响应流侧回调：边透传边解析用量，结束时写一条日志。不改变字节流本身。
-   *
-   * 两类响应分开处理，避免「正文里出现 usage/error 字样」被误判：
-   * - 流式（SSE，ctx.stream=true）：按 `data:` 帧逐条 JSON.parse，只看**帧顶层**的
-   *   `usage` 与 `error`。上游常是「HTTP 200 + 帧内 error」（限流/被拦），必须据此
-   *   把这次请求记成失败，否则会冒充成功、污染用量与筛选。
-   * - 非流式：整段 JSON 里窗口匹配 `"usage"`（纯数值对象，安全），状态沿用 HTTP 状态。
    */
   function tapStream(source, ctx) {
     // 闸门没开（没有 store）就直接把原流交回去，一个字节都不多碰。
@@ -103,7 +106,8 @@ export function createUsageRecorder({
         if (data === "" || data === "[DONE]") continue
         try {
           const obj = JSON.parse(data)
-          takeUsage(obj)
+          const isResponsesEnd = obj?.type === "response.completed" || obj?.type === "response.incomplete"
+          takeUsage(isResponsesEnd ? obj.response : obj)
           const err = obj && obj.error
           if (err && typeof err === "object" && (err.code || err.message)) streamError = err
         } catch {
@@ -158,6 +162,7 @@ export function createUsageRecorder({
           ms: Date.now() - startedAt,
           in_tokens: inTok,
           out_tokens: outTok,
+          cached_tokens: cachedInputTokens(usage, inTok),
           total_tokens: usage?.total_tokens ?? (inTok != null && outTok != null ? inTok + outTok : null),
         })
         callback()

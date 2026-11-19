@@ -3,7 +3,16 @@ import { useEffect, useState } from "react"
 
 import { type CallerState } from "../../api/callers"
 import { autoMs as getAutoMs, type Filter } from "../../hooks/useCallersData"
-import { dayHead, fmt, fmtMs, fmtTokens, localDay, recKey, statusReason } from "../../utils/callers-format"
+import {
+  dayHead,
+  fmt,
+  fmtCacheHitRate,
+  fmtMs,
+  fmtTokens,
+  localDay,
+  recKey,
+  statusReason,
+} from "../../utils/callers-format"
 import { hhmmss } from "../../utils/time"
 import { DaysDropdown } from "./DaysDropdown"
 import { Section } from "./Section"
@@ -343,6 +352,13 @@ function DetailRow({ x, maxMs, isNew }: { x: any; maxMs: number; isNew: boolean 
   const barCls = bad ? " bad" : hasMs && ms >= 10000 ? " slow" : ""
   const outTok = bad && !Number(x.out_tokens) ? "—" : fmtTokens(x.out_tokens)
   const inTok = x.in_tokens == null ? "—" : fmtTokens(x.in_tokens)
+  const cacheRate = fmtCacheHitRate(x.cached_tokens, x.in_tokens)
+  const cacheTitle =
+    cacheRate !== null
+      ? `缓存命中 ${fmt(x.cached_tokens)} / 输入 ${fmt(x.in_tokens)} Token`
+      : x.cached_tokens === 0 && x.in_tokens === 0
+        ? "没有输入 Token，无法计算缓存命中率"
+        : "未上报可用的缓存数据"
   return (
     <tr className={clsx(styles.recrow, bad && styles.bad, isNew && styles.fresh)}>
       <td className={styles.cTime}>
@@ -385,10 +401,13 @@ function DetailRow({ x, maxMs, isNew }: { x: any; maxMs: number; isNew: boolean 
           ) : null}
         </span>
       </td>
-      <td className={clsx(styles.cIn, styles.num)}>
+      <td className={clsx(styles.cIn, styles.num)} data-l="输入">
         <span className={styles.rectok}>{inTok}</span>
+        <span className={styles.recCache} title={cacheTitle}>
+          命中 {cacheRate ?? "—"}
+        </span>
       </td>
-      <td className={clsx(styles.cOut, styles.num)}>
+      <td className={clsx(styles.cOut, styles.num)} data-l="输出">
         <span className={styles.rectok}>{outTok}</span>
       </td>
       <td className={styles.cWay}>
