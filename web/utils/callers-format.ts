@@ -14,6 +14,15 @@ export function fmtTokens(n: any): string {
   return fmt(v)
 }
 
+const cachePercent = new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 1 })
+
+export function fmtCacheHitRate(cached: unknown, input: unknown): string | null {
+  if (typeof cached !== "number" || !Number.isSafeInteger(cached) || cached < 0) return null
+  if (typeof input !== "number" || !Number.isSafeInteger(input) || input <= 0 || cached > input) return null
+  const ratio = cached / input
+  return ratio > 0 && ratio < 0.001 ? "<0.1%" : cachePercent.format(ratio)
+}
+
 export function fmtMs(ms: any): string {
   const v = Number(ms)
   if (ms == null || !isFinite(v)) return "—"

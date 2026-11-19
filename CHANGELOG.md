@@ -7,6 +7,14 @@
 ---
 
 <details open>
+<summary><b>2026-11-19 · 调用记录显示单次缓存命中率</b></summary>
+
+- 「调用方 → 调用记录 → 逐条明细」在输入 Token 下方显示缓存命中率，悬停可查看命中和总输入的 Token 数。
+- 从 Chat Completions 与 Responses 的流式和非流式用量记录缓存命中数。明确上报的零命中显示 `0%`，未上报及缺少该字段的旧记录显示 `—`。
+
+</details>
+
+<details>
 <summary><b>2026-11-18 · 上游升级 <code>d393816</code>（自动升级）</b></summary>
 
 ## 上游升级
