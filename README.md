@@ -118,4 +118,4 @@ pnpm start       # 运行后端编译产物 dist-server/index.js
 
 🛠 完整的镜像标签、环境变量、状态目录、账号迁移、反向代理、安全边界、常见问题，以及
 架构 / 测试 / 上游升级流程等开发内容，见 [`AGENTS.md`](AGENTS.md)。历次变更见
-[`CHANGELOG.md`](CHANGELOG.md)。
+[GitHub Releases](https://github.com/zhuweiyou/codearts2api/releases)。

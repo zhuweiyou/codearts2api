@@ -7,14 +7,15 @@
  * 2. **hash 没变就直接跳过**（不装、不构建、不改文件、不提交）—— 这是最重要的一条，
  *    每天定时任务绝大多数时候都会走到这里；
  * 3. 有更新则：改 `package.json` → `pnpm install` → `pnpm run build` → 跑测试 →
- *    把上游这一段的 **commit 标题**写进 `CHANGELOG.md` → `git commit`；
+ *    `git commit`（上游本段的 commit 标题写进 commit message）。对外变更记录由
+ *    GitHub Releases 承载（release-tag 工作流按 tag 自动生成），不再维护 CHANGELOG.md；
  * 4. 任何一步失败都**非零退出**，把日志留在 stderr 里（GitHub Actions 会因此发失败通知）。
  *
- * ## 为什么 CHANGELOG 只写标题
+ * ## 为什么 commit message 只放标题
  *
- * 上游每个 commit 的正文动辄几百行（实测有上千行的），自动抄进来只会把 CHANGELOG
- * 变成流水账。**标题**才是有信息量的那一行（`feat(x): 新增 …` / `fix(y): 修 …`），
- * 也正好够回答「这次上游改了什么」。
+ * 上游每个 commit 的正文动辄几百行（实测有上千行的），自动抄进来只会变成流水账。
+ * **标题**才是有信息量的那一行（`feat(x): 新增 …` / `fix(y): 修 …`），正好回答
+ * 「这次上游改了什么」。这些标题写进自动升级 commit 的 message body。
  *
  * ## 用法
  *
@@ -497,7 +498,7 @@ for (const [label, command, commandArgs] of [
   }
 }
 
-// ── ⑦ 把上游这一段的 commit 标题写进 CHANGELOG ──
+// ── ⑦ 取上游这一段的 commit 标题（写进自动升级 commit 的 message）──
 
 /**
  * 取上游 `old..new` 之间的 commit 标题（**只要标题，不要正文**）。
@@ -528,7 +529,7 @@ function upstreamCommitTitles(from, to) {
         // ⚠️ `--no-merges` 只能滤掉**有两个 parent** 的 merge commit。上游的 PR 是
         //    **squash merge**（压成一个 commit、只有一个 parent），标题形如
         //    `Merge PR !119 (!119 feat/xxx) into pr131-merge` —— 那种是 PR 的**元信息**，
-        //    不是一次真实的改动，记进 CHANGELOG 只会是噪音，按标题过滤掉。
+        //    不是一次真实的改动，记进变更记录只会是噪音，按标题过滤掉。
         .filter((title) => !/^Merge PR !\d+/i.test(title))
     )
   } catch (error) {
@@ -544,68 +545,6 @@ function upstreamCommitTitles(from, to) {
 const titles = upstreamCommitTitles(currentHash, latestHash)
 log(`上游本段共 ${titles.length} 个 commit（不含 merge）`)
 
-/**
- * 把标题里的 HTML 敏感字符转义掉，免得破坏 CHANGELOG 的上下文。
- *
- * 只转义 `<` / `>` / `&`：标题里出现的 `&`、`<`、`>` 在 Markdown 正文里会被
- * 当成 HTML 标签解析，转成实体最省事。**反引号不用管** —— 标题写在正文里
- * （不是 `<summary>`），那里反引号照常渲染成行内代码。
- */
-function escapeHtml(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-}
-
-/** 北京时间（UTC+8）的日期，上游升级记录按本地日历记。 */
-function beijingDate() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date())
-}
-
-const changelogPath = join(root, "CHANGELOG.md")
-const changelog = readFileSync(changelogPath, "utf8")
-const today = beijingDate()
-
-const titleList = titles.length
-  ? titles.map((title) => `- ${escapeHtml(title)}`).join("\n")
-  : "- （未取到上游 commit 标题，请人工查阅上游仓库）"
-
-const entry = [
-  "<details open>",
-  `<summary><b>${today} · 上游升级 <code>${latestHash.slice(0, 7)}</code>（自动升级）</b></summary>`,
-  "",
-  "## 上游升级",
-  "",
-  `依赖从 \`${currentHash}\` 更新到 \`${latestHash}\`。`,
-  "",
-  "### 上游改动",
-  "",
-  titleList,
-  "",
-  "</details>",
-  "",
-  "",
-].join("\n")
-
-// 插到文件顶部：第一个 `<details` 之前（`<details open>` 归上一条）。
-const marker = "<details"
-const index = changelog.indexOf(marker)
-if (index === -1) {
-  fail("CHANGELOG.md 里找不到 <details> 标记，无法插入新条目")
-  process.exit(1)
-}
-
-// 新条目自己带 `open`，旧的**去掉** `open`（只有最新一条默认展开）。
-const head = changelog.slice(0, index)
-const tail = changelog.slice(index).replace("<details open>", "<details>")
-writeFileSync(changelogPath, `${head}${entry}${tail}`, "utf8")
-log("已写入 CHANGELOG.md")
-
-// CHANGELOG.md 是 Markdown，vp fmt 默认忽略 *.md，无需额外格式化。
-
 // ── ⑧ 提交 ──
 
 if (noCommit) {
@@ -614,7 +553,7 @@ if (noCommit) {
 }
 
 try {
-  run("git", ["add", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "CHANGELOG.md"], {
+  run("git", ["add", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"], {
     stdio: ["ignore", "inherit", "inherit"],
   })
   const message = [

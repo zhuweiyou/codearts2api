@@ -89,7 +89,7 @@ src/                       # 后端（Node / Express，TypeScript，按职责分
   config/env.ts            环境变量解析（PORT/HOST/PROXY_GATEWAY/ADMIN_AUTH）
   core/                    home · logger · upstream(契约) · connection · errors · types · fs-store
   host/host.ts             上游宿主装配（五服务 + 装插件 + 契约核对）★核心
-  http/                    body · security · request · respond · error（HTTP 基础设施/适配）
+  http/                    body · security · request · respond · error（HTTP 基础设施/适配）
   modules/                 领域模块（controller=HTTP 适配，service=业务）
     auth/                  auth.service · login.controller
     callers/               callers.service · callers.controller
@@ -104,7 +104,7 @@ tests/                     # 行为/UI 测试（Vitest，*.test.{ts,tsx}；组�
 vite.config.ts             # vp 配置：root=web、全局 fmt/lint/test/build、alias（路由为显式 routes.tsx）
 tsconfig.json
 scripts/                   升级上游等脚本
-Dockerfile  CHANGELOG.md  README.md  AGENTS.md
+Dockerfile  README.md  AGENTS.md
 ```
 
 ## 安装、配置与运行
@@ -489,24 +489,31 @@ data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 环境变量建议：`ALLOW_IMAGE_URL=1`（默认关，打开后 `/healthz` 回显该状态），
 另可加 `ALLOW_IMAGE_URL_HOSTS=` 只放行受信任图床。
 
-## 变更记录与升级
+## 变更记录与发版
 
-历次变更记在 [`CHANGELOG.md`](CHANGELOG.md)（**新的在最前面**）—— 上游每个版本改了什么、本仓库验证结果。本节说明它的组织方式、与上游的耦合面，以及升级流程。
+历次变更记录在 [GitHub Releases](https://github.com/zhuweiyou/codearts2api/releases)
+（不再维护 `CHANGELOG.md`）。本节说明发版方式、与上游的耦合面，以及升级流程。
 
-「上游升级」条目记录的是 [`dsh-providers-hub`](https://github.com/iJetLi/dsh-providers-hub)
+「上游升级」记录的是 [`dsh-providers-hub`](https://github.com/iJetLi/dsh-providers-hub)
 依赖的更新。本项目的核心特色是**薄胶水** —— 上游改业务逻辑时我们通常 **0 行代码改动**，
-这些条目就是历次验证。
+每次自动升级即是一次验证。
 
-### CHANGELOG 怎么写
+### 自动发版（每次进 main 就发一个小版本）
 
-- 每条写成 `<details>` + `<summary><b>日期 · 标题</b></summary>`，正文跟在后面 ——
-  **标题本身就是折叠栏**，不再另加「展开/收起」文案。
-- **最新一条**用 `<details open>`（默认展开，但一样能手动收起）；更早的条目用
-  `<details>`。两者形式完全一致，只是初始状态不同。
-- **同一天的多次变更合并成一条**，内部用 `###` 分小节，避免同日期条目散成好几段。
-- ⚠️ `<summary>` 是 HTML 上下文，**行内代码要用 `<code>x</code>`**（反引号在那里不会被
-  渲染）；正文里照常使用反引号。
-- 新增条目时：把**上一条**的 `open` 去掉，新条目加在文件顶部并带 `open`。
+工作流：`.github/workflows/release-tag.yml`。**每次 `main` 有新提交**（合并 PR，
+或自动同步上游）都会：
+
+1. 先跑测试门禁（`vp check` / `typecheck` / `build:web` / `vp test`）—— **绿了才继续**；
+2. 计算下一个版本号 `v0.1.<N+1>`（现有最大 `v0.1.N` 加一；首版 `v0.1.1`），给该提交打 tag 并推送；
+3. tag 触发 `publish-image.yml` 构建版本镜像（`:0.1.N` / `:0.1` / `:sha-…`）；
+4. 创建一条 GitHub Release，**正文由 `--generate-notes` 从「上个 tag → 本次」的提交/PR 自动生成**。
+
+> ⚠️ 推 tag 用的是仓库 Secret **`RELEASE_PAT`**（PAT），不是 `GITHUB_TOKEN` ——
+> `GITHUB_TOKEN` 推的 ref 不会触发其它工作流，那样 tag 唤不醒 `publish-image`。
+> 自动同步上游那条（`upgrade-upstream.yml`）因为用 `GITHUB_TOKEN` push，不会触发
+> `on:push` 的 `release-tag`，故由它显式 `workflow_call` 调一次。
+>
+> 想补充某次发布的说明，直接到 GitHub 编辑那条 Release 的正文即可。
 
 ### 升级时需要改多少代码
 
@@ -541,7 +548,7 @@ import * as plugin from "dsh-providers-hub" // src/host/host.ts 唯一的一行
 | 定时     | 每天 **北京时间 08:08**（cron 写的是 `8 0 * * *` —— GitHub 用 UTC 且按小时错开）                                |
 | 手动触发 | Actions 页 → 该工作流 → **Run workflow**                                                                        |
 | 提交身份 | `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>`（标准 GitHub Actions 机器人身份） |
-| 产物     | `package.json` / `pnpm-lock.yaml` 的上游 hash + `CHANGELOG.md` 的一条新记录                                     |
+| 产物     | `package.json` / `pnpm-lock.yaml` 的上游 hash 变更（并自动发一个小版本，见上一节）                            |
 | 失败     | 步骤非零退出 ⇒ 工作流变红 ⇒ **GitHub 发失败通知邮件**；失败原因还会写进 Actions 的 Summary                      |
 
 > ⚠️ **失败通知要自己开**：GitHub 默认只给「订阅了通知」的人发邮件。若没收到，
@@ -562,13 +569,13 @@ import * as plugin from "dsh-providers-hub" // src/host/host.ts 唯一的一行
 > 下面这一节保留**手工流程**，用于「脚本跑挂了要人工兜底」或「想手动看每一步」。
 >
 > ```bash
-> node scripts/upgrade-upstream.mjs            # 查上游 → 有更新才继续 → 安装 → 构建 → 测试 → 写 CHANGELOG → 提交
+> node scripts/upgrade-upstream.mjs            # 查上游 → 有更新才继续 → 安装 → 构建 → 测试 → 提交
 > node scripts/upgrade-upstream.mjs --dry-run  # 只查不装，看上游有没有新 commit
 > ```
 
 脚本的行为：上游 hash **没变就直接跳过**（不装、不构建、不改文件、不提交）；变了就
-跑完整条链路，**自动**把上游这一段的 commit 标题写进 `CHANGELOG.md`（只取标题，
-不取正文），并自动 `git commit`。任何一步失败都会**非零退出**并留下详细日志 ——
+跑完整条链路，并把上游这一段的 commit 标题写进自动升级 commit 的 message body
+（只取标题，不取正文），然后 `git commit`。任何一步失败都会**非零退出**并留下详细日志 ——
 GitHub Actions 因此会发失败通知邮件。
 
 自动升级跑完后，**测试不需要改**：provider 名单的断言是「期望 ⊆ 实际」
@@ -586,7 +593,7 @@ GitHub Actions 因此会发失败通知邮件。
 | `pnpm run lint` / `format`             | 本仓库代码风格问题                                                 | `pnpm run format` 修                                                                        |
 | `git commit`                           | 权限或并发冲突                                                     | 看 Actions 日志                                                                             |
 
-**回滚**：自动升级的 commit 是**一个** commit 里包含依赖变更 + CHANGELOG 条目，
+**回滚**：自动升级的 commit 是**一个** commit（依赖变更都在里面），
 `git revert <那个 commit>` 即可整体回退；也可以照下面的手工流程装回旧 commit。
 
 ### 手工流程（脚本跑挂了要人工兜底时用）
