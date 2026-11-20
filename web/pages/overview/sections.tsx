@@ -1,6 +1,7 @@
 import clsx from "clsx"
 import { useState } from "react"
 
+import { setZcodeCheckinEnabled } from "../../api/zcode-checkin"
 import { ago, when } from "../../utils/time"
 import { Card } from "./Card"
 import { Cards } from "./Cards"
@@ -626,70 +627,180 @@ export function checkinTone(text: string): "ok" | "warn" | "bad" {
   return "bad"
 }
 
-export function CheckinSection({ data }: { data: any }) {
+export function CheckinSection({ data, onRefresh }: { data: any; onRefresh?: () => Promise<void> | void }) {
   const c = data.checkin
-  if (!c) {
-    return (
-      <Section title="自动签到">
-        <div className={styles.empty}>没有签到状态文件</div>
-      </Section>
-    )
-  }
-  const ok = c.ranToday === true
-  const lag = typeof c.lagDays === "number" ? c.lagDays : null
-  const lastText = !c.lastDate
+  const z = data.zcodeCheckin
+  const ok = c?.ranToday === true
+  const lag = typeof c?.lagDays === "number" ? c.lagDays : null
+  const lastText = !c?.lastDate
     ? "还没有记录"
     : lag === 0
       ? "今天 " + c.lastDate
       : lag !== null && lag > 0
         ? "上次 " + c.lastDate + "（已隔 " + lag + " 天）"
         : "上次 " + c.lastDate
-  const atText = typeof c.lastAt === "number" && c.lastAt > 0 ? when(c.lastAt) : "—"
+  const atText = typeof c?.lastAt === "number" && c.lastAt > 0 ? when(c.lastAt) : "—"
   return (
     <Section title="自动签到">
+      {c ? (
+        <>
+          <Cards>
+            <Card k="今日签到" v={ok ? "已完成" : "未完成"} f={lastText} tone={ok ? "ok" : "warn"} />
+            <Card
+              k="自动签到"
+              v={c.enabled ? "已开启" : "已关闭"}
+              f={
+                Array.isArray(c.times) && c.times.length > 0
+                  ? c.times.join(" / ") + "（UTC+8，启动后补跑）"
+                  : "每天两个时段（启动后补跑）"
+              }
+              tone={c.enabled ? "ok" : "warn"}
+            />
+            <Card k="最近执行" v={atText} f={c.lastResult || "—"} tone={ok ? "" : "warn"} />
+          </Cards>
+          {lag !== null && lag > 0 && c.lastDate ? (
+            <div className={clsx(styles.muted, "c2a-mt-6")}>
+              ⚠️ 下表是 {c.lastDate} 那一轮的结果（已隔 {lag} 天），不是今天的快照；下一次自动签到跑完会重写。
+            </div>
+          ) : null}
+          <table className={clsx(styles.tbl, "c2a-mt-8")}>
+            <thead>
+              <tr>
+                <th>渠道</th>
+                <th>签到状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(c.channels || []).map((ch: any, i: number) => {
+                const t = String(ch.text || "").replace(/^[0-9]+ *个 *未开启$/, "活动未开启")
+                return (
+                  <tr key={i}>
+                    <td>
+                      <span className={styles.ch}>{ch.provider}</span>
+                    </td>
+                    <td>
+                      <span className={clsx(styles.dot, styles[checkinTone(t)])} />
+                      {t}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <div className={styles.empty}>没有签到状态文件</div>
+      )}
+      {z ? <ZcodeCheckinBlock z={z} accounts={data.accounts || []} onRefresh={onRefresh} /> : null}
+    </Section>
+  )
+}
+
+/* ── ZCode 自动领取（宿主层调度，开关 + 状态；领取逻辑在上游） ───── */
+
+function ZcodeCheckinBlock({
+  z,
+  accounts,
+  onRefresh,
+}: {
+  z: any
+  accounts: any[]
+  onRefresh?: () => Promise<void> | void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const hasAccount = accounts.some((a: any) => a?.provider === "zcode")
+  const ran = z.ranToday === true
+  const result = z.lastResult
+  const atText = typeof z.lastAt === "number" && z.lastAt > 0 ? when(z.lastAt) : "—"
+
+  async function toggle() {
+    if (busy || z.envLocked) return
+    setBusy(true)
+    setErr(null)
+    try {
+      await setZcodeCheckinEnabled(!z.enabled)
+      await onRefresh?.()
+    } catch (e: any) {
+      setErr(String(e?.message ?? e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="c2a-mt-8">
+      <div className={styles.zcodeHead}>
+        <span className={styles.ch}>ZCode 自动领取</span>
+        <label className={styles.switch}>
+          <input
+            type="checkbox"
+            checked={z.enabled === true}
+            disabled={busy || z.envLocked === true}
+            onChange={() => void toggle()}
+            aria-label="ZCode 自动领取开关"
+          />
+          <span className={styles.slider} />
+        </label>
+        {z.envLocked ? <span className={styles.muted}>已被环境变量 CODEARTS2API_ZCODE_AUTO_CHECKIN=0 停用</span> : null}
+      </div>
       <Cards>
-        <Card k="今日签到" v={ok ? "已完成" : "未完成"} f={lastText} tone={ok ? "ok" : "warn"} />
         <Card
-          k="自动签到"
-          v={c.enabled ? "已开启" : "已关闭"}
-          f={
-            Array.isArray(c.times) && c.times.length > 0
-              ? c.times.join(" / ") + "（UTC+8，启动后补跑）"
-              : "每天两个时段（启动后补跑）"
-          }
-          tone={c.enabled ? "ok" : "warn"}
+          k="今日领取"
+          v={ran ? "已跑 " + (z.ranSlots || []).length + " 轮" : "未跑"}
+          f={(z.slots || []).join(" / ") + "（UTC+8，启动后补跑）"}
+          tone={ran ? "ok" : "warn"}
         />
-        <Card k="最近执行" v={atText} f={c.lastResult || "—"} tone={ok ? "" : "warn"} />
+        <Card
+          k="最近执行"
+          v={atText}
+          f={z.lastSlot ? "时段 " + z.lastSlot : "—"}
+          tone={result && !result.ok ? "warn" : ""}
+        />
+        <Card
+          k="领取结果"
+          v={result ? (result.accounts?.length ? (result.ok ? "成功" : "有失败") : "无账号") : "—"}
+          f={result?.text || "还没有记录"}
+          tone={result ? (result.ok ? "ok" : "bad") : ""}
+        />
       </Cards>
-      {lag !== null && lag > 0 && c.lastDate ? (
-        <div className={clsx(styles.muted, "c2a-mt-6")}>
-          ⚠️ 下表是 {c.lastDate} 那一轮的结果（已隔 {lag} 天），不是今天的快照；下一次自动签到跑完会重写。
-        </div>
+      {err ? <div className={clsx(styles.err, "c2a-mt-6")}>{err}</div> : null}
+      {!hasAccount ? (
+        <div className={clsx(styles.muted, "c2a-mt-6")}>当前没有 ZCode 账号，到点也不会发出领取请求。</div>
       ) : null}
-      <table className={clsx(styles.tbl, "c2a-mt-8")}>
-        <thead>
-          <tr>
-            <th>渠道</th>
-            <th>签到状态</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(c.channels || []).map((ch: any, i: number) => {
-            const t = String(ch.text || "").replace(/^[0-9]+ *个 *未开启$/, "活动未开启")
-            return (
+      <div className={clsx(styles.muted, "c2a-mt-6")}>
+        领取复用渠道管理里 ZCode 的「一键领取」（补激活上报 → 列可领套餐 → 逐个领取，已领过幂等成功）。 captcha 需本机有
+        Chrome/Edge（可用 ZCODE_CHROME_PATH 指定）；Docker 镜像不含浏览器，领取会如实报失败。
+      </div>
+      {result && Array.isArray(result.accounts) && result.accounts.length > 0 ? (
+        <table className={clsx(styles.tbl, "c2a-mt-8")}>
+          <thead>
+            <tr>
+              <th>账号</th>
+              <th>结果</th>
+            </tr>
+          </thead>
+          <tbody>
+            {result.accounts.map((a: any, i: number) => (
               <tr key={i}>
                 <td>
-                  <span className={styles.ch}>{ch.provider}</span>
+                  <span className={styles.ch}>{a.nickname || a.id || "—"}</span>
                 </td>
                 <td>
-                  <span className={clsx(styles.dot, styles[checkinTone(t)])} />
-                  {t}
+                  <span
+                    className={clsx(
+                      styles.dot,
+                      styles[a.kind === "claimed" ? "ok" : a.kind === "failed" ? "bad" : "warn"],
+                    )}
+                  />
+                  {a.kind === "claimed" ? "领取成功" : a.kind === "already-claimed" ? "已领/暂无" : "失败"}
+                  {a.message ? " · " + a.message : ""}
                 </td>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </Section>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+    </div>
   )
 }

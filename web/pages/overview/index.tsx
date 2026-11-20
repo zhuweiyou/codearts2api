@@ -48,7 +48,7 @@ export default function Overview({ active = true }: { active?: boolean }) {
               <AccountsSection data={snapshot} />
               <CreditsSection data={snapshot} />
               <ModelsSection data={snapshot} />
-              <CheckinSection data={snapshot} />
+              <CheckinSection data={snapshot} onRefresh={refresh} />
             </>
           ) : error ? (
             <div className={styles.empty}>加载失败：{error}</div>

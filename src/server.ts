@@ -24,6 +24,9 @@ import { send, sendAdmin, sendAdminJson } from "./http/security.ts"
 import { createModelsController } from "./modules/models/models.controller.ts"
 import { createModelsService } from "./modules/models/models.service.ts"
 import { createOAuthRelay } from "./modules/oauth-relay/oauth-relay.controller.ts"
+import { createZcodeCheckin } from "./modules/zcode-checkin/zcode-checkin.service.ts"
+import { createZcodeCheckinController } from "./modules/zcode-checkin/zcode-checkin.controller.ts"
+import { resolveZcodeAutoCheckin } from "./config/env.ts"
 import { CARRIER_PATH, JET_HUB_PATH, rpcEnvelope } from "./core/upstream.ts"
 
 /** node req/res ↔ WHATWG Request/Response 适配。 */
@@ -100,6 +103,16 @@ export async function createHttpServer(host, options: any = {}) {
     return parsed.result.value
   }
 
+  // ZCode 自动签到：调度复用同一条 adminRpc（领取逻辑全在上游，见 service 文件头）。
+  // 定时器只在 index.ts 显式 autoStart 时启动 —— 测试装配不跑调度，避免污染用例。
+  const zcodeCheckin = createZcodeCheckin({
+    home: host.home,
+    rpc: (method, payload) => adminRpc(method, payload, "zcode-checkin"),
+    logger,
+    envEnabled: resolveZcodeAutoCheckin(options.env ?? process.env),
+  })
+  const zcodeCheckinAdmin = createZcodeCheckinController({ service: zcodeCheckin })
+
   const dashboardAdmin = createDashboardController({
     dataDir: host.home,
     rpc: (method, payload) => adminRpc(method, payload, "dashboard"),
@@ -107,6 +120,7 @@ export async function createHttpServer(host, options: any = {}) {
       const state = await readGatewayState(host)
       return { ok: state?.running === true && state?.enabled !== false, gateway: state, providers: providerIds(host) }
     },
+    zcodeCheckin,
     logger,
   })
   const modelsService = createModelsService({ rpc: (method, payload) => adminRpc(method, payload, "models"), logger })
@@ -189,7 +203,15 @@ export async function createHttpServer(host, options: any = {}) {
   // 路由命中，但也绝不能落到 SPA；这里统一按前缀跑鉴权中间件（仍返回 401/302，而不是 200 页面）。
   const protectedApi = express.Router({ caseSensitive: false })
   protectedApi.use(
-    ["/api/jet-hub", "/relay", "/admin/callers/api", "/admin/dashboard/api", "/admin/models/api", "/admin/oauth-relay"],
+    [
+      "/api/jet-hub",
+      "/relay",
+      "/admin/callers/api",
+      "/admin/dashboard/api",
+      "/admin/models/api",
+      "/admin/oauth-relay",
+      "/admin/zcode-checkin/api",
+    ],
     adminGuard,
   )
   app.use(protectedApi)
@@ -201,6 +223,7 @@ export async function createHttpServer(host, options: any = {}) {
   adminApi.use("/dashboard/api", adminGuard, dashboardAdmin.router)
   adminApi.use("/models/api", adminGuard, modelsAdmin.router)
   adminApi.use("/oauth-relay", adminGuard, oauthRelay.replayRouter)
+  adminApi.use("/zcode-checkin/api", adminGuard, zcodeCheckinAdmin.router)
   app.use("/admin", adminApi)
   app.use("/relay", adminGuard, oauthRelay.relayRouter)
 
@@ -234,5 +257,11 @@ export async function createHttpServer(host, options: any = {}) {
   // 统一错误处理
   app.use(createErrorHandler(logger))
 
-  return createServer(app)
+  const server = createServer(app)
+  if (options.zcodeCheckinAutoStart === true) {
+    zcodeCheckin.start()
+    // 优雅退出时收掉调度定时器（index.ts 的 shutdown 走 server.close → close 事件）。
+    server.once("close", () => zcodeCheckin.stop())
+  }
+  return server
 }

@@ -49,6 +49,8 @@ export interface DashboardOptions {
   dataDir: string
   rpc: (method: string, payload?: any) => Promise<any>
   gateway?: () => any
+  /** ZCode 自动签到服务（宿主层调度）；省略时快照里 zcodeCheckin 为 null。 */
+  zcodeCheckin?: { state: () => Promise<any> }
   logger?: any
 }
 
@@ -450,6 +452,9 @@ export function createDashboard(deps: DashboardOptions) {
       //    2026-11-02 用户实测报「为什么显示今日签到未完成，最近 2026-11-02」。
       //    这里按 UTC+8 日键自己判一次。
       checkin: await checkinOf(),
+      // ZCode 自动签到（宿主层调度，状态文件由 zcode-checkin.service 独占）。
+      // 未注入服务时（如旧测试桩）回 null，前端不渲染该块。
+      zcodeCheckin: deps.zcodeCheckin ? await deps.zcodeCheckin.state() : null,
       callers: {
         keys: Array.isArray(callers?.keys) ? callers.keys.length : 0,
         groups: Array.isArray(callers?.groups) ? callers.groups.length : 0,

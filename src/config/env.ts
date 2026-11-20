@@ -43,3 +43,15 @@ export function resolveAdminAuth(env = process.env): boolean {
   if (raw === undefined || raw === "") return true
   return !["0", "false", "off", "no"].includes(raw)
 }
+
+/**
+ * ZCode 自动签到是否被环境变量放行（默认放行；`CODEARTS2API_ZCODE_AUTO_CHECKIN=0/false/off/no` 强制关闭）。
+ *
+ * 与网关开关同族的优先级：env 强制关闭时面板开关置灰且不可操作（见
+ * `zcode-checkin.service.ts` 的 `envLocked`）；未强制关闭时由面板开关决定。
+ */
+export function resolveZcodeAutoCheckin(env = process.env): boolean {
+  const raw = env.CODEARTS2API_ZCODE_AUTO_CHECKIN?.trim().toLowerCase()
+  if (raw === undefined || raw === "") return true
+  return !["0", "false", "off", "no"].includes(raw)
+}

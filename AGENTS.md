@@ -97,6 +97,7 @@ src/                       # 后端（Node / Express，TypeScript，按职责分
     dashboard/             dashboard.service · dashboard.controller
     models/                models.service · models.controller
     oauth-relay/           oauth-relay.service · oauth-relay.controller
+    zcode-checkin/         zcode-checkin.service（ZCode 自动签到调度） · zcode-checkin.controller
     gateway/               gateway.service · gateway.controller · gateway-key.service
     frontend/              frontend.controller
 
@@ -141,6 +142,7 @@ pnpm run format:check                          # = vp fmt --check .
 | `PROXY_GATEWAY`              | **开**            | 把 `/v1/*` 反代到插件网关；置 `0/false/off/no` 关闭（直连 `8326` 仍可用）         |
 | `CODEARTS2API_ADMIN_KEY`     | 自动生成          | **管理后台访问密钥**（与网关 Key 是两把，见[安全边界](#安全边界)）                |
 | `CODEARTS2API_ADMIN_AUTH`    | **开**            | 置 `0` **关闭**管理端鉴权（仅限本机；启动日志会显著告警）                         |
+| `CODEARTS2API_ZCODE_AUTO_CHECKIN` | **开**       | 置 `0/false/off/no` **强制关闭** ZCode 自动签到（面板开关置灰，同网关 env 优先级） |
 | `DSH_OPENAI_GATEWAY_PORT`    | `8326`            | 插件网关端口（只绑 `127.0.0.1`，见下）                                            |
 | `DSH_OPENAI_GATEWAY_ENABLED` | `1`               | 置 `0/false/off/no` 则**强制停用**网关（面板开关会显示被 env 阻止，且无法再打开） |
 | `DSH_OPENAI_GATEWAY_API_KEY` | 自动生成          | 网关 Bearer Key，优先于文件                                                       |
@@ -454,6 +456,9 @@ addedNode / characterData / 端口越界 / 幂等）、「回调修复」交互�
 越界端口禁用、Esc 关闭、busy 时 Esc 不关）、日期下拉外部点击关闭、「查询」不吞点击、FormModal（Esc / 遮罩 / 首焦）、
 SecretModal（Esc 不关且 onClose 不被调用）、主题与自动刷新**存储 key 迁移**（c2→c2a）；以及 callers/overview 格式化纯逻辑测试；
 `caller-gate.test.ts` 覆盖用量日志耗时从请求进入时算起。
+**ZCode 自动签到**（`zcode-checkin.test.ts` / `zcode-checkin-ui.test.tsx`）：北京时区换算与
+时段判据边界、每时段按北京日只跑一次与跨天重置、面板开关 / env 强制关闭两条腿、RPC 失败
+如实记录、坏状态文件容错、控制器 HTTP 契约（400 / 409）、面板开关交互与逐账号明细渲染。
 
 ### 设计决策：外部图片 URL 为什么被拒
 

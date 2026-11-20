@@ -42,7 +42,13 @@ const callerGate = createCallerGate({
 // <<< caller-gate
 const adminAuth = resolveAdminAuth()
 
-const server = await createHttpServer(host, { logger: console, proxyGateway, adminAuth, callerGate })
+const server = await createHttpServer(host, {
+  logger: console,
+  proxyGateway,
+  adminAuth,
+  callerGate,
+  zcodeCheckinAutoStart: true,
+})
 await new Promise((resolve, reject) => {
   server.once("error", reject)
   server.once("listening", resolve)
