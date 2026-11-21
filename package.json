@@ -33,7 +33,7 @@
     "@deepseek-ai/dsh-credentials-local": "0.2.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
     "cookie-parser": "^1.4.7",
-    "dsh-providers-hub": "git+https://github.com/iJetLi/dsh-providers-hub.git#77a0e87a368124c4b926c74d9060459efa7804d5",
+    "dsh-providers-hub": "git+https://github.com/iJetLi/dsh-providers-hub.git#9becd8cc21c1da1eb065c6fc0ff1d6b519e89104",
     "express": "^5.3.0"
   },
   "devDependencies": {

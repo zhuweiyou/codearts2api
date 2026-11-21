@@ -36,8 +36,8 @@ importers:
         specifier: ^1.4.7
         version: 1.4.7
       dsh-providers-hub:
-        specifier: git+https://github.com/iJetLi/dsh-providers-hub.git#77a0e87a368124c4b926c74d9060459efa7804d5
-        version: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/77a0e87a368124c4b926c74d9060459efa7804d5(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0)
+        specifier: git+https://github.com/iJetLi/dsh-providers-hub.git#9becd8cc21c1da1eb065c6fc0ff1d6b519e89104
+        version: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9becd8cc21c1da1eb065c6fc0ff1d6b519e89104(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0)
       express:
         specifier: ^5.3.0
         version: 5.3.0
@@ -1526,9 +1526,9 @@ packages:
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
 
-  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/77a0e87a368124c4b926c74d9060459efa7804d5:
-    resolution: {gitHosted: true, integrity: sha512-H0UjEsLI/J1L1ImORuXry129QisdTJikac9ejLDw2knGd4UYBHHY2zTo9Dsx5O2q8Rva8bAOTMpYk5Pu34Wopw==, tarball: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/77a0e87a368124c4b926c74d9060459efa7804d5}
-    version: 0.2.1-rc.3
+  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9becd8cc21c1da1eb065c6fc0ff1d6b519e89104:
+    resolution: {gitHosted: true, integrity: sha512-G0qIq2WIgCiyZO0WV4aVovM2B0m0/wLotDog+ahbiVSVZtWE3eLzmnpVUrKhf3EfxpBVsE6DeE1aWXiD7ugirA==, tarball: https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9becd8cc21c1da1eb065c6fc0ff1d6b519e89104}
+    version: 0.2.1-rc.4
     engines: {node: ^22.19.0 || >=24.0.0}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.2
@@ -3306,7 +3306,7 @@ snapshots:
 
   dom-accessibility-api@0.5.16: {}
 
-  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/77a0e87a368124c4b926c74d9060459efa7804d5(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0):
+  dsh-providers-hub@https://codeload.github.com/iJetLi/dsh-providers-hub/tar.gz/9becd8cc21c1da1eb065c6fc0ff1d6b519e89104(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-commands@0.2.2-rc.1(70cead30406fe58b6b8b8640601f81fb))(@deepseek-ai/dsh-credentials@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/schemastery@3.19.0):
     dependencies:
       '@deepseek-ai/cordis': 4.1.0
       '@deepseek-ai/cosmokit': 1.9.0
