@@ -1,0 +1,34 @@
+#!/bin/sh
+# 容器里跑浏览器链路（豆包扫码登录 / 签到 / zcode captcha）用的 Chromium 包装器。
+#
+# ## 为什么需要它（两个与「装没装浏览器」无关的必失败条件）
+#
+# 1. **root 下 Chromium 拒绝启动**：`node:24-slim` 这类镜像默认用户是 root，
+#    Chromium 直接报 `Running as root without --no-sandbox is not supported` 并退出，
+#    CDP 端口从头到尾不通 —— 宿主侧只看得到「浏览器起不来」。
+# 2. **`/dev/shm` 太小**：Docker 默认 64MB，渲染进程共享内存不足会崩 tab
+#    （CDP 端口是通的、页面却渲染到一半就死，最难查）。
+#
+# 判据按**运行时**取（而不是在构建期写死），所以 `docker run --user 1000` 或
+# `--shm-size=1g` 时自动不多加参数。
+#
+# ⚠️ 上游（dsh-providers-hub）目前**没有**传递额外启动参数的入口：`ChromiumSession`
+#    的 `extraArgs` 在生产代码里没有调用方，豆包签到还自己拼一份 args。故这里用
+#    「可执行文件包装」这个唯一可行的手段。
+set -u
+
+REAL=/usr/lib/chromium/chromium.real
+EXTRA=""
+
+if [ "$(id -u)" = "0" ]; then
+  EXTRA="--no-sandbox"
+fi
+
+# /dev/shm 可用空间（KB）。读不到就按「不确定」处理，不加参数（不猜）。
+AVAIL_KB=$(df -k /dev/shm 2>/dev/null | awk 'NR == 2 { print $4 }')
+if [ -n "${AVAIL_KB:-}" ] && [ "${AVAIL_KB}" -lt 524288 ]; then
+  EXTRA="${EXTRA} --disable-dev-shm-usage"
+fi
+
+# shellcheck disable=SC2086  # EXTRA 刻意按空格分拆成多个参数
+exec "${REAL}" ${EXTRA} "$@"
