@@ -8,6 +8,8 @@
 
 import { test } from "vite-plus/test"
 import assert from "node:assert/strict"
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import { startTestApp, rpc } from "./helpers"
 
 /**
@@ -146,6 +148,12 @@ test("PROXY_GATEWAY 开启时 /v1/* 经本服务透明转发", async (t) => {
     ;[proxiedIds, directIds] = await readBoth()
   }
   assert.deepEqual(proxiedIds, directIds, "反代结果应与直连完全一致")
+
+  // ④ 只读端点不计入用量。闸门关闭时 /v1/models 也会落到反代的 tapStream，
+  //    若不排除，客户端每拉一次模型列表「今日请求」就 +1、成功率被 200 抬高。
+  //    写入是异步队列，等一拍再断言「目录从未出现」。
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  assert.equal(existsSync(join(app.home, "caller-usage")), false, "只读端点（/v1/models）不应产生用量记录")
 })
 
 test("网关不可达时反代回可读的 OpenAI 错误信封", async (t) => {

@@ -6,7 +6,7 @@ import { Card } from "./Card"
 import { Cards } from "./Cards"
 import { ProviderHead } from "./ProviderHead"
 import { Section } from "./Section"
-import { fmt, fmtAmt, fmtTokens, leftDays } from "./format"
+import { cacheHitRate, fmt, fmtAmt, fmtTokens, leftDays } from "./format"
 import styles from "./sections.module.less"
 
 /* ── 网关状态 ─────────────────────────────────────────────────── */
@@ -49,8 +49,7 @@ export function UsageSection({ data }: { data: any }) {
   const rate = t.requests > 0 ? (t.ok / t.requests) * 100 : null
   const tone = rate === null ? "" : rate >= 99 ? "ok" : rate >= 95 ? "warn" : "bad"
   const cacheRead = ledger.cacheRead || 0
-  const cacheBase = (t.inTokens || 0) + cacheRead
-  const cacheRate = cacheBase > 0 ? ((cacheRead / cacheBase) * 100).toFixed(1) : "0.0"
+  const cacheRate = cacheHitRate(t.inTokens, cacheRead)
   return (
     <Section title="今日用量">
       <Cards>
@@ -58,7 +57,7 @@ export function UsageSection({ data }: { data: any }) {
         <Card k="成功率" v={rate === null ? "—" : rate.toFixed(1)} u="%" f="按今日请求统计" tone={tone} />
         <Card k="输入 tokens" v={fmtTokens(t.inTokens)} f="上下文占大头" tone="brand" />
         <Card k="输出 tokens" v={fmtTokens(t.outTokens)} f="生成部分" />
-        <Card k="缓存命中" v={cacheRate} u="%" f={"缓存读 " + fmtTokens(cacheRead)} />
+        <Card k="缓存命中" v={cacheRate} u={cacheRate === "—" ? "" : "%"} f={"缓存读 " + fmtTokens(cacheRead)} />
         <Card k="首字延迟" v={ledger.ttftAvgMs ? fmt(ledger.ttftAvgMs) + " ms" : "—"} f="平均 TTFT" />
       </Cards>
     </Section>

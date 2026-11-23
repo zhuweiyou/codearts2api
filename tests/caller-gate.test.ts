@@ -9,7 +9,7 @@
  *
  * 所以这里断言的是**判定的边界**，不是某个功能：
  *
- * 1. 没有 `caller-keys.json` 时整层不生效（默认关闭，行为与改造前完全一致）；
+ * 1. 没有 `caller-keys.json` 时整层不鉴权（默认关闭），但**用量仍照常记账**；
  * 2. 未知 key 401、停用 key 403、分组缺失 403 —— 三种「进不来」不能混成一条；
  * 3. 白名单与模型关闭表是**叠加**关系：白名单不过时不该泄露「模型在网关上被关了」
  *    这条信息，所以关闭表的判定必须排在白名单之后；
@@ -99,9 +99,39 @@ test("没有 caller-keys.json 时闸门整层不生效（默认关闭）", async
   // /v1/models 也不该被过滤（否则等于闸门关闭状态下仍在改行为）。
   const payload = { object: "list", data: [{ id: "codearts/gpt-4" }, { id: "aggregate/auto" }] }
   assert.deepEqual(gate.filterModels(payload, null), payload)
-  // tapStream 必须原样返回 source，一个字节都不碰。
-  const source = Readable.from([Buffer.from("data: {}\n\n")])
-  assert.equal(gate.tapStream(source, {}), source)
+  // 鉴权仍透明，但用量照常记账 —— 见下方「闸门关闭时用量仍然照常记录」。
+})
+
+test("闸门关闭（没有 caller-keys.json）时用量仍然照常记录", async () => {
+  const home = makeHome({ store: false })
+  const gate = createCallerGate({ home })
+  const wire = '{"usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}'
+  const chunks = []
+  for await (const chunk of gate.tapStream(Readable.from([Buffer.from(wire)]), {
+    status: 200,
+    model: "codearts/gpt-4",
+    path: "/v1/chat/completions",
+    stream: false,
+  })) {
+    chunks.push(chunk)
+  }
+  // 字节必须原样透传（记账不能改变响应流）。
+  assert.equal(Buffer.concat(chunks).toString("utf8"), wire)
+
+  // tapStream 内部的 log() 不返回给调用方；再写一条并 await，作为串行队列的同步点。
+  await gate.log({ ts: new Date().toISOString(), model: "sync-point", status: 200 })
+
+  const files = readdirSync(gate.logDir)
+  assert.equal(files.length, 1)
+  const lines = readFileSync(join(gate.logDir, files[0]), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+  const hit = lines.find((line) => line.model === "codearts/gpt-4")
+  assert.ok(hit, "闸门关闭时也必须写用量，否则总览的今日用量恒为 0")
+  assert.equal(hit.caller, null)
+  assert.equal(hit.in_tokens, 3)
+  assert.equal(hit.out_tokens, 4)
 })
 
 test("未知 key 返回 401 invalid_api_key", async () => {
@@ -227,7 +257,8 @@ test("用量日志目录只有真实放行的请求才会被创建", async () =>
   const ok = await gate.inspect(fakeRequest(FULL_KEY, '{"model":"codearts/gpt-4"}'), CHAT, "POST")
   assert.equal(ok.ok, true)
 
-  // 判定通过不等写用量：logDir 只有在 tapStream 真的看到 usage 时才创建。
+  // 判定通过不等写用量：logDir 只有在请求真的流过 tapStream 时才创建
+  // （不看是否解析到 usage —— 失败请求也要记一条，见 recorder 的 flush）。
   assert.equal(existsSync(gate.logDir), false)
 
   // 直接写一条，验证落盘格式（不经过 HTTP 流，避免测试依赖 Transform 时序）。

@@ -11,20 +11,24 @@
  */
 
 import { readdir } from "node:fs/promises"
-
-import { readJson, readJsonl } from "../../core/fs-store.ts"
 import { join } from "node:path"
+
+import { utc8Day } from "../../core/day.ts"
+import { readJson, readJsonl } from "../../core/fs-store.ts"
+import { AGGREGATE_PROVIDERS } from "../../core/upstream.ts"
 
 /** 余额缓存时长：5 分钟，避免多个浏览器窗口同时打上游。 */
 const BALANCE_TTL_MS = 5 * 60 * 1000
 const PERMANENT_BALANCE_PROVIDERS = new Set(["cline", "codely"])
 const PERMANENT_PACKAGE_PROVIDERS = new Set(["loomy", "magicrew", "magicrewintl"])
 
-/** 按 UTC+8 取日期字符串。 */
-function utc8Date(d = new Date()) {
-  return new Date(d.getTime() + 8 * 3600_000).toISOString().slice(0, 10)
+/** ledger 桶键 `channel|provider|accountId|model` 里的 provider 段。 */
+function ledgerProviderOf(bucketKey) {
+  const parts = String(bucketKey).split("|")
+  return parts.length === 4 ? parts[1] : ""
 }
 
+/** 余额接口错误的可读文案。 */
 function errorText(error) {
   const msg = error && error.message ? error.message : String(error)
   if (/unsupported provider/i.test(msg)) return "该渠道不支持余额查询"
@@ -181,9 +185,9 @@ export function createDashboard(deps: DashboardOptions) {
     const days = []
     const anchor = new Date(today + "T00:00:00+08:00").getTime()
     for (let i = 13; i >= 0; i -= 1) {
-      // 必须走 utc8Date，不能 toISOString()：UTC+8 的 00:00-08:00 会退到前一天，
+      // 必须走 utc8Day，不能 toISOString()：UTC+8 的 00:00-08:00 会退到前一天，
       // 导致「今天」这一格整个消失（症状：今日用量卡有数、趋势图最后一格空白）。
-      const key = utc8Date(new Date(anchor - i * 86400000))
+      const key = utc8Day(new Date(anchor - i * 86400000))
       const hit = byDate.get(key)
       days.push(
         hit || {
@@ -213,6 +217,14 @@ export function createDashboard(deps: DashboardOptions) {
     return { days, today: t }
   }
 
+  /**
+   * 汇总 token ledger（上游按 UTC+8 日键落盘）。
+   *
+   * ⚠️ 跳过聚合层（见 `AGGREGATE_PROVIDERS` 的说明）：聚合层与真实渠道层是同一笔
+   *    请求的两条记录，累加会让缓存读翻倍。
+   * ⚠️ 因此这里的 `requests` 只覆盖「落在真实渠道桶」的请求；只在聚合层留痕的
+   *    选号失败请求不在其中。总览的「今日请求」以 caller-usage 为准，不消费该字段。
+   */
   async function collectLedger() {
     const doc = await readJson(join(jetHub, "token-ledger.json"))
     if (!doc || !doc.days) return []
@@ -223,8 +235,10 @@ export function createDashboard(deps: DashboardOptions) {
       let ttftSum = 0
       let ttftCount = 0
       let requests = 0
-      for (const v of Object.values(entries)) {
+      for (const [bucketKey, v] of Object.entries(entries)) {
         if (!v || typeof v !== "object") continue
+        // 聚合层与真实渠道层是同一笔请求的两条记录，跳过聚合层避免双计。
+        if (AGGREGATE_PROVIDERS.has(ledgerProviderOf(bucketKey))) continue
         cacheRead += v.cacheReadTokens || 0
         requests += v.requests || 0
         if (v.ttftCount && v.ttftSumMs) {
@@ -400,7 +414,7 @@ export function createDashboard(deps: DashboardOptions) {
   async function checkinOf() {
     const doc = await readJson(join(jetHub, "auto-checkin.json"))
     if (!doc) return null
-    const today = utc8Date()
+    const today = utc8Day()
     const lastDate = typeof doc.lastDate === "string" ? doc.lastDate : ""
     let lagDays = null
     if (/^\d{4}-\d{2}-\d{2}$/.test(lastDate)) {
@@ -412,7 +426,7 @@ export function createDashboard(deps: DashboardOptions) {
     return { ...doc, today, ranToday: lastDate === today, lagDays }
   }
   async function snapshot({ fresh = false } = {}) {
-    const today = utc8Date()
+    const today = utc8Day()
     const state = (await readJson(join(jetHub, "state.json"))) || {}
     const accounts = accountsOf(state)
     const providers = [...new Set(accounts.map((a) => a.provider).filter(Boolean))]

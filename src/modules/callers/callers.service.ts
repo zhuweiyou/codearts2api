@@ -8,6 +8,7 @@ import { createHash, randomBytes } from "node:crypto"
 import { readFile, readdir, stat } from "node:fs/promises"
 import { join } from "node:path"
 
+import { utc8Day } from "../../core/day.ts"
 import { AppError } from "../../core/errors.ts"
 import { writeJsonAtomic } from "../../core/fs-store.ts"
 import type { Logger } from "../../core/types.ts"
@@ -222,10 +223,9 @@ export function createCallersService(options: CallersServiceOptions) {
     return rows
   }
 
+  /** UTC+8 日键，与用量日志的落盘文件名同一口径（见 core/day.ts）。 */
   function today() {
-    const now = new Date()
-    const pad = (n: number) => String(n).padStart(2, "0")
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    return utc8Day()
   }
 
   async function availableDays(): Promise<string[]> {

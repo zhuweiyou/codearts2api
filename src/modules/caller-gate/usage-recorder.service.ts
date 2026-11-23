@@ -2,6 +2,8 @@ import { appendFile, mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import { Transform } from "node:stream"
 
+import { utc8Day } from "../../core/day.ts"
+
 function cachedInputTokens(usage: any, input: unknown): number | null {
   if (usage?.cache_read_reported === false || typeof input !== "number" || !Number.isSafeInteger(input)) return null
   const cached =
@@ -12,15 +14,7 @@ function cachedInputTokens(usage: any, input: unknown): number | null {
 }
 
 /** 用量记录：把一次调用的结果异步写入 caller-usage/<UTC+8 日期>.jsonl，并在响应流上边转发边采集 usage。 */
-export function createUsageRecorder({
-  logDir,
-  logger,
-  isEnabled,
-}: {
-  logDir: string
-  logger?: any
-  isEnabled: () => boolean
-}) {
+export function createUsageRecorder({ logDir, logger }: { logDir: string; logger?: any }) {
   // 异步写 + 串行队列：不阻塞事件循环，同时保证同一进程内写入有序、不交叉。
   // 返回 Promise，便于测试/调用方在需要时 await（服务热路径不 await）。
   let logChain = Promise.resolve()
@@ -29,15 +23,11 @@ export function createUsageRecorder({
     logChain = logChain.then(async () => {
       try {
         await mkdir(logDir, { recursive: true })
-        // 目录按人眼里的「今天」分文件；用 UTC 会让 UTC+8 的 00:00-08:00 记到前一天。
-        const now = new Date()
-        const day =
-          String(now.getFullYear()) +
-          "-" +
-          String(now.getMonth() + 1).padStart(2, "0") +
-          "-" +
-          String(now.getDate()).padStart(2, "0")
-        await appendFile(join(logDir, `${day}.jsonl`), line, "utf8")
+        // 按 UTC+8 的「今天」分文件，与总览 / 调用方页的读取口径一致。
+        // ⚠️ 不能用服务器本地时区：Docker 镜像默认 UTC，北京时间 00:00-08:00
+        //    会写到前一天的文件，而总览按 UTC+8 查今天 → 「今日用量」恒为 0，
+        //    同一天的 token-ledger（上游按 UTC+8 记）却有数据。
+        await appendFile(join(logDir, `${utc8Day()}.jsonl`), line, "utf8")
       } catch (error) {
         logger?.warn?.(`[caller-gate] 写用量日志失败：${String(error)}`)
       }
@@ -49,10 +39,10 @@ export function createUsageRecorder({
    * 响应流侧回调：边透传边解析用量，结束时写一条日志。不改变字节流本身。
    */
   function tapStream(source, ctx) {
-    // 闸门没开（没有 store）就直接把原流交回去，一个字节都不多碰。
-    // ⚠️ 这里读的是 `inspect()` 刚刚刷新的缓存，不再发一次 I/O：
-    //    tapStream 是同步的（要求它返回可 pipe 的流），而读盘已经全部异步化。
-    if (!isEnabled()) return source
+    // ⚠️ 采集**不跟着调用方闸门的开关走**：没有 caller-keys.json 时闸门不鉴权，
+    //    但请求照样经过本服务的 /v1 反代，必须记进 caller-usage —— 否则总览
+    //    「今日用量」恒为 0（只用网关 key、不配调用方 key 时就是这种形态）。
+    //    鉴权决定「能不能调」，记账决定「调了多少」，是两件事。
     const startedAt = Number.isFinite(ctx.startedAt) ? ctx.startedAt : Date.now()
     const isStream = Boolean(ctx.stream)
     let status = ctx.status ?? 200
