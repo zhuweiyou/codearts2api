@@ -187,30 +187,36 @@ test("模型开关：可关闭与打开单个模型", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  const before = await rpc(app.origin, "model.list", { provider: "codearts" })
+  // ⚠️ 用 aggregate 而不是 codearts：上游 43a00cd（2026-11-23）起，codearts 的
+  //    模型目录**完全走远端**，静态兜底表退出目录路径（方案 B）。测试环境没有
+  //    真实账号与远节目录，`model.list` 会返回空数组，取不到可开关的 id。
+  //    aggregate 的 `auto` 是**恒合成**的模型（不依赖任何渠道目录；冷启动时
+  //    `listModels` 只播报它，目录推导在后台进行），适合验证「单模型开关」
+  //    这条机制本身。
+  const before = await rpc(app.origin, "model.list", { provider: "aggregate" })
   assert.equal(before.ok, true)
-  assert.ok(before.value.models.length > 0, "codearts 应有静态模型目录")
+  assert.ok(before.value.models.length > 0, "aggregate 冷缓存应有合成模型（auto）")
 
   const target = before.value.models[0].id
   const disabled = await rpc(app.origin, "model.setDisabled", {
-    provider: "codearts",
+    provider: "aggregate",
     modelId: target,
     disabled: true,
   })
   assert.equal(disabled.ok, true, `关闭模型应成功：${JSON.stringify(disabled)}`)
 
-  const afterDisable = await rpc(app.origin, "model.list", { provider: "codearts" })
+  const afterDisable = await rpc(app.origin, "model.list", { provider: "aggregate" })
   const found = afterDisable.value.models.find((model) => model.id === target)
   assert.equal(found?.disabled, true, "该模型应显示为已关闭")
 
   // 打开（黑名单是显式 true 才关，故恢复要显式写 false）。
   const enabled = await rpc(app.origin, "model.setDisabled", {
-    provider: "codearts",
+    provider: "aggregate",
     modelId: target,
     disabled: false,
   })
   assert.equal(enabled.ok, true)
-  const afterEnable = await rpc(app.origin, "model.list", { provider: "codearts" })
+  const afterEnable = await rpc(app.origin, "model.list", { provider: "aggregate" })
   const reopened = afterEnable.value.models.find((model) => model.id === target)
   assert.equal(reopened?.disabled, false, "应恢复为打开")
 })
@@ -219,9 +225,14 @@ test("供应商级开关：一键关闭与打开", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  const status = await rpc(app.origin, "provider.status", { providers: ["codearts"] })
+  // ⚠️ 用 doubao 而不是 codearts：doubao 是「纯签到渠道」（无模型目录 / 适配器 /
+  //    auth 服务），`provider.status` 对它恒报 `models.total === 0` —— 这正是
+  //    本用例要覆盖的「目录为空」形态（上游 2026-11-15 修过「豆包无法关闭」）。
+  //    codearts 自 43a00cd 起目录完全走远端，测试环境没有账号，行为依赖网络，
+  //    不再适合作为这条断言的载体。
+  const status = await rpc(app.origin, "provider.status", { providers: ["doubao"] })
   assert.equal(status.ok, true)
-  assert.ok(status.value.statuses.codearts.models.total > 0)
+  assert.equal(status.value.statuses.doubao.models.total, 0, "纯签到渠道应恒为空目录")
 
   // ⚠️ 两个写黑名单的端点**刻意用不同判据**（上游 2026-10-13 明确分工，别「顺手统一」）：
   //
@@ -230,24 +241,30 @@ test("供应商级开关：一键关闭与打开", async (t) => {
   // | `model.setAllDisabled`（模型级批量） | `catalog.complete` | **拒绝**、不落盘 |
   // | `provider.setEnabled`（供应商级） | `catalog.remoteError` | 读**失败**才拒绝；读到但为空**照常关闭** |
   //
-  // 理由是：**「远端读到但为空」正是「该供应商没有账号」的正常状态**，此时模型
-  // 选择器里本就一条都选不到，用适配器兜底表落盘是自洽的；若也按 `complete`
-  // 拒绝，**无账号的供应商将永远无法关闭**。
+  // ☝️ 那张表是**有模型适配器**的供应商会走的分支。本用例选的 doubao 更靠前：
+  //    它 `channel: false` 且 `modelAdapters` 里没有它 ⇒ 上游在 `provider.setEnabled`
+  //    开头就判 `noModelLeg`，**根本不读模型目录**（硬去读只会抛
+  //    `no adapter registered for provider "doubao"`），只落「关闭意图」。
+  //    这正是上游 2026-11-15 修的那条「豆包无法关闭」：目录为空是**真实且正常**的
+  //    形态，不是故障，所以不能按「没有可关闭的模型」拒绝。
   //
-  // ⚠️ 本用例没有真实账号，恰好命中「读到但为空」⇒ **应关闭成功**。
-  //    这与 2026-10-11 那版行为不同（当时判 `complete` 而拒绝）——
-  //    那是我方把模型级的判据错套到了供应商级上，现按上游语义订正。
-  const closed = await rpc(app.origin, "provider.setEnabled", { provider: "codearts", enabled: false })
-  assert.equal(closed.ok, true, `无账号供应商应能关闭：${JSON.stringify(closed)}`)
-  assert.ok(closed.value.models > 0, "应实际写入黑名单（兜底表），而不是静默空操作")
+  // ⚠️ 「空目录照常关闭」与「非模型渠道跳过模型腿」是**两条不同的腿**：
+  //    前者仍会读远端（读到 `[]` 才放行），后者连读都不读 —— 对 doubao 而言
+  //    模型这条腿根本不存在，不属于「读失败」。本用例锁定的是后者。
 
-  // 关闭后状态自洽：显示已关闭，且黑名单确实覆盖了当前全部目录。
-  const afterClose = await rpc(app.origin, "provider.status", { providers: ["codearts"] })
-  assert.equal(afterClose.value.statuses.codearts.closed, true, "应显示为整体关闭")
+  const closed = await rpc(app.origin, "provider.setEnabled", { provider: "doubao", enabled: false })
+  assert.equal(closed.ok, true, `空目录供应商应能关闭：${JSON.stringify(closed)}`)
+  // 空目录 ⇒ 没有模型 id 要写黑名单（models=0 是正确结果），但「关闭意图」仍要落盘；
+  // 下面的 closed=true 断言验证的正是意图这条腿。
+  assert.equal(closed.value.models, 0, "空目录关闭时无模型可写，models 应为 0")
+
+  // 关闭后状态自洽：显示已关闭（意图判据），而不是依赖「黑名单覆盖全部目录」。
+  const afterClose = await rpc(app.origin, "provider.status", { providers: ["doubao"] })
+  assert.equal(afterClose.value.statuses.doubao.closed, true, "应显示为整体关闭")
 
   // 打开方向只清黑名单，应始终成功 —— 且把状态恢复为打开。
-  const opened = await rpc(app.origin, "provider.setEnabled", { provider: "codearts", enabled: true })
+  const opened = await rpc(app.origin, "provider.setEnabled", { provider: "doubao", enabled: true })
   assert.equal(opened.ok, true, `打开供应商应成功：${JSON.stringify(opened)}`)
-  const afterOpen = await rpc(app.origin, "provider.status", { providers: ["codearts"] })
-  assert.equal(afterOpen.value.statuses.codearts.closed, false, "应恢复为打开")
+  const afterOpen = await rpc(app.origin, "provider.status", { providers: ["doubao"] })
+  assert.equal(afterOpen.value.statuses.doubao.closed, false, "应恢复为打开")
 })
