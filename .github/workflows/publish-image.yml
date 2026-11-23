@@ -149,7 +149,20 @@ jobs:
             IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
           else
             IMAGE="$IMG@${{ steps.build.outputs.digest }}"
-            docker pull "$IMAGE"
+            # GHCR 是最终一致的：push-by-digest 刚推完的 manifest，立刻按 digest 拉
+            # 可能短暂返回 manifest unknown（实测 v0.1.7 的 amd64 在 push 完成后
+            # 0.2s 拉失败，同一 digest 几秒后即可正常拉取）。这里重试，不要因此
+            # 让整个发布失败 —— smoke 失败会连带 merge job 跳过，版本镜像发不出去。
+            pulled=0
+            for i in $(seq 1 12); do
+              if docker pull "$IMAGE"; then pulled=1; break; fi
+              echo "pull $IMAGE failed (attempt $i/12), retrying in 5s..."
+              sleep 5
+            done
+            if [ "$pulled" != "1" ]; then
+              echo "::error::cannot pull $IMAGE after 12 attempts"
+              exit 1
+            fi
           fi
           echo "Smoke image: $IMAGE"
           docker run -d --name "smoke-${{ matrix.arch }}" \

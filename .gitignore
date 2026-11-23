@@ -40,6 +40,7 @@ npm-debug.log*
 
 # ── 编辑器 / 系统 ──
 .idea/
+.openidea/
 .vscode/
 *.swp
 .DS_Store
