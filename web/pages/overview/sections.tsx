@@ -57,7 +57,7 @@ export function UsageSection({ data }: { data: any }) {
         <Card k="成功率" v={rate === null ? "—" : rate.toFixed(1)} u="%" f="按今日请求统计" tone={tone} />
         <Card k="输入 tokens" v={fmtTokens(t.inTokens)} f="上下文占大头" tone="brand" />
         <Card k="输出 tokens" v={fmtTokens(t.outTokens)} f="生成部分" />
-        <Card k="缓存命中" v={cacheRate} u="%" f={"缓存读 " + fmtTokens(cacheRead)} />
+        <Card k="缓存命中" v={cacheRate} u={cacheRate === "—" ? "" : "%"} f={"缓存读 " + fmtTokens(cacheRead)} />
         <Card k="首字延迟" v={ledger.ttftAvgMs ? fmt(ledger.ttftAvgMs) + " ms" : "—"} f="平均 TTFT" />
       </Cards>
     </Section>

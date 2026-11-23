@@ -15,6 +15,7 @@ import { join } from "node:path"
 
 import { utc8Day } from "../../core/day.ts"
 import { readJson, readJsonl } from "../../core/fs-store.ts"
+import { AGGREGATE_PROVIDERS } from "../../core/upstream.ts"
 
 /** 余额缓存时长：5 分钟，避免多个浏览器窗口同时打上游。 */
 const BALANCE_TTL_MS = 5 * 60 * 1000
@@ -27,18 +28,7 @@ function ledgerProviderOf(bucketKey) {
   return parts.length === 4 ? parts[1] : ""
 }
 
-/**
- * 聚合路由的 provider id（上游 `aggregate` / `jet-hub-auto`）。
- *
- * ⚠️ 上游对走聚合路由的请求会**记两条** ledger：一条以聚合身份
- * （`gateway|aggregate||auto`），一条以真实渠道身份
- * （`gateway|loomy|loomy-xxx|spark-x2.6`）。同一次请求的 input/output/
- * cacheRead/ttft 完全相同 —— 本机 2026-11-16 的落盘数据即为一笔请求两条。
- * 这里累加全部桶会让「缓存读」翻倍，所以跳过聚合层，只统计真实渠道层。
- * 只统计 cacheRead/ttft，失败在选号阶段的聚合请求本来也没有这两项。
- */
-const AGGREGATE_PROVIDERS = new Set(["aggregate", "jet-hub-auto"])
-
+/** 余额接口错误的可读文案。 */
 function errorText(error) {
   const msg = error && error.message ? error.message : String(error)
   if (/unsupported provider/i.test(msg)) return "该渠道不支持余额查询"
@@ -227,6 +217,14 @@ export function createDashboard(deps: DashboardOptions) {
     return { days, today: t }
   }
 
+  /**
+   * 汇总 token ledger（上游按 UTC+8 日键落盘）。
+   *
+   * ⚠️ 跳过聚合层（见 `AGGREGATE_PROVIDERS` 的说明）：聚合层与真实渠道层是同一笔
+   *    请求的两条记录，累加会让缓存读翻倍。
+   * ⚠️ 因此这里的 `requests` 只覆盖「落在真实渠道桶」的请求；只在聚合层留痕的
+   *    选号失败请求不在其中。总览的「今日请求」以 caller-usage 为准，不消费该字段。
+   */
   async function collectLedger() {
     const doc = await readJson(join(jetHub, "token-ledger.json"))
     if (!doc || !doc.days) return []

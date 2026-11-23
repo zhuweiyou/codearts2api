@@ -1,6 +1,7 @@
 /** `/v1/*` 透明反代控制器（HTTP 边界）：SSE 流式回写，鉴权交给 callerGate。 */
 import { Readable } from "node:stream"
 
+import { READONLY_V1_PATHS } from "../../core/upstream.ts"
 import { sendAdminJson } from "../../http/security.ts"
 import { createGatewayTargetResolver } from "./gateway.service.ts"
 
@@ -98,18 +99,19 @@ export function createGatewayController({ host, callerGate, logger, upstreamTime
       if (!response.writableEnded) stream.destroy()
     })
     stream.on("error", () => response.destroy())
-    const outStream = callerGate
-      ? callerGate.tapStream(stream, {
-          status: upstream.status,
-          callerId: gateEntry?.id,
-          callerName: gateEntry?.name,
-          callerGroup: gateEntry?.group,
-          model: gateModel,
-          path: url.pathname,
-          startedAt,
-          stream: String(upstream.headers.get("content-type") ?? "").includes("event-stream"),
-        })
-      : stream
+    const outStream =
+      callerGate && !READONLY_V1_PATHS.has(url.pathname)
+        ? callerGate.tapStream(stream, {
+            status: upstream.status,
+            callerId: gateEntry?.id,
+            callerName: gateEntry?.name,
+            callerGroup: gateEntry?.group,
+            model: gateModel,
+            path: url.pathname,
+            startedAt,
+            stream: String(upstream.headers.get("content-type") ?? "").includes("event-stream"),
+          })
+        : stream
     outStream.pipe(response)
   }
 

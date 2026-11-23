@@ -257,7 +257,8 @@ test("用量日志目录只有真实放行的请求才会被创建", async () =>
   const ok = await gate.inspect(fakeRequest(FULL_KEY, '{"model":"codearts/gpt-4"}'), CHAT, "POST")
   assert.equal(ok.ok, true)
 
-  // 判定通过不等写用量：logDir 只有在 tapStream 真的看到 usage 时才创建。
+  // 判定通过不等写用量：logDir 只有在请求真的流过 tapStream 时才创建
+  // （不看是否解析到 usage —— 失败请求也要记一条，见 recorder 的 flush）。
   assert.equal(existsSync(gate.logDir), false)
 
   // 直接写一条，验证落盘格式（不经过 HTTP 流，避免测试依赖 Transform 时序）。

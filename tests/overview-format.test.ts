@@ -30,10 +30,13 @@ test("leftDays：无到期返回 null，未来返回天数", () => {
   assert.ok(days === 4 || days === 5, `期望 4/5 天，实际 ${days}`)
 })
 
-test("cacheHitRate：缺输入用量时显示 —，不能算成 100%", () => {
-  assert.equal(cacheHitRate(100, 50), "33.3")
+test("cacheHitRate：分母是输入本身（已含缓存），缺输入/跨源失配时显示 —", () => {
+  // prompt_tokens 已含缓存命中：未缓存 100 + 命中 50 = 输入 150
+  assert.equal(cacheHitRate(150, 50), "33.3")
   assert.equal(cacheHitRate(10, 0), "0.0")
   // 请求没经过本服务反代时 caller-usage 为空，而 ledger 仍有缓存读
   assert.equal(cacheHitRate(0, 188_000_000), "—")
   assert.equal(cacheHitRate(undefined, 10), "—")
+  // 跨源失配（ledger 含实例启动前的缓存读）时不可比
+  assert.equal(cacheHitRate(10, 20), "—")
 })
