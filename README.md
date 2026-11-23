@@ -38,6 +38,47 @@ docker exec codearts2api cat /data/admin-key
 打开 `http://<主机>:8080/admin` 进入。管理接口自带鉴权，`-p 8080:8080` 不会把后台直接
 暴露给公网；公网部署仍需自行终结 TLS（见 [`AGENTS.md`](AGENTS.md)）。
 
+### 容器里跑浏览器链路（豆包扫码登录 / 每日签到 / zcode captcha）
+
+官方镜像**不含浏览器**（只为网关用法优化体积与冷启动），所以依赖浏览器产出的渠道
+（豆包扫码登录、豆包签到、zcode captcha、百智云 / magicrew / marvis / monkeycode 网页
+登录）在默认镜像里**必然失败**。这不是配置问题，是三条环境事实叠加：
+
+1. 镜像里没有 chromium ⇒ 上游报「未找到 Chromium」；
+2. 镜像默认以 **root** 运行 ⇒ 即使装上 chromium，它也会以
+   `Running as root without --no-sandbox is not supported` 立刻退出；
+3. 豆包登录是 **headful**（页面上弹二维码）⇒ 容器里没有 X server，
+   报 `Missing X server or $DISPLAY`；另外 Docker 默认 `/dev/shm` 只有 64MB，
+   渲染进程会崩 tab。
+
+为此仓库提供一份**可选的浏览器镜像** `Dockerfile.browser`，在官方镜像上补
+chromium + 中文字体 + Xvfb，并用一个包装器按运行时判据补
+`--no-sandbox` / `--disable-dev-shm-usage`：
+
+```bash
+# 从官方镜像派生（会拉 ghcr.io/zhuweiyou/codearts2api:latest）
+docker build -f Dockerfile.browser -t codearts2api:browser .
+
+# 也可以在本地构建的基础镜像上派生
+# docker build -f Dockerfile.browser --build-arg BASE=codearts2api -t codearts2api:browser .
+
+docker run -d --name codearts2api \
+  -p 8080:8080 -p 5900:5900 \
+  -v codearts2api-data:/data \
+  -e C2A_VNC=1 \
+  codearts2api:browser
+```
+
+`-e C2A_VNC=1` 会在 5900 起一个 x11vnc，用任意 VNC 客户端连上去**就能看见那个登录
+窗口**（点「+ 新建账号」后弹出的豆包二维码在虚拟屏上）。不设这个变量时窗口仍然存在
+（在 Xvfb 里），只是看不到。
+
+⚠️ **安全**：x11vnc 这里不设密码，只适用于可信内网。暴露到公网请自行加
+`-rfbauth`，或把端口藏在反向代理 + 鉴权后面。
+
+⚠️ **代价**：浏览器版镜像大约多 300MB；每个账号的浏览器进程约 200–400MB 内存，
+豆包签到按账号串行执行（不会并发起 N 个）。
+
 ### 本机直跑
 
 **要求**：Node.js `^22.19.0 || ^24.11.0 || >=26.0.0`（建议 24 LTS ≥24.11），包管理器用 **pnpm 11**

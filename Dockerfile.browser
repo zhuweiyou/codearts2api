@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1
+
+# ── 可选「带浏览器」镜像 ──────────────────────────────────────────────────────
+#
+# 官方镜像（`Dockerfile`）只装运行产物，**不含浏览器** —— 这对纯网关用法是对的
+# （镜像小、冷启动快）。但凡是要用**浏览器链路**的渠道，官方镜像里必然失败：
+#
+# | 链路 | 需要什么 | 官方镜像里的症状 |
+# |---|---|---|
+# | 豆包扫码登录 | headful Chromium + X display | 「未找到 Chromium」（甚至装上也起不来） |
+# | 豆包每日签到 | headless Chromium 产 `a_bogus` | 签到恒失败 |
+# | zcode captcha | headful Chromium | 产不出 param，`3007` |
+# | 其余网页登录（百智云 / magicrew / marvis / monkeycode） | headful Chromium | 同上 |
+#
+# 本文件在同一份代码上补三样东西：
+#
+# 1. **chromium**（+ 中文字体，否则二维码页面的中文是豆腐块）；
+# 2. **Xvfb**：容器里没有 X server，headful 窗口起不来（`Missing X server or $DISPLAY`）；
+# 3. **启动包装器** `c2a-chromium`：root 下补 `--no-sandbox`、`/dev/shm` 小时补
+#    `--disable-dev-shm-usage`（详见脚本头部注释）。
+#
+# 用法见 README「容器里跑浏览器链路（豆包扫码登录）」。
+#
+# ⚠️ 用 `ARG BASE` 而不是把运行阶段整段复制过来：这样「浏览器版」永远跟着官方镜像
+#    的代码走，不需要在本文件里维护第二份拷贝逻辑（也避免两份 Dockerfile 漂移）。
+
+ARG BASE=ghcr.io/zhuweiyou/codearts2api:latest
+FROM ${BASE}
+
+USER root
+
+# chromium：浏览器本体；fonts-noto-cjk：中文渲染；
+# xvfb：虚拟屏；x11vnc：可选的「看一眼窗口」（C2A_VNC=1 时启用）。
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       chromium \
+       fonts-noto-cjk \
+       xvfb \
+       x11vnc \
+  && rm -rf /var/lib/apt/lists/*
+
+# 把真正的二进制挪到 chromium.real，再用同名脚本占住 `/usr/bin/chromium`：
+# 上游 `dsh-providers-hub` 探测到的正是 `/usr/bin/chromium`（`chromium-session.ts`
+# 的 Linux 候选链），且它没有传额外参数的入口 ⇒ 只能在这一层包装。
+#
+# ⚠️ `rm -f` 那步不能省：Debian 的 `/usr/bin/chromium` 是指向真实二进制的**符号链接**，
+#    直接 COPY 会顺着链接把真实二进制覆盖成脚本（自引用、永远起不来）。
+RUN set -eux; \
+    if [ -L /usr/bin/chromium ]; then rm -f /usr/bin/chromium; fi; \
+    mv /usr/lib/chromium/chromium /usr/lib/chromium/chromium.real
+
+COPY docker/c2a-chromium /usr/bin/chromium
+COPY docker/c2a-browser-entry.sh /usr/local/bin/c2a-browser-entry.sh
+RUN chmod 0755 /usr/bin/chromium /usr/local/bin/c2a-browser-entry.sh
+
+# 显式指向上游的豆包专用变量（探测链里它最优先；即便不设也能扫到 /usr/bin/chromium，
+# 设了是为了让错误提示里回显的值就是真实在用的那个）。
+ENV DSH_DOUBAO_BROWSER_PATH=/usr/bin/chromium
+
+CMD ["/usr/local/bin/c2a-browser-entry.sh"]
