@@ -14,7 +14,7 @@ import { RecordsTab } from "../web/pages/callers/RecordsTab.tsx"
 
 test("逐条明细显示各协议实际命中率，旧记录和未上报显示 —", async () => {
   const home = await mkdtemp(join(tmpdir(), "c2a-cache-records-"))
-  const recorder = createUsageRecorder({ logDir: join(home, "caller-usage"), isEnabled: () => true })
+  const recorder = createUsageRecorder({ logDir: join(home, "caller-usage") })
   const chat = { prompt_tokens: 100, completion_tokens: 2 }
   const responses = { input_tokens: 200, output_tokens: 2 }
   const cases = [

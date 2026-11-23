@@ -144,7 +144,9 @@ export function createCallerGate(options: any = {}) {
   let cached = null
   let cachedSig = ""
 
-  const usageRecorder = createUsageRecorder({ logDir, logger, isEnabled: () => cached !== null })
+  // 用量采集无条件开启：它与鉴权闸门是两件事，没有 caller-keys.json 时也要记账，
+  // 否则「只用网关 key」的实例在总览里永远看不到今日用量。
+  const usageRecorder = createUsageRecorder({ logDir, logger })
   // 文件不存在（闸门关闭）时的负缓存到期时刻：期内不再 stat，
   // 避免每个 /v1 请求都白做一次系统调用（闸门默认关闭是常态）。
   let missingUntil = 0
