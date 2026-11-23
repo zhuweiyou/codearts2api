@@ -14,13 +14,7 @@ function cachedInputTokens(usage: any, input: unknown): number | null {
 }
 
 /** 用量记录：把一次调用的结果异步写入 caller-usage/<UTC+8 日期>.jsonl，并在响应流上边转发边采集 usage。 */
-export function createUsageRecorder({
-  logDir,
-  logger,
-}: {
-  logDir: string
-  logger?: any
-}) {
+export function createUsageRecorder({ logDir, logger }: { logDir: string; logger?: any }) {
   // 异步写 + 串行队列：不阻塞事件循环，同时保证同一进程内写入有序、不交叉。
   // 返回 Promise，便于测试/调用方在需要时 await（服务热路径不 await）。
   let logChain = Promise.resolve()
