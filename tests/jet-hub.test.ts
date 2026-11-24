@@ -221,19 +221,49 @@ test("模型开关：可关闭与打开单个模型", async (t) => {
   assert.equal(reopened?.disabled, false, "应恢复为打开")
 })
 
+/**
+ * 供应商级开关的载体：从**实际注册**的渠道里挑「目录非空、当前未关闭」的，
+ * 而不是写死某个渠道的名字。
+ *
+ * 为什么不写死：上游会调整渠道形态 —— 2026-11-22 的 `0ea3e43e` 就把 doubao
+ * 从「纯签到渠道」接成了有静态目录的渠道，写死属性会让自动升级流水线每天红
+ * 一次。这里改为按当前状态挑，只有「所有渠道都关不掉」才是真故障。
+ *
+ * 排除虚拟渠道（aggregate / auto）：它们的目录是动态推导的，关闭方向有
+ * 「目录尚未读取完成就拒绝」的分支，不适合作为这条用例的载体。
+ *
+ * 最多返回 3 个候选：每个被拒的关闭最多付一次目录读取（2s 预算），候选太多
+ * 会把用例拖过 30s 超时。
+ */
+async function pickToggleCandidates(app) {
+  const llm = app.host.ctx.get("llm")
+  const ids = llm
+    .listProviders()
+    .map((entry) => entry.id)
+    .filter((id) => id !== "aggregate" && id !== "auto" && id !== "jet-hub-auto")
+  const status = await rpc(app.origin, "provider.status", { providers: ids })
+  assert.equal(status.ok, true, `provider.status 应成功：${JSON.stringify(status)}`)
+  const candidates = ids
+    .filter((id) => {
+      const item = status.value.statuses[id]
+      return item !== undefined && item.models.total > 0 && item.closed === false
+    })
+    .slice(0, 3)
+  assert.ok(
+    candidates.length > 0,
+    `应至少有一个「目录非空且未关闭」的渠道，实际注册：${ids.join(", ") || "(空)"}`,
+  )
+  return candidates
+}
+
 test("供应商级开关：一键关闭与打开", async (t) => {
   const app = await startTestApp()
   t.onTestFinished(() => app.close())
 
-  // ⚠️ 用 doubao 而不是 codearts：doubao 是「纯签到渠道」（无模型目录 / 适配器 /
-  //    auth 服务），`provider.status` 对它恒报 `models.total === 0` —— 这正是
-  //    本用例要覆盖的「目录为空」形态（上游 2026-11-15 修过「豆包无法关闭」）。
-  //    codearts 自 43a00cd 起目录完全走远端，测试环境没有账号，行为依赖网络，
-  //    不再适合作为这条断言的载体。
-  const status = await rpc(app.origin, "provider.status", { providers: ["doubao"] })
-  assert.equal(status.ok, true)
-  assert.equal(status.value.statuses.doubao.models.total, 0, "纯签到渠道应恒为空目录")
-
+  // ⚠️ 不写死渠道：从实际注册的渠道里挑一个「目录非空、未关闭」的。
+  //    上游调整某个渠道的形态（例如把纯签到渠道接成有目录的渠道）时，这条用例
+  //    自动换载体，不再因为某个渠道的属性变了就让自动升级流水线每天红一次。
+  //
   // ⚠️ 两个写黑名单的端点**刻意用不同判据**（上游 2026-10-13 明确分工，别「顺手统一」）：
   //
   // | 端点 | 判据 | 目录不完整时 |
@@ -241,30 +271,35 @@ test("供应商级开关：一键关闭与打开", async (t) => {
   // | `model.setAllDisabled`（模型级批量） | `catalog.complete` | **拒绝**、不落盘 |
   // | `provider.setEnabled`（供应商级） | `catalog.remoteError` | 读**失败**才拒绝；读到但为空**照常关闭** |
   //
-  // ☝️ 那张表是**有模型适配器**的供应商会走的分支。本用例选的 doubao 更靠前：
-  //    它 `channel: false` 且 `modelAdapters` 里没有它 ⇒ 上游在 `provider.setEnabled`
-  //    开头就判 `noModelLeg`，**根本不读模型目录**（硬去读只会抛
-  //    `no adapter registered for provider "doubao"`），只落「关闭意图」。
-  //    这正是上游 2026-11-15 修的那条「豆包无法关闭」：目录为空是**真实且正常**的
-  //    形态，不是故障，所以不能按「没有可关闭的模型」拒绝。
-  //
-  // ⚠️ 「空目录照常关闭」与「非模型渠道跳过模型腿」是**两条不同的腿**：
-  //    前者仍会读远端（读到 `[]` 才放行），后者连读都不读 —— 对 doubao 而言
-  //    模型这条腿根本不存在，不属于「读失败」。本用例锁定的是后者。
+  // 关闭被拒的候选（目录读失败 / 目录未就绪）换下一个：这两条拒绝分支
+  // 一个字节都不落盘，换候选是安全的。
+  const candidates = await pickToggleCandidates(app)
+  let picked
+  let closed
+  const failures = []
+  for (const id of candidates) {
+    const attempt = await rpc(app.origin, "provider.setEnabled", { provider: id, enabled: false })
+    if (attempt.ok) {
+      picked = id
+      closed = attempt
+      break
+    }
+    failures.push(`${id}: ${attempt.error?.message ?? JSON.stringify(attempt)}`)
+  }
+  assert.ok(picked, `候选渠道都无法关闭：${failures.join(" | ")}`)
 
-  const closed = await rpc(app.origin, "provider.setEnabled", { provider: "doubao", enabled: false })
-  assert.equal(closed.ok, true, `空目录供应商应能关闭：${JSON.stringify(closed)}`)
-  // 空目录 ⇒ 没有模型 id 要写黑名单（models=0 是正确结果），但「关闭意图」仍要落盘；
-  // 下面的 closed=true 断言验证的正是意图这条腿。
-  assert.equal(closed.value.models, 0, "空目录关闭时无模型可写，models 应为 0")
+  // 关闭 = 停用账号 + 把目录里的全部模型写进黑名单 + 落关闭意图。
+  assert.ok(closed.value.models > 0, `关闭应写入模型黑名单：${JSON.stringify(closed)}`)
 
-  // 关闭后状态自洽：显示已关闭（意图判据），而不是依赖「黑名单覆盖全部目录」。
-  const afterClose = await rpc(app.origin, "provider.status", { providers: ["doubao"] })
-  assert.equal(afterClose.value.statuses.doubao.closed, true, "应显示为整体关闭")
+  // 关闭后状态自洽：目录里的模型全部进黑名单 + 显示整体关闭。
+  const afterClose = await rpc(app.origin, "provider.status", { providers: [picked] })
+  const closedStatus = afterClose.value.statuses[picked]
+  assert.equal(closedStatus.models.disabled, closedStatus.models.total, "关闭后目录里的模型应全部进黑名单")
+  assert.equal(closedStatus.closed, true, "应显示为整体关闭")
 
   // 打开方向只清黑名单，应始终成功 —— 且把状态恢复为打开。
-  const opened = await rpc(app.origin, "provider.setEnabled", { provider: "doubao", enabled: true })
+  const opened = await rpc(app.origin, "provider.setEnabled", { provider: picked, enabled: true })
   assert.equal(opened.ok, true, `打开供应商应成功：${JSON.stringify(opened)}`)
-  const afterOpen = await rpc(app.origin, "provider.status", { providers: ["doubao"] })
-  assert.equal(afterOpen.value.statuses.doubao.closed, false, "应恢复为打开")
+  const afterOpen = await rpc(app.origin, "provider.status", { providers: [picked] })
+  assert.equal(afterOpen.value.statuses[picked].closed, false, "应恢复为打开")
 })
