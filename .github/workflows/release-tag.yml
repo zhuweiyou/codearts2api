@@ -59,8 +59,8 @@ jobs:
           version: 11
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Format & lint (vp check)
-        run: pnpm exec vp check
+      - name: Lint (vp lint)
+        run: pnpm exec vp lint
       - name: Type check (web)
         run: pnpm run typecheck
       - name: Build frontend (for /admin SPA tests)

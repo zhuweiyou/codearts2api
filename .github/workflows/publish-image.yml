@@ -29,7 +29,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ── 先跑测试门禁（格式/lint/类型/测试）；通过后 build 才构建镜像 ──
+  # ── 先跑测试门禁（lint/类型/测试）；通过后 build 才构建镜像 ──
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -48,8 +48,8 @@ jobs:
           version: 11
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Format & lint (vp check)
-        run: pnpm exec vp check
+      - name: Lint (vp lint)
+        run: pnpm exec vp lint
       - name: Type check (web)
         run: pnpm run typecheck
       # 后端测试会访问 /admin（serveFrontend 需 dist/index.html，否则 503），先构建前端

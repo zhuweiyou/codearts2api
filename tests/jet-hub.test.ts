@@ -249,10 +249,7 @@ async function pickToggleCandidates(app) {
       return item !== undefined && item.models.total > 0 && item.closed === false
     })
     .slice(0, 3)
-  assert.ok(
-    candidates.length > 0,
-    `应至少有一个「目录非空且未关闭」的渠道，实际注册：${ids.join(", ") || "(空)"}`,
-  )
+  assert.ok(candidates.length > 0, `应至少有一个「目录非空且未关闭」的渠道，实际注册：${ids.join(", ") || "(空)"}`)
   return candidates
 }
 

@@ -503,7 +503,7 @@ data URL → 重写请求体再转发，**不改上游**。必须带的防护：
 工作流：`.github/workflows/release-tag.yml`。**每次 `main` 有新提交**（合并 PR，
 或自动同步上游）都会：
 
-1. 先跑测试门禁（`vp check` / `typecheck` / `build:web` / `vp test`）—— **绿了才继续**；
+1. 先跑测试门禁（`vp lint` / `typecheck` / `build:web` / `vp test`）—— **绿了才继续**；
 2. 计算下一个版本号 `v0.1.<N+1>`（现有最大 `v0.1.N` 加一；首版 `v0.1.1`），给该提交打 tag 并推送；
 3. tag 触发 `publish-image.yml` 构建版本镜像（`:0.1.N` / `:0.1` / `:sha-…`）；
 4. 创建一条 GitHub Release：正文按「上个 tag → 本次」的提交生成 —— **PR 合并只取标题；自动升级那条会把它 commit body 里的「上游改动」逐条缩进展开**（效果同旧 CHANGELOG）。
